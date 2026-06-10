@@ -301,16 +301,17 @@ async function apiRequest(action, method = 'GET', data = null) {
     try {
         let url = state.apiUrl;
         let options = {
-            method: 'POST', // Use POST for both to bypass CORS restrictions on redirect
-            mode: 'cors',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            }
+            mode: 'cors'
         };
 
         if (method === 'GET') {
-            options.body = JSON.stringify({ action: action, _method: 'GET' });
+            options.method = 'GET';
+            url += (url.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action);
         } else {
+            options.method = 'POST';
+            options.headers = {
+                'Content-Type': 'text/plain;charset=utf-8',
+            };
             options.body = JSON.stringify({ action: action, ...data });
         }
 
