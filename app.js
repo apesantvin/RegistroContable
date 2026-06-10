@@ -1951,7 +1951,10 @@ function onGoogleLoggedIn() {
     if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.classList.add('hidden');
     if (DOM.btnGoogleLogout) DOM.btnGoogleLogout.classList.remove('hidden');
     if (DOM.googleAuthStatus) DOM.googleAuthStatus.classList.remove('hidden');
-    
+
+    // Force Google Direct tab to be visible so the selector shows up
+    if (DOM.tabConfigGoogleDirect) DOM.tabConfigGoogleDirect.click();
+
     // Close modal if open and redirect to configuracion screen to select spreadsheet
     if (DOM.modalApiSetup && !DOM.modalApiSetup.classList.contains('hidden')) {
         DOM.modalApiSetup.classList.add('hidden');
