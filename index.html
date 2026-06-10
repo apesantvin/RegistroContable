@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro Contable - Gestiona tus Finanzas en Google Sheets</title>
+    <meta name="description" content="Una aplicación web elegante, rápida y privada para controlar tus finanzas personales y presupuestos, conectada directamente a tu Google Sheets.">
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode landing-active">
+
+    <!-- ==========================================================================
+       LANDING PAGE SECTION
+       ========================================================================== -->
+    <div id="landing-page">
+        <!-- Landing Navbar -->
+        <header class="landing-header">
+            <div class="landing-logo">
+                <span class="logo-icon">💰</span>
+                <span class="logo-text">Registro<br><small>Contable</small></span>
+            </div>
+            <nav class="landing-nav">
+                <a href="#features" class="landing-nav-link">Características</a>
+                <a href="#how-it-works" class="landing-nav-link">Cómo Funciona</a>
+                <button class="btn btn-secondary" id="btn-landing-demo">Ver Demo En Vivo</button>
+                <button class="btn btn-primary" id="btn-landing-connect">Conectar Mi Sheets</button>
+            </nav>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-content">
+                <span class="hero-badge">🔒 100% Privado y Sin Servidores</span>
+                <h1 class="hero-title">Tus finanzas bajo control, en tu propio <span>Google Sheets</span></h1>
+                <p class="hero-description">Una interfaz web moderna y fluida para registrar tus gastos diarios, gestionar presupuestos por categorías y ver la evolución de tus ahorros en tiempo real.</p>
+                <div class="hero-actions">
+                    <button class="btn btn-primary btn-large" id="btn-hero-start">Comenzar Ahora</button>
+                    <button class="btn btn-secondary btn-large" id="btn-hero-demo">Iniciar Demo Interactiva</button>
+                </div>
+            </div>
+            
+            <!-- App mockup preview -->
+            <div class="hero-mockup-wrapper">
+                <div class="hero-mockup">
+                    <div class="mockup-header">
+                        <span class="mockup-dot red"></span>
+                        <span class="mockup-dot yellow"></span>
+                        <span class="mockup-dot green"></span>
+                        <div class="mockup-title">registro-contable-demo.html</div>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-sidebar">
+                            <div class="mockup-item active"></div>
+                            <div class="mockup-item"></div>
+                            <div class="mockup-item"></div>
+                        </div>
+                        <div class="mockup-content">
+                            <div class="mockup-grid">
+                                <div class="mockup-box card-blue"></div>
+                                <div class="mockup-box card-green"></div>
+                                <div class="mockup-box card-red"></div>
+                            </div>
+                            <div class="mockup-chart">
+                                <div class="mockup-bar" style="height: 40%"></div>
+                                <div class="mockup-bar" style="height: 65%"></div>
+                                <div class="mockup-bar" style="height: 50%"></div>
+                                <div class="mockup-bar" style="height: 85%"></div>
+                                <div class="mockup-bar" style="height: 95%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features-section" id="features">
+            <h2 class="section-title">¿Por qué usar Registro Contable?</h2>
+            <p class="section-subtitle">Diseñado para ser rápido, privado y completamente configurable.</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3 class="feature-title">Privacidad Absoluta</h3>
+                    <p class="feature-description">Tus datos financieros nunca pasan por servidores de terceros. Todo se almacena de forma segura en tu propia cuenta de Google Drive.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Carga Ultrarrápida</h3>
+                    <p class="feature-description">Construido como una Single Page Application optimizada, sin librerías pesadas, para que abras y registres tus gastos al instante.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">Gráficos Interactivos</h3>
+                    <p class="feature-description">Analiza visualmente la distribución de tus gastos por categorías y subcategorías, e inspecciona la evolución de tus ahorros mes a mes.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3 class="feature-title">Control de Presupuestos</h3>
+                    <p class="feature-description">Establece límites mensuales por categoría para no gastar de más, y calcula de forma automática cuánto dinero te sobra cada mes.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3 class="feature-title">Acciones Automatizadas</h3>
+                    <p class="feature-description">Transfiere de forma automática los presupuestos sobrantes de tus categorías principales directamente hacia tu categoría de Ahorro.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3 class="feature-title">Diseño Responsive</h3>
+                    <p class="feature-description">Accede cómodamente desde tu móvil, tablet u ordenador. La interfaz se adapta perfectamente a cualquier tamaño de pantalla.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="how-it-works-section" id="how-it-works">
+            <h2 class="section-title">Configuración en 3 Sencillos Pasos</h2>
+            
+            <div class="steps-container">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <h3 class="step-title">Prepara tu Google Sheet</h3>
+                    <p class="step-description">Crea una hoja de cálculo en tu Google Drive donde se guardarán todos los registros, transacciones y presupuestos.</p>
+                </div>
+                
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <h3 class="step-title">Despliega Google Apps Script</h3>
+                    <p class="step-description">Copia el script de sincronización en el editor de código del documento y despliégalo como una "Aplicación Web".</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <h3 class="step-title">Conéctate y Disfruta</h3>
+                    <p class="step-description">Pega la URL de tu aplicación desplegada de Apps Script en nuestra aplicación web y comenzará la sincronización.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="landing-footer">
+            <p>&copy; 2026 Registro Contable. Todos los derechos reservados. Aloja esta aplicación de forma gratuita en tu propio GitHub Pages.</p>
+        </footer>
+    </div>
+
+
+    <!-- ==========================================================================
+       APPLICATION INTERFACE SECTION (Hidden until demo/connect is clicked)
+       ========================================================================== -->
+    <div class="app-container hidden" id="app-interface">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">💰</span>
+                    <span class="logo-text">Registro<br><small>Contable</small></span>
+                </div>
+                <button class="mobile-close" id="btn-close-sidebar" aria-label="Cerrar menú">×</button>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" id="nav-dashboard">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#movimientos" class="nav-item" id="nav-movimientos">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Movimientos</span>
+                </a>
+                <a href="#nueva-transaccion" class="nav-item" id="nav-transaccion">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Nueva Transacción</span>
+                </a>
+                <a href="#configuracion" class="nav-item" id="nav-configuracion">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    <span>Configuración</span>
+                </a>
+                <a href="#landing" class="nav-item" id="nav-exit-app" style="margin-top: auto; border-top: 1px solid var(--border-color); border-radius: 0; padding-top: 20px;">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                    <span>Volver a Inicio</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="theme-toggle" id="btn-theme-toggle" aria-label="Cambiar tema">
+                    <span class="theme-icon">☀️</span>
+                    <span class="theme-text">Modo Claro</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Top App Bar -->
+            <header class="top-bar">
+                <div class="left-section">
+                    <button class="mobile-menu-btn" id="btn-menu-toggle" aria-label="Abrir menú">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <h1 class="page-title" id="bar-title">Dashboard</h1>
+                </div>
+                
+                <div class="right-section">
+                    <!-- Demo Mode Banner -->
+                    <div class="demo-badge hidden" id="demo-mode-badge">
+                        <span>MODO DEMOSTRACIÓN</span>
+                    </div>
+
+                    <!-- Global Year Selector -->
+                    <div class="year-filter-wrapper">
+                        <label for="global-year-select" class="sr-only">Año:</label>
+                        <select id="global-year-select" class="form-select year-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+                    
+                    <!-- API Status Indicator -->
+                    <div class="api-status-badge disconnected" id="api-status">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Desconectado</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Loading overlay -->
+            <div class="loading-overlay" id="loading-spinner">
+                <div class="spinner"></div>
+                <p>Sincronizando con Google Sheets...</p>
+            </div>
+
+            <!-- Content Container -->
+            <div class="content-container">
+
+                <!-- 1. DASHBOARD SCREEN -->
+                <section class="app-screen active" id="screen-dashboard">
+                    <!-- Metric Cards Grid -->
+                    <div class="metrics-grid">
+                        <div class="metric-card balance">
+                            <div class="card-icon">💳</div>
+                            <div class="card-info">
+                                <span class="card-label">Saldo Disponible</span>
+                                <h3 class="card-value" id="val-saldo-disponible">0.00 €</h3>
+                                <span class="card-meta">Total neto disponible</span>
+                            </div>
+                        </div>
+                        <div class="metric-card ingresos">
+                            <div class="card-icon">📈</div>
+                            <div class="card-info">
+                                <span class="card-label">Ingresos de este año</span>
+                                <h3 class="card-value" id="val-ingresos">0.00 €</h3>
+                                <span class="card-meta">Entradas acumuladas</span>
+                            </div>
+                        </div>
+                        <div class="metric-card gastos">
+                            <div class="card-icon">📉</div>
+                            <div class="card-info">
+                                <span class="card-label">Gastos de este año</span>
+                                <h3 class="card-value" id="val-gastos">0.00 €</h3>
+                                <span class="card-meta">Salidas acumuladas</span>
+                            </div>
+                        </div>
+                        <div class="metric-card ahorro">
+                            <div class="card-icon">💰</div>
+                            <div class="card-info">
+                                <span class="card-label">Ahorro Acumulado</span>
+                                <h3 class="card-value" id="val-ahorro">0.00 €</h3>
+                                <span class="card-meta">Guardado en categoría Ahorro</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="charts-grid">
+                        <div class="chart-card large">
+                            <h4 class="chart-title">Evolución de Ahorro Acumulado Mensual</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-ahorro"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card large">
+                            <h4 class="chart-title">Historial de Gasto Mensual</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-gasto-mensual"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h4 class="chart-title">Distribución por Categorías</h4>
+                            <div class="chart-wrapper donut-wrapper">
+                                <canvas id="chart-categorias"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h4 class="chart-title">Distribución por Subcategorías</h4>
+                            <div class="chart-wrapper donut-wrapper">
+                                <canvas id="chart-subcategorias"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. MOVIMIENTOS SCREEN -->
+                <section class="app-screen" id="screen-movimientos">
+                    <!-- Filters Panel Card -->
+                    <div class="card filter-card">
+                        <div class="filter-header">
+                            <div class="search-box">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="filter-search" placeholder="Buscar por concepto..." class="form-input search-input">
+                            </div>
+                            <button class="btn btn-secondary btn-icon-only" id="btn-toggle-filters" title="Más filtros">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Advanced collapsible filter panel -->
+                        <div class="filter-panel collapsed" id="advanced-filters">
+                            <div class="filter-row">
+                                <div class="filter-col">
+                                    <label for="filter-type">Tipo</label>
+                                    <select id="filter-type" class="form-select">
+                                        <option value="Todos">Todos</option>
+                                        <option value="GASTO">Gastos</option>
+                                        <option value="INGRESO">Ingresos</option>
+                                        <option value="TRANSFERENCIA">Transferencias</option>
+                                    </select>
+                                </div>
+                                <div class="filter-col">
+                                    <label for="filter-category">Categoría</label>
+                                    <select id="filter-category" class="form-select">
+                                        <option value="Todas">Todas</option>
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+                                <div class="filter-col">
+                                    <label for="filter-subcategory">Subcategoría</label>
+                                    <select id="filter-subcategory" class="form-select">
+                                        <option value="Todas">Todas</option>
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+                                <div class="filter-col">
+                                    <label for="filter-month">Mes</label>
+                                    <select id="filter-month" class="form-select">
+                                        <option value="Todos">Todos</option>
+                                        <option value="1">Enero</option>
+                                        <option value="2">Febrero</option>
+                                        <option value="3">Marzo</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Mayo</option>
+                                        <option value="6">Junio</option>
+                                        <option value="7">Julio</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Septiembre</option>
+                                        <option value="10">Octubre</option>
+                                        <option value="11">Noviembre</option>
+                                        <option value="12">Diciembre</option>
+                                    </select>
+                                </div>
+                                <div class="filter-col">
+                                    <button class="btn btn-secondary w-100" id="btn-clear-filters">Limpiar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Movements List Card -->
+                    <div class="card table-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="table-movimientos">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Categoría</th>
+                                        <th>Subcategoría</th>
+                                        <th>Concepto</th>
+                                        <th class="text-right">Importe</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="list-movimientos-body">
+                                    <!-- JS populated -->
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">No se han cargado movimientos.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="table-empty-state hidden" id="table-empty">
+                            <p>No se encontraron movimientos con los filtros seleccionados.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. NUEVA TRANSACCION SCREEN -->
+                <section class="app-screen" id="screen-nueva-transaccion">
+                    <div class="card form-card">
+                        <!-- Form Tabs -->
+                        <div class="form-tabs">
+                            <button class="form-tab-btn active" id="tab-btn-gasto" data-type="GASTO">Gastos</button>
+                            <button class="form-tab-btn" id="tab-btn-ingreso" data-type="INGRESO">Ingresos</button>
+                            <button class="form-tab-btn" id="tab-btn-transferencia" data-type="TRANSFERENCIA">Transferencias</button>
+                        </div>
+
+                        <!-- Main Form -->
+                        <form id="form-movimiento" class="modern-form">
+                            <!-- Hidden input for type -->
+                            <input type="hidden" id="in-tipo" value="GASTO">
+
+                            <div class="form-grid">
+                                
+                                <!-- Importe -->
+                                <div class="form-group large">
+                                    <label for="in-importe">Importe (€) <span class="required">*</span></label>
+                                    <div class="input-currency-wrapper">
+                                        <input type="number" id="in-importe" step="0.01" min="0.01" class="form-input currency-input" placeholder="0.00" required>
+                                        <span class="input-currency-symbol">€</span>
+                                    </div>
+                                </div>
+
+                                <!-- Concepto -->
+                                <div class="form-group large">
+                                    <label for="in-concepto">Concepto / Descripción <span class="required">*</span></label>
+                                    <input type="text" id="in-concepto" class="form-input" placeholder="Ej: Compra semanal mercadona" required>
+                                </div>
+
+                                <!-- Fecha -->
+                                <div class="form-group">
+                                    <label for="in-fecha">Fecha <span class="required">*</span></label>
+                                    <input type="date" id="in-fecha" class="form-input" required>
+                                </div>
+
+                                <!-- CONDITIONAL FIELDS: GASTO / INGRESO -->
+                                <div class="form-group cond-gasto-ingreso">
+                                    <label for="in-categoria">Categoría <span class="required">*</span></label>
+                                    <select id="in-categoria" class="form-select">
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+
+                                <div class="form-group cond-gasto">
+                                    <label for="in-subcategoria">Subcategoría</label>
+                                    <select id="in-subcategoria" class="form-select">
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+
+                                <!-- CONDITIONAL FIELDS: TRANSFERENCIA -->
+                                <div class="form-group cond-transferencia hidden">
+                                    <label for="in-categoria-origen">Categoría Origen <span class="required">*</span></label>
+                                    <select id="in-categoria-origen" class="form-select">
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+
+                                <div class="form-group cond-transferencia hidden">
+                                    <label for="in-categoria-destino">Categoría Destino <span class="required">*</span></label>
+                                    <select id="in-categoria-destino" class="form-select">
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary btn-large">Registrar Transacción</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- 4. CONFIGURACION SCREEN -->
+                <section class="app-screen" id="screen-configuracion">
+                    <div class="config-grid">
+                        
+                        <!-- API Connection Configuration -->
+                        <div class="card">
+                            <h3 class="card-subtitle">Conexión con Google Sheets</h3>
+                            <p class="card-description">Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos en la nube.</p>
+                            
+                            <form id="form-api-url" class="modern-form">
+                                <div class="form-group large">
+                                    <label for="in-api-url">URL de Google Apps Script Web App</label>
+                                    <input type="url" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                                </div>
+                                <div class="form-actions-inline">
+                                    <button type="submit" class="btn btn-primary">Guardar Enlace API</button>
+                                    <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Budget Editor -->
+                        <div class="card">
+                            <h3 class="card-subtitle">Modificar Presupuestos Mensuales</h3>
+                            <p class="card-description">Establece el límite de presupuesto para tus categorías principales para un mes y año específicos.</p>
+                            
+                            <form id="form-presupuesto" class="modern-form">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="in-presupuesto-cat">Categoría</label>
+                                        <select id="in-presupuesto-cat" class="form-select">
+                                            <!-- JS populated -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="in-presupuesto-mes">Mes</label>
+                                        <select id="in-presupuesto-mes" class="form-select">
+                                            <option value="1">Enero</option>
+                                            <option value="2">Febrero</option>
+                                            <option value="3">Marzo</option>
+                                            <option value="4">Abril</option>
+                                            <option value="5">Mayo</option>
+                                            <option value="6">Junio</option>
+                                            <option value="7">Julio</option>
+                                            <option value="8">Agosto</option>
+                                            <option value="9">Septiembre</option>
+                                            <option value="10">Octubre</option>
+                                            <option value="11">Noviembre</option>
+                                            <option value="12">Diciembre</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="in-presupuesto-ano">Año</label>
+                                        <select id="in-presupuesto-ano" class="form-select">
+                                            <!-- JS populated -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="in-presupuesto-importe">Nuevo Límite Presupuestario (€)</label>
+                                        <input type="number" id="in-presupuesto-importe" step="0.01" min="0" class="form-input" placeholder="0.00" required>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Guardar Presupuesto</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Category & Subcategory Creation -->
+                        <div class="card">
+                            <h3 class="card-subtitle">Añadir Categoría Principal</h3>
+                            
+                            <form id="form-crear-categoria" class="modern-form">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="in-new-cat-nombre">Nombre de Categoría</label>
+                                        <input type="text" id="in-new-cat-nombre" class="form-input" placeholder="Ej: Gimnasio" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="in-new-cat-icono">Icono (Emoji)</label>
+                                        <input type="text" id="in-new-cat-icono" class="form-input" placeholder="Ej: 💪" maxlength="2" required>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Crear Categoría</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="card">
+                            <h3 class="card-subtitle">Añadir Subcategoría</h3>
+                            
+                            <form id="form-crear-subcategoria" class="modern-form">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="in-new-sub-parent">Categoría Principal Padre</label>
+                                        <select id="in-new-sub-parent" class="form-select">
+                                            <!-- JS populated (except Ahorro ID 9) -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="in-new-sub-nombre">Nombre de Subcategoría</label>
+                                        <input type="text" id="in-new-sub-nombre" class="form-input" placeholder="Ej: Proteínas" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="in-new-sub-icono">Icono (Emoji)</label>
+                                        <input type="text" id="in-new-sub-icono" class="form-input" placeholder="Ej: 🥛" maxlength="2" required>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">Crear Subcategoría</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Automations Card -->
+                        <div class="card border-danger">
+                            <h3 class="card-subtitle text-danger">Acciones Automatizadas</h3>
+                            <p class="card-description">Realiza la transferencia automática de todos los saldos de presupuesto positivos sobrantes de tus categorías directamente hacia la categoría de Ahorro.</p>
+                            <div class="form-actions-inline">
+                                <button type="button" class="btn btn-danger" id="btn-transferir-sobrantes">Transferir Sobrantes de Mes a Ahorro</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- API URL Setup Modal (Shows if no API URL configured) -->
+    <div class="modal-backdrop hidden" id="api-modal-setup">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Conectar Google Sheets</h2>
+            </div>
+            <div class="modal-body">
+                <p>Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos.</p>
+                <p class="modal-alert">Esto conectará la aplicación de forma directa y privada con tu hoja de cálculo.</p>
+                
+                <form id="form-modal-api">
+                    <div class="form-group large">
+                        <label for="in-modal-api-url">URL de Apps Script Web App</label>
+                        <input type="url" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                    </div>
+                    <div class="form-actions-inline">
+                        <button type="submit" class="btn btn-primary btn-large w-100">Guardar y Sincronizar</button>
+                        <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- App JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
