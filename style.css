@@ -790,6 +790,19 @@ body:not(.dark-mode) .top-bar {
     box-shadow: 0 6px 18px rgba(239, 68, 68, 0.3);
 }
 
+.btn-danger-outline {
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444;
+    box-shadow: none;
+}
+
+.btn-danger-outline:hover {
+    background: rgba(239, 68, 68, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
 .btn-icon-only {
     padding: 10px;
     border-radius: 10px;

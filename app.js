@@ -159,6 +159,9 @@ const MESES_ABR = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep"
 /* ==========================================================================
    Initialization & Setup
    ========================================================================== */
+let isDomLoaded = false;
+let isGoogleInitialized = false;
+
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     initYearSelector();
@@ -167,8 +170,17 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileSidebar();
     initLandingActions();
     checkLocalCache();
-    initGoogleDirectSetup();
+    
+    isDomLoaded = true;
+    window.attemptGoogleInitialization();
 });
+
+window.attemptGoogleInitialization = function() {
+    if (isDomLoaded && window.isGoogleSdkLoaded && !isGoogleInitialized) {
+        isGoogleInitialized = true;
+        initGoogleDirectSetup();
+    }
+};
 
 // Theme Toggle Handler
 function initTheme() {
@@ -1044,6 +1056,13 @@ function initFormHandlers() {
             showToast('Error al probar conexión. Verifica tu URL', 'error');
         }
     });
+
+    // Clear all saved configuration (API URL, Google tokens, etc.)
+    const clearConfigHandler = () => clearAllConfig();
+    const btnClearDirect = document.getElementById('btn-clear-all-config-direct');
+    const btnClearScript = document.getElementById('btn-clear-all-config');
+    if (btnClearDirect) btnClearDirect.addEventListener('click', clearConfigHandler);
+    if (btnClearScript) btnClearScript.addEventListener('click', clearConfigHandler);
 
     // Modal API form submission
     DOM.formModalApi.addEventListener('submit', (e) => {
@@ -2322,4 +2341,37 @@ async function handleGoogleSheetsWriteAction(action, data) {
     }
 }
 
+/* ==========================================================================
+   Clear All Saved Configuration
+   ========================================================================== */
+function clearAllConfig() {
+    const confirmed = window.confirm(
+        'Seguro que quieres limpiar toda la configuracion guardada?\n\n' +
+        'Esto eliminara:\n' +
+        '  - La URL de Apps Script Web App\n' +
+        '  - Los tokens de Google (sesion)\n' +
+        '  - El ID de la hoja conectada\n' +
+        '  - El modo de conexion\n\n' +
+        'La pagina se recargara y podras configurarlo de nuevo.'
+    );
 
+    if (!confirmed) return;
+
+    const keysToRemove = [
+        'contable_api_url',
+        'contable_is_local_mode',
+        'contable_is_google_direct',
+        'contable_google_spreadsheet_id',
+        'contable_google_client_id',
+        'contable_google_token_expiry',
+        'google_access_token'
+    ];
+
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    showToast('Configuracion eliminada. Recargando...', 'success');
+
+    setTimeout(() => {
+        window.location.reload();
+    }, 1200);
+}

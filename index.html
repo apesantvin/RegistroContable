@@ -11,8 +11,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Pre-define GIS load callback to prevent race conditions -->
+    <script>
+        window.isGoogleSdkLoaded = false;
+        window.initGoogleOnLoad = function() {
+            window.isGoogleSdkLoaded = true;
+            if (typeof window.attemptGoogleInitialization === 'function') {
+                window.attemptGoogleInitialization();
+            }
+        };
+    </script>
     <!-- Google Identity Services (GIS) library for Google Login -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://accounts.google.com/gsi/client" onload="initGoogleOnLoad()" async defer></script>
     <!-- CSS Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -559,6 +569,10 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">¿Quieres cambiar de método de conexión o borrar los datos guardados?</p>
+                                    <button type="button" class="btn btn-danger-outline" id="btn-clear-all-config-direct">🗑️ Limpiar Configuración Guardada</button>
+                                </div>
                             </div>
 
                             <!-- Panel 2: Apps Script Web App -->
@@ -575,6 +589,10 @@
                                         <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
                                     </div>
                                 </form>
+                                <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">¿Quieres cambiar de método de conexión o borrar los datos guardados?</p>
+                                    <button type="button" class="btn btn-danger-outline" id="btn-clear-all-config">🗑️ Limpiar Configuración Guardada</button>
+                                </div>
                             </div>
                         </div>
 
