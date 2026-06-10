@@ -26,7 +26,8 @@ const state = {
         ahorro: null,
         comparativa: null,
         gastoMensual: null
-    }
+    },
+    index: null
 };
 
 // DOM Elements
@@ -158,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboardRangeFilter();
     initPaginationControls();
     checkLocalCache();
+    startBackgroundSync();
 });
 
 // Theme Toggle Handler
@@ -272,7 +274,8 @@ function getMovimientosInRange() {
     const { startDate, endDate } = getDashboardDateRange();
     return state.movimientos.filter(m => {
         try {
-            const d = new Date(m.fecha);
+            const parts = m.fecha.split('-');
+            const d = new Date(parts[0], parts[1] - 1, parts[2]);
             return d >= startDate && d <= endDate;
         } catch(e) { return false; }
     });
@@ -420,7 +423,7 @@ function handleRoute() {
 /* ==========================================================================
    Google Apps Script REST Client
    ========================================================================== */
-async function apiRequest(action, method = 'GET', data = null) {
+async function apiRequest(action, method = 'GET', data = null, isBackground = false) {
     if (state.isDemoMode) {
         return handleDemoWriteAction(action, data);
     }
@@ -430,11 +433,11 @@ async function apiRequest(action, method = 'GET', data = null) {
     }
 
     if (!state.apiUrl) {
-        showToast('Debes configurar la URL de la API.', 'error');
+        if (!isBackground) showToast('Debes configurar la URL de la API.', 'error');
         return null;
     }
 
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     try {
         let url = state.apiUrl;
         let options = { mode: 'cors' };
@@ -458,14 +461,14 @@ async function apiRequest(action, method = 'GET', data = null) {
         return json;
     } catch (error) {
         console.error('API Error:', error);
-        showToast('Error de conexión con la hoja de cálculo: ' + error.message, 'error');
+        if (!isBackground) showToast('Error de conexión con la hoja de cálculo: ' + error.message, 'error');
         return null;
     } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
     }
 }
 
-async function syncData() {
+async function syncData(isBackground = false) {
     if (state.isDemoMode) return;
     
     if (state.isLocalMode) {
@@ -479,15 +482,17 @@ async function syncData() {
 
     if (!state.apiUrl) return;
     
-    setLoading(true);
-    DOM.apiStatus.className = 'api-status-badge disconnected';
-    DOM.apiStatusText.textContent = 'Sincronizando...';
+    if (!isBackground) {
+        setLoading(true);
+        DOM.apiStatus.className = 'api-status-badge disconnected';
+        DOM.apiStatusText.textContent = 'Sincronizando...';
+    }
     
     try {
-        const catsData = await apiRequest('categorias', 'GET');
-        const subcatsData = await apiRequest('subcategorias', 'GET');
-        const presData = await apiRequest('presupuestos', 'GET');
-        const movsData = await apiRequest('movimientos', 'GET');
+        const catsData = await apiRequest('categorias', 'GET', null, isBackground);
+        const subcatsData = await apiRequest('subcategorias', 'GET', null, isBackground);
+        const presData = await apiRequest('presupuestos', 'GET', null, isBackground);
+        const movsData = await apiRequest('movimientos', 'GET', null, isBackground);
         
         if (catsData && subcatsData && presData && movsData) {
             state.categorias = catsData;
@@ -495,22 +500,34 @@ async function syncData() {
             state.presupuestos = presData;
             state.movimientos = movsData;
             
-            DOM.apiStatus.className = 'api-status-badge connected';
-            DOM.apiStatusText.textContent = 'Sincronizado';
+            // Recalculate index values in-memory silently
+            rebuildIndex();
             
-            populateSelectors();
-            updateDashboardMetrics();
-            recreateCharts();
-            applyMovementsFilters();
+            // Only update DOM components if NOT running in background
+            if (!isBackground) {
+                DOM.apiStatus.className = 'api-status-badge connected';
+                DOM.apiStatusText.textContent = 'Sincronizado';
+                
+                populateSelectors();
+                updateDashboardMetrics();
+                recreateCharts();
+                applyMovementsFilters();
+            }
         } else {
-            DOM.apiStatus.className = 'api-status-badge disconnected';
-            DOM.apiStatusText.textContent = 'Error de Sinc.';
+            if (!isBackground) {
+                DOM.apiStatus.className = 'api-status-badge disconnected';
+                DOM.apiStatusText.textContent = 'Error de Sinc.';
+            }
         }
     } catch (err) {
-        DOM.apiStatus.className = 'api-status-badge disconnected';
-        DOM.apiStatusText.textContent = 'Desconectado';
+        if (!isBackground) {
+            DOM.apiStatus.className = 'api-status-badge disconnected';
+            DOM.apiStatusText.textContent = 'Desconectado';
+        }
     } finally {
-        setLoading(false);
+        if (!isBackground) {
+            setLoading(false);
+        }
     }
 }
 
@@ -572,43 +589,179 @@ DOM.inCategoria.addEventListener('change', updateSubcategoryOptions);
 DOM.filterCategory.addEventListener('change', updateFilterSubcategoryOptions);
 
 /* ==========================================================================
-   Dashboard Metrics Computations
+   Data Caching, Indexing & Background Sync
    ========================================================================== */
-function updateDashboardMetrics() {
-    const year = state.selectedYear;
+function normalizeDateString(dateStr) {
+    if (!dateStr) return '';
     
-    let totalIngresos = 0;
-    let totalGastos = 0;
-    let totalAhorro = 0;
+    // If it's a simple YYYY-MM-DD, return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return dateStr;
+    }
+    
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        
+        // Format to local YYYY-MM-DD
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+function rebuildIndex() {
+    // Normalize all dates in-place to avoid timezone offsets shifting them back a day
+    state.movimientos.forEach(m => {
+        if (m.fecha) m.fecha = normalizeDateString(m.fecha);
+    });
+
+    state.index = {
+        allTime: {
+            totalNeto: 0,
+            totalAhorro: 0
+        },
+        byYear: {}
+    };
+
+    const initYear = (y) => {
+        if (!state.index.byYear[y]) {
+            state.index.byYear[y] = {
+                totalIngresos: 0,
+                totalGastos: 0,
+                byMonth: {},
+                byCategoryExpenses: {},
+                bySubcategoryExpenses: {}
+            };
+            for (let m = 1; m <= 12; m++) {
+                state.index.byYear[y].byMonth[m] = {
+                    ingresos: 0,
+                    gastos: 0,
+                    ahorroDelta: 0,
+                    byCategoryExpenses: {},
+                    bySubcategoryExpenses: {}
+                };
+            }
+        }
+    };
 
     state.movimientos.forEach(m => {
         try {
-            const yMov = parseInt(m.fecha.split('-')[0]);
             const val = parseFloat(m.importe) || 0;
-            
+            const parts = m.fecha.split('-');
+            const yMov = parseInt(parts[0]);
+            const mMov = parseInt(parts[1]);
+
+            if (isNaN(yMov) || isNaN(mMov) || mMov < 1 || mMov > 12) return;
+
+            initYear(yMov);
+
+            const yearData = state.index.byYear[yMov];
+            const monthData = yearData.byMonth[mMov];
+
             if (m.tipo === 'INGRESO') {
-                if (yMov === year) totalIngresos += val;
+                state.index.allTime.totalNeto += val;
+                yearData.totalIngresos += val;
+                monthData.ingresos += val;
             } else if (m.tipo === 'GASTO') {
-                if (yMov === year) totalGastos += val;
+                state.index.allTime.totalNeto -= val;
+                yearData.totalGastos += val;
+                monthData.gastos += val;
+
+                const catId = parseInt(m.categoriaId);
+                const subId = m.subcategoriaId ? parseInt(m.subcategoriaId) : null;
+
+                if (!isNaN(catId)) {
+                    yearData.byCategoryExpenses[catId] = (yearData.byCategoryExpenses[catId] || 0) + val;
+                    monthData.byCategoryExpenses[catId] = (monthData.byCategoryExpenses[catId] || 0) + val;
+                }
+                if (subId && !isNaN(subId)) {
+                    yearData.bySubcategoryExpenses[subId] = (yearData.bySubcategoryExpenses[subId] || 0) + val;
+                    monthData.bySubcategoryExpenses[subId] = (monthData.bySubcategoryExpenses[subId] || 0) + val;
+                }
             }
-            
+
+            // Ahorro delta
+            let ahorroDelta = 0;
             if (m.tipo === 'INGRESO' && parseInt(m.categoriaId) === 9) {
-                totalAhorro += val;
+                ahorroDelta += val;
             } else if (m.tipo === 'GASTO' && parseInt(m.categoriaId) === 9) {
-                totalAhorro -= val;
+                ahorroDelta -= val;
             } else if (m.tipo === 'TRANSFERENCIA') {
-                if (parseInt(m.categoriaOrigenId) === 9) totalAhorro -= val;
-                if (parseInt(m.categoriaDestinoId) === 9) totalAhorro += val;
+                if (parseInt(m.categoriaOrigenId) === 9) ahorroDelta -= val;
+                if (parseInt(m.categoriaDestinoId) === 9) ahorroDelta += val;
             }
-        } catch (e) {}
+
+            if (ahorroDelta !== 0) {
+                state.index.allTime.totalAhorro += ahorroDelta;
+                monthData.ahorroDelta += ahorroDelta;
+            }
+        } catch (e) {
+            console.error('Error indexing movement', m, e);
+        }
     });
 
-    let totalNeto = 0;
-    state.movimientos.forEach(m => {
-        const val = parseFloat(m.importe) || 0;
-        if (m.tipo === 'INGRESO') totalNeto += val;
-        if (m.tipo === 'GASTO') totalNeto -= val;
+    // Precompute cumulative savings per year and month
+    const sortedYears = Object.keys(state.index.byYear).map(Number).sort((a, b) => a - b);
+    let runningAhorro = 0;
+    sortedYears.forEach(y => {
+        state.index.byYear[y].ahorroAcumulado = new Array(12).fill(0);
+        for (let m = 1; m <= 12; m++) {
+            runningAhorro += state.index.byYear[y].byMonth[m].ahorroDelta;
+            state.index.byYear[y].ahorroAcumulado[m - 1] = runningAhorro;
+        }
     });
+}
+
+function getAhorroAcumuladoForYear(year) {
+    if (state.index.byYear[year] && state.index.byYear[year].ahorroAcumulado) {
+        return state.index.byYear[year].ahorroAcumulado;
+    }
+    const priorYears = Object.keys(state.index.byYear)
+        .map(Number)
+        .filter(y => y < year)
+        .sort((a, b) => b - a);
+    
+    let baseVal = 0;
+    if (priorYears.length > 0) {
+        const lastYear = priorYears[0];
+        if (state.index.byYear[lastYear].ahorroAcumulado) {
+            baseVal = state.index.byYear[lastYear].ahorroAcumulado[11];
+        }
+    }
+    return new Array(12).fill(baseVal);
+}
+
+let syncIntervalId = null;
+
+function startBackgroundSync() {
+    if (syncIntervalId) {
+        clearInterval(syncIntervalId);
+    }
+    syncIntervalId = setInterval(() => {
+        if (!state.isDemoMode && !state.isLocalMode && state.apiUrl) {
+            console.log('Background syncing data...');
+            syncData(true);
+        }
+    }, 60000); // Sync every 60 seconds
+}
+
+/* ==========================================================================
+   Dashboard Metrics Computations
+   ========================================================================== */
+function updateDashboardMetrics() {
+    rebuildIndex(); // Always rebuild the cached index first
+
+    const year = state.selectedYear;
+    const yearData = state.index.byYear[year];
+    
+    const totalIngresos = yearData ? yearData.totalIngresos : 0;
+    const totalGastos = yearData ? yearData.totalGastos : 0;
+    const totalAhorro = state.index.allTime.totalAhorro;
+    const totalNeto = state.index.allTime.totalNeto;
 
     DOM.valSaldoDisponible.textContent = formatCurrency(totalNeto);
     DOM.valIngresos.textContent = formatCurrency(totalIngresos);
@@ -659,14 +812,12 @@ function recreateCharts() {
 // 1. Ingresos vs Gastos
 function buildChartIngresosGastos(rangeMonths, rangeMovs, theme) {
     const labels = rangeMonths.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
-    const ingresos = rangeMonths.map(({ year, month }) =>
-        rangeMovs.filter(m => m.tipo === 'INGRESO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
-            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0)
-    );
-    const gastos = rangeMonths.map(({ year, month }) =>
-        rangeMovs.filter(m => m.tipo === 'GASTO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
-            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0)
-    );
+    const ingresos = rangeMonths.map(({ year, month }) => {
+        return state.index.byYear[year]?.byMonth[month]?.ingresos || 0;
+    });
+    const gastos = rangeMonths.map(({ year, month }) => {
+        return state.index.byYear[year]?.byMonth[month]?.gastos || 0;
+    });
 
     const ctx = document.getElementById('chart-ingresos-gastos').getContext('2d');
     state.charts.ingresosGastos = new Chart(ctx, {
@@ -708,14 +859,10 @@ function buildChartIngresosGastos(rangeMonths, rangeMovs, theme) {
 function buildChartBalanceNeto(rangeMonths, rangeMovs, theme) {
     const labels = rangeMonths.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
     const balances = rangeMonths.map(({ year, month }) => {
-        const ing = rangeMovs.filter(m => m.tipo === 'INGRESO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
-            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0);
-        const gas = rangeMovs.filter(m => m.tipo === 'GASTO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
-            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0);
-        return ing - gas;
+        const monthData = state.index.byYear[year]?.byMonth[month];
+        return monthData ? (monthData.ingresos - monthData.gastos) : 0;
     });
 
-    const pointColors = balances.map(b => b >= 0 ? '#10b981' : '#ef4444');
     const barColors = balances.map(b => b >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)');
 
     const ctx = document.getElementById('chart-balance-neto').getContext('2d');
@@ -752,18 +899,8 @@ function buildChartBalanceNeto(rangeMonths, rangeMovs, theme) {
 
 // 3. Doughnut - Categorias
 function buildChartCategorias(year, theme) {
-    const catExpenses = {};
+    const catExpenses = state.index.byYear[year]?.byCategoryExpenses || {};
     const catColors = ['#6366f1', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'];
-
-    state.movimientos.forEach(m => {
-        try {
-            const yMov = parseInt(m.fecha.split('-')[0]);
-            const val = parseFloat(m.importe) || 0;
-            if (m.tipo === 'GASTO' && yMov === year) {
-                catExpenses[m.categoriaId] = (catExpenses[m.categoriaId] || 0) + val;
-            }
-        } catch(e) {}
-    });
 
     const catLabels = [], catData = [];
     Object.keys(catExpenses).forEach(id => {
@@ -797,18 +934,8 @@ function buildChartCategorias(year, theme) {
 
 // 4. Doughnut - Subcategorias
 function buildChartSubcategorias(year, theme) {
-    const subExpenses = {};
+    const subExpenses = state.index.byYear[year]?.bySubcategoryExpenses || {};
     const subColors = ['#f43f5e', '#a855f7', '#06b6d4', '#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444'];
-
-    state.movimientos.forEach(m => {
-        try {
-            const yMov = parseInt(m.fecha.split('-')[0]);
-            const val = parseFloat(m.importe) || 0;
-            if (m.tipo === 'GASTO' && yMov === year && m.subcategoriaId) {
-                subExpenses[m.subcategoriaId] = (subExpenses[m.subcategoriaId] || 0) + val;
-            }
-        } catch(e) {}
-    });
 
     const subLabels = [], subData = [];
     Object.keys(subExpenses).forEach(id => {
@@ -851,12 +978,7 @@ function buildChartPresupuestoVsReal(year, theme) {
         return p ? parseFloat(p.presupuesto) : 0;
     });
     const gastado = activeCats.map(c => {
-        return state.movimientos
-            .filter(m => {
-                const parts = m.fecha.split('-');
-                return m.tipo === 'GASTO' && parseInt(parts[0]) === year && parseInt(parts[1]) === currentMonth && m.categoriaId === c.id;
-            })
-            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0);
+        return state.index.byYear[year]?.byMonth[currentMonth]?.byCategoryExpenses[c.id] || 0;
     });
 
     const ctx = document.getElementById('chart-presupuesto-vs-real').getContext('2d');
@@ -907,9 +1029,15 @@ function buildChartPresupuestoVsReal(year, theme) {
 // 6. Top Categorias de Gasto
 function buildChartTopCategorias(rangeMovs, theme) {
     const catExpenses = {};
-    rangeMovs.forEach(m => {
-        if (m.tipo === 'GASTO') {
-            catExpenses[m.categoriaId] = (catExpenses[m.categoriaId] || 0) + (parseFloat(m.importe) || 0);
+    const rangeMonths = getRangeMonths();
+
+    // Aggregate category expenses over the range months from the precomputed index
+    rangeMonths.forEach(({ year, month }) => {
+        const monthCats = state.index.byYear[year]?.byMonth[month]?.byCategoryExpenses;
+        if (monthCats) {
+            Object.entries(monthCats).forEach(([catId, val]) => {
+                catExpenses[catId] = (catExpenses[catId] || 0) + val;
+            });
         }
     });
 
@@ -950,27 +1078,7 @@ function buildChartTopCategorias(rangeMovs, theme) {
 
 // 7. Ahorro Acumulado
 function buildChartAhorro(year, theme) {
-    const monthlyAhorro = new Array(12).fill(0);
-    for (let mes = 1; mes <= 12; mes++) {
-        let acc = 0;
-        state.movimientos.forEach(m => {
-            try {
-                const parts = m.fecha.split('-');
-                const yMov = parseInt(parts[0]);
-                const mMov = parseInt(parts[1]);
-                const val = parseFloat(m.importe) || 0;
-                if (yMov < year || (yMov === year && mMov <= mes)) {
-                    if (m.tipo === 'INGRESO' && parseInt(m.categoriaId) === 9) acc += val;
-                    else if (m.tipo === 'GASTO' && parseInt(m.categoriaId) === 9) acc -= val;
-                    else if (m.tipo === 'TRANSFERENCIA') {
-                        if (parseInt(m.categoriaOrigenId) === 9) acc -= val;
-                        if (parseInt(m.categoriaDestinoId) === 9) acc += val;
-                    }
-                }
-            } catch(e) {}
-        });
-        monthlyAhorro[mes - 1] = acc;
-    }
+    const monthlyAhorro = getAhorroAcumuladoForYear(year);
 
     const ctx = document.getElementById('chart-ahorro').getContext('2d');
     state.charts.ahorro = new Chart(ctx, {
@@ -1010,18 +1118,10 @@ function buildChartComparativa(theme) {
     const monthlyGastosCur = new Array(12).fill(0);
     const monthlyGastosPrev = new Array(12).fill(0);
 
-    state.movimientos.forEach(m => {
-        try {
-            const parts = m.fecha.split('-');
-            const yMov = parseInt(parts[0]);
-            const mMov = parseInt(parts[1]);
-            const val = parseFloat(m.importe) || 0;
-            if (m.tipo === 'GASTO') {
-                if (yMov === year) monthlyGastosCur[mMov - 1] += val;
-                else if (yMov === prevYear) monthlyGastosPrev[mMov - 1] += val;
-            }
-        } catch(e) {}
-    });
+    for (let m = 1; m <= 12; m++) {
+        monthlyGastosCur[m - 1] = state.index.byYear[year]?.byMonth[m]?.gastos || 0;
+        monthlyGastosPrev[m - 1] = state.index.byYear[prevYear]?.byMonth[m]?.gastos || 0;
+    }
 
     const ctx = document.getElementById('chart-comparativa').getContext('2d');
     state.charts.comparativa = new Chart(ctx, {
@@ -1071,17 +1171,9 @@ function buildChartComparativa(theme) {
 // 9. Historial de Gasto Mensual
 function buildChartGastoMensual(year, theme) {
     const monthlyGastos = new Array(12).fill(0);
-    state.movimientos.forEach(m => {
-        try {
-            const parts = m.fecha.split('-');
-            const yMov = parseInt(parts[0]);
-            const mMov = parseInt(parts[1]);
-            const val = parseFloat(m.importe) || 0;
-            if (m.tipo === 'GASTO' && yMov === year) {
-                monthlyGastos[mMov - 1] += val;
-            }
-        } catch(e) {}
-    });
+    for (let m = 1; m <= 12; m++) {
+        monthlyGastos[m - 1] = state.index.byYear[year]?.byMonth[m]?.gastos || 0;
+    }
 
     const ctx = document.getElementById('chart-gasto-mensual').getContext('2d');
     state.charts.gastoMensual = new Chart(ctx, {
@@ -1484,17 +1576,7 @@ function initFormHandlers() {
             const budgetObj = state.presupuestos.find(p => p.categoriaId === catId && p.mes === currentMonth && p.año === currentYear);
             const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
             
-            let expenseVal = 0.0;
-            state.movimientos.forEach(m => {
-                try {
-                    const parts = m.fecha.split('-');
-                    const y = parseInt(parts[0]);
-                    const m_ = parseInt(parts[1]);
-                    if (m.tipo === 'GASTO' && m.categoriaId === catId && y === currentYear && m_ === currentMonth) {
-                        expenseVal += parseFloat(m.importe) || 0.0;
-                    }
-                } catch(e){}
-            });
+            const expenseVal = state.index.byYear[currentYear]?.byMonth[currentMonth]?.byCategoryExpenses[catId] || 0.0;
 
             const surplus = budgetVal - expenseVal;
             if (surplus > 0) {
@@ -1653,7 +1735,8 @@ function formatCurrency(val) {
 function formatDate(dateStr) {
     if (!dateStr) return '-';
     try {
-        const parts = dateStr.split('-');
+        const normalized = normalizeDateString(dateStr);
+        const parts = normalized.split('-');
         const y = parts[0];
         const m = parseInt(parts[1]) - 1;
         const d = parseInt(parts[2]);
