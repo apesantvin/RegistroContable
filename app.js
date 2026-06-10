@@ -2006,6 +2006,41 @@ function isGoogleTokenValid() {
     return state.googleAccessToken && state.googleTokenExpiry > Date.now();
 }
 
+
+async function refreshSheetsDropdown() {
+    if (!DOM.selectGoogleSheet) return;
+
+    DOM.selectGoogleSheet.innerHTML = '<option value="">-- Cargando hojas... --</option>';
+
+    try {
+        const files = await googleDriveListSpreadsheets();
+
+        if (files.length === 0) {
+            DOM.selectGoogleSheet.innerHTML = '<option value="">-- No hay hojas en Drive --</option>';
+            return;
+        }
+
+        DOM.selectGoogleSheet.innerHTML = '<option value="">-- Selecciona una hoja --</option>';
+        files.forEach(file => {
+            const option = document.createElement('option');
+            option.value = file.id;
+            option.textContent = file.name;
+            if (state.googleSpreadsheetId && file.id === state.googleSpreadsheetId) {
+                option.selected = true;
+            }
+            DOM.selectGoogleSheet.appendChild(option);
+        });
+
+        if (state.googleSpreadsheetId && DOM.inGoogleSheetId) {
+            DOM.inGoogleSheetId.value = state.googleSpreadsheetId;
+        }
+
+    } catch (e) {
+        console.error('Error cargando hojas de Drive:', e);
+        DOM.selectGoogleSheet.innerHTML = '<option value="">-- Error. Inicia sesion de nuevo --</option>';
+        showToast('Error al cargar hojas: ' + e.message, 'error');
+    }
+}
 async function refreshGoogleToken() {
     return new Promise((resolve, reject) => {
         if (isGoogleTokenValid()) {
