@@ -1069,6 +1069,40 @@ body:not(.dark-mode) .data-table tr:hover {
     border-bottom: none;
 }
 
+/* Action button styles in tables */
+.actions-cell {
+    display: inline-flex;
+    justify-content: center;
+    gap: 8px;
+    align-items: center;
+}
+.btn-action-edit, .btn-action-delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 6px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-action-edit:hover {
+    background-color: rgba(99, 102, 241, 0.15);
+    transform: scale(1.15);
+}
+.btn-action-delete:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+    transform: scale(1.15);
+}
+body:not(.dark-mode) .btn-action-edit:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+}
+body:not(.dark-mode) .btn-action-delete:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
 .text-right {
     text-align: right;
 }

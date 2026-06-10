@@ -236,6 +236,11 @@
                         📥
                     </button>
                     
+                    <!-- Manual Sync Button -->
+                    <button class="btn btn-secondary btn-icon-only" id="btn-manual-sync" title="Sincronizar Datos">
+                        🔄
+                    </button>
+                    
                     <!-- API Status Indicator -->
                     <div class="api-status-badge disconnected" id="api-status">
                         <span class="status-dot"></span>
@@ -454,12 +459,13 @@
                                         <th>Subcategoría</th>
                                         <th>Concepto</th>
                                         <th class="text-right">Importe</th>
+                                        <th class="text-center" style="width: 100px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="list-movimientos-body">
                                     <!-- JS populated -->
                                     <tr>
-                                        <td colspan="6" class="text-center py-4">No se han cargado movimientos.</td>
+                                        <td colspan="7" class="text-center py-4">No se han cargado movimientos.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -484,6 +490,11 @@
                 <!-- 3. NUEVA TRANSACCION SCREEN -->
                 <section class="app-screen" id="screen-nueva-transaccion">
                     <div class="card form-card">
+                        <!-- Edit Indicator -->
+                        <h3 class="card-subtitle hidden" id="edit-movimiento-indicator" style="margin-top: 0; margin-bottom: 20px; color: var(--color-indigo); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+                            <span>✏️ Editando Transacción</span> <span id="edit-movimiento-id-badge" class="val-badge transfer" style="font-size: 0.8rem;">#0</span>
+                        </h3>
+
                         <!-- Form Tabs -->
                         <div class="form-tabs">
                             <button class="form-tab-btn active" id="tab-btn-gasto" data-type="GASTO">Gastos</button>
@@ -551,8 +562,9 @@
 
                             </div>
 
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary btn-large">Registrar Transacción</button>
+                            <div class="form-actions" style="display: flex; gap: 12px;">
+                                <button type="submit" id="btn-submit-movimiento" class="btn btn-primary btn-large" style="flex: 2;">Registrar Transacción</button>
+                                <button type="button" id="btn-cancel-edit-movimiento" class="btn btn-secondary hidden" style="flex: 1; padding: 14px 20px;">Cancelar</button>
                             </div>
                         </form>
                     </div>
@@ -580,7 +592,7 @@
                             <form id="form-api-url" class="modern-form">
                                 <div class="form-group large">
                                     <label for="in-api-url">URL de Google Apps Script Web App</label>
-                                    <input type="url" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                                    <input type="text" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
                                 </div>
                                 <div class="form-actions-inline">
                                     <button type="submit" class="btn btn-primary">Guardar Enlace API</button>
@@ -712,7 +724,7 @@
                 <form id="form-modal-api">
                     <div class="form-group large">
                         <label for="in-modal-api-url">URL de Apps Script Web App</label>
-                        <input type="url" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                        <input type="text" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
                     </div>
                     <div class="form-actions-inline">
                         <button type="submit" class="btn btn-primary btn-large w-100">Guardar y Sincronizar</button>

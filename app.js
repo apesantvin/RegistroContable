@@ -27,7 +27,8 @@ const state = {
         comparativa: null,
         gastoMensual: null
     },
-    index: null
+    index: null,
+    editingMovimientoId: null
 };
 
 // DOM Elements
@@ -60,6 +61,7 @@ const DOM = {
     loadingSpinner: document.getElementById('loading-spinner'),
     barTitle: document.getElementById('bar-title'),
     btnDownloadLocal: document.getElementById('btn-download-local'),
+    btnManualSync: document.getElementById('btn-manual-sync'),
     
     // Screens
     screens: document.querySelectorAll('.app-screen'),
@@ -94,6 +96,10 @@ const DOM = {
     
     // Transaction screen
     formMovimiento: document.getElementById('form-movimiento'),
+    editIndicator: document.getElementById('edit-movimiento-indicator'),
+    editIdBadge: document.getElementById('edit-movimiento-id-badge'),
+    btnCancelEdit: document.getElementById('btn-cancel-edit-movimiento'),
+    btnSubmitMovimiento: document.getElementById('btn-submit-movimiento'),
     inTipo: document.getElementById('in-tipo'),
     inImporte: document.getElementById('in-importe'),
     inConcepto: document.getElementById('in-concepto'),
@@ -353,6 +359,11 @@ function initLandingActions() {
     
     DOM.btnDownloadLocal.addEventListener('click', downloadLocalDB);
     DOM.btnConfigDownloadLocal.addEventListener('click', downloadLocalDB);
+    
+    DOM.btnManualSync.addEventListener('click', () => {
+        showToast('Sincronizando datos...', 'info');
+        syncData();
+    });
 
     DOM.btnExitApp.addEventListener('click', (e) => {
         e.preventDefault();
@@ -393,6 +404,11 @@ function handleRoute() {
     if (document.body.classList.contains('landing-active')) {
         return;
     }
+
+    // If navigating away from transaction screen, reset edit mode silently
+    if (hash !== '#nueva-transaccion' && state.editingMovimientoId) {
+        cancelEditMovimiento(false);
+    }
     
     DOM.screens.forEach(screen => {
         if (`#${screen.id.replace('screen-', '')}` === hash) {
@@ -416,7 +432,9 @@ function handleRoute() {
     } else if (hash === '#movimientos') {
         applyMovementsFilters();
     } else if (hash === '#nueva-transaccion') {
-        DOM.inFecha.value = new Date().toISOString().split('T')[0];
+        if (!state.editingMovimientoId) {
+            DOM.inFecha.value = new Date().toISOString().split('T')[0];
+        }
     }
 }
 
@@ -1355,9 +1373,129 @@ function renderMovementsTable(movs) {
                 <td data-label="Subcategoría">${subcatText}</td>
                 <td data-label="Concepto">${m.concepto}</td>
                 <td data-label="Importe" class="${amountClass} text-right">${amountText}</td>
+                <td data-label="Acciones" class="text-center">
+                    <div class="actions-cell">
+                        <button class="btn-action-edit" data-id="${m.id}" title="Editar">✏️</button>
+                        <button class="btn-action-delete" data-id="${m.id}" title="Eliminar">🗑️</button>
+                    </div>
+                </td>
             </tr>
         `;
     }).join('');
+
+    // Bind event listeners to new row action buttons
+    DOM.listMovimientosBody.querySelectorAll('.btn-action-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            startEditMovimiento(id);
+        });
+    });
+
+    DOM.listMovimientosBody.querySelectorAll('.btn-action-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            deleteMovimiento(id);
+        });
+    });
+}
+
+function startEditMovimiento(id) {
+    const m = state.movimientos.find(mov => mov.id == id);
+    if (!m) return;
+
+    state.editingMovimientoId = id;
+
+    // Show indicator and Cancel button
+    DOM.editIndicator.classList.remove('hidden');
+    DOM.editIdBadge.textContent = `#${id}`;
+    DOM.btnCancelEdit.classList.remove('hidden');
+    DOM.btnSubmitMovimiento.textContent = 'Guardar Cambios';
+
+    // Switch tab active state and form type
+    DOM.inTipo.value = m.tipo;
+    DOM.formTabBtns.forEach(btn => {
+        if (btn.getAttribute('data-type') === m.tipo) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Populate common fields
+    DOM.inImporte.value = m.importe;
+    DOM.inConcepto.value = m.concepto;
+    DOM.inFecha.value = normalizeDateString(m.fecha);
+
+    // Show/hide fields based on type and populate category/subcategory
+    if (m.tipo === 'GASTO') {
+        DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
+        DOM.condGasto.forEach(el => el.classList.remove('hidden'));
+        DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
+
+        DOM.inCategoria.value = m.categoriaId;
+        updateSubcategoryOptions();
+        DOM.inSubcategoria.value = m.subcategoriaId || '';
+    } else if (m.tipo === 'INGRESO') {
+        DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
+        DOM.condGasto.forEach(el => el.classList.add('hidden'));
+        DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
+
+        DOM.inCategoria.value = m.categoriaId;
+    } else if (m.tipo === 'TRANSFERENCIA') {
+        DOM.condGastoIngreso.forEach(el => el.classList.add('hidden'));
+        DOM.condGasto.forEach(el => el.classList.add('hidden'));
+        DOM.condTransferencia.forEach(el => el.classList.remove('hidden'));
+
+        DOM.inCatOrigen.value = m.categoriaOrigenId;
+        DOM.inCatDestino.value = m.categoriaDestinoId;
+    }
+
+    // Redirect to form screen
+    window.location.hash = '#nueva-transaccion';
+}
+
+function cancelEditMovimiento(shouldRedirect = true) {
+    state.editingMovimientoId = null;
+    
+    // Reset indicators and buttons
+    DOM.editIndicator.classList.add('hidden');
+    DOM.btnCancelEdit.classList.add('hidden');
+    DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
+    
+    DOM.formMovimiento.reset();
+    DOM.inFecha.value = new Date().toISOString().split('T')[0];
+    
+    // Set type back to default GASTO
+    DOM.inTipo.value = 'GASTO';
+    DOM.formTabBtns.forEach(b => {
+        if (b.getAttribute('data-type') === 'GASTO') b.classList.add('active');
+        else b.classList.remove('active');
+    });
+    DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
+    DOM.condGasto.forEach(el => el.classList.remove('hidden'));
+    DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
+
+    if (shouldRedirect) {
+        window.location.hash = '#movimientos';
+    }
+}
+
+async function deleteMovimiento(id) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar la transacción #${id}?`)) return;
+    
+    const res = await apiRequest('eliminar_movimiento', 'POST', { id });
+    if (res && res.success) {
+        showToast('Transacción eliminada con éxito', 'success');
+        if (!state.isDemoMode && !state.isLocalMode) {
+            await syncData();
+        } else {
+            updateDashboardMetrics();
+            recreateCharts();
+            applyMovementsFilters();
+        }
+    }
 }
 
 DOM.filterSearch.addEventListener('input', applyMovementsFilters);
@@ -1409,6 +1547,8 @@ function initFormHandlers() {
         });
     });
 
+    DOM.btnCancelEdit.addEventListener('click', () => cancelEditMovimiento(true));
+
     DOM.formMovimiento.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -1425,13 +1565,22 @@ function initFormHandlers() {
         let payload = { tipo, importe, concepto, fecha };
         let action = 'movimiento';
 
+        if (state.editingMovimientoId) {
+            payload.id = state.editingMovimientoId;
+            action = 'editar_movimiento';
+        }
+
         if (tipo === 'GASTO') {
             payload.categoriaId = parseInt(DOM.inCategoria.value);
             payload.subcategoriaId = DOM.inSubcategoria.value ? parseInt(DOM.inSubcategoria.value) : '';
         } else if (tipo === 'INGRESO') {
             payload.categoriaId = parseInt(DOM.inCategoria.value);
         } else if (tipo === 'TRANSFERENCIA') {
-            action = 'transferencia';
+            if (state.editingMovimientoId) {
+                action = 'editar_transferencia';
+            } else {
+                action = 'transferencia';
+            }
             payload.categoriaOrigenId = parseInt(DOM.inCatOrigen.value);
             payload.categoriaDestinoId = parseInt(DOM.inCatDestino.value);
             if (payload.categoriaOrigenId === payload.categoriaDestinoId) {
@@ -1442,14 +1591,17 @@ function initFormHandlers() {
 
         const res = await apiRequest(action, 'POST', payload);
         if (res && res.success) {
-            showToast('Transacción registrada con éxito', 'success');
-            DOM.formMovimiento.reset();
-            DOM.inFecha.value = new Date().toISOString().split('T')[0];
-            if (!state.isDemoMode) {
+            showToast(state.editingMovimientoId ? 'Transacción modificada con éxito' : 'Transacción registrada con éxito', 'success');
+            
+            const wasEditing = !!state.editingMovimientoId;
+            cancelEditMovimiento(wasEditing);
+            
+            if (!state.isDemoMode && !state.isLocalMode) {
                 await syncData();
             } else {
                 updateDashboardMetrics();
                 recreateCharts();
+                applyMovementsFilters();
             }
         }
     });
@@ -1700,6 +1852,23 @@ function handleDemoWriteAction(action, data) {
         const id = state.movimientos.length + 1;
         state.movimientos.push({ id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
         return { success: true, id, message: "Transferencia insertada (Demo)" };
+    } else if (action === 'editar_movimiento') {
+        const idx = state.movimientos.findIndex(m => m.id == data.id);
+        if (idx !== -1) {
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe };
+            return { success: true, message: "Movimiento editado (Demo)" };
+        }
+        return { success: false, error: 'Movimiento no encontrado' };
+    } else if (action === 'editar_transferencia') {
+        const idx = state.movimientos.findIndex(m => m.id == data.id);
+        if (idx !== -1) {
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe };
+            return { success: true, message: "Transferencia editada (Demo)" };
+        }
+        return { success: false, error: 'Transferencia no encontrada' };
+    } else if (action === 'eliminar_movimiento') {
+        state.movimientos = state.movimientos.filter(m => m.id != data.id);
+        return { success: true, message: "Movimiento eliminado (Demo)" };
     } else if (action === 'presupuesto') {
         const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
         if (p) { p.presupuesto = data.presupuesto; }
@@ -1843,6 +2012,12 @@ function checkLocalCache() {
                 console.error('Error loading cached local DB', e);
             }
         }
+    } else if (state.apiUrl) {
+        state.isLocalMode = false;
+        state.isDemoMode = false;
+        showAppInterface();
+        updateLocalModeUI();
+        syncData();
     }
 }
 
@@ -2005,6 +2180,26 @@ function handleLocalWriteAction(action, data) {
         state.movimientos.push({ id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
         saveLocalCache();
         return { success: true, id, message: "Transferencia guardada localmente" };
+    } else if (action === 'editar_movimiento') {
+        const idx = state.movimientos.findIndex(m => m.id == data.id);
+        if (idx !== -1) {
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe };
+            saveLocalCache();
+            return { success: true, message: "Movimiento editado localmente" };
+        }
+        return { success: false, error: 'Movimiento no encontrado' };
+    } else if (action === 'editar_transferencia') {
+        const idx = state.movimientos.findIndex(m => m.id == data.id);
+        if (idx !== -1) {
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe };
+            saveLocalCache();
+            return { success: true, message: "Transferencia editada localmente" };
+        }
+        return { success: false, error: 'Transferencia no encontrada' };
+    } else if (action === 'eliminar_movimiento') {
+        state.movimientos = state.movimientos.filter(m => m.id != data.id);
+        saveLocalCache();
+        return { success: true, message: "Movimiento eliminado localmente" };
     } else if (action === 'presupuesto') {
         const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
         if (p) { p.presupuesto = data.presupuesto; }
