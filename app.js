@@ -7,6 +7,7 @@ const state = {
     apiUrl: localStorage.getItem('contable_api_url') || '',
     selectedYear: new Date().getFullYear(),
     isDemoMode: false,
+    isLocalMode: false,
     categorias: [],
     subcategorias: [],
     presupuestos: [],
@@ -25,10 +26,13 @@ const DOM = {
     appInterface: document.getElementById('app-interface'),
     
     // Landing Buttons
+    btnLandingLocal: document.getElementById('btn-landing-local'),
     btnLandingDemo: document.getElementById('btn-landing-demo'),
     btnLandingConnect: document.getElementById('btn-landing-connect'),
     btnHeroStart: document.getElementById('btn-hero-start'),
+    btnHeroLocal: document.getElementById('btn-hero-local'),
     btnHeroDemo: document.getElementById('btn-hero-demo'),
+    inputLocalFile: document.getElementById('input-local-file'),
     
     // App Navigation
     sidebar: document.getElementById('app-sidebar'),
@@ -45,6 +49,7 @@ const DOM = {
     yearSelect: document.getElementById('global-year-select'),
     loadingSpinner: document.getElementById('loading-spinner'),
     barTitle: document.getElementById('bar-title'),
+    btnDownloadLocal: document.getElementById('btn-download-local'),
     
     // Screens
     screens: document.querySelectorAll('.app-screen'),
@@ -88,6 +93,10 @@ const DOM = {
     inApiUrl: document.getElementById('in-api-url'),
     btnTestApi: document.getElementById('btn-test-api'),
     
+    cardConfigLocal: document.getElementById('card-config-local'),
+    btnConfigDownloadLocal: document.getElementById('btn-config-download-local'),
+    btnConfigLoadLocal: document.getElementById('btn-config-load-local'),
+    
     formPresupuesto: document.getElementById('form-presupuesto'),
     inPresupuestoCat: document.getElementById('in-presupuesto-cat'),
     inPresupuestoMes: document.getElementById('in-presupuesto-mes'),
@@ -109,7 +118,9 @@ const DOM = {
     modalApiSetup: document.getElementById('api-modal-setup'),
     formModalApi: document.getElementById('form-modal-api'),
     inModalApiUrl: document.getElementById('in-modal-api-url'),
-    btnModalCancel: document.getElementById('btn-modal-cancel')
+    btnModalCancel: document.getElementById('btn-modal-cancel'),
+    btnModalLoadLocal: document.getElementById('btn-modal-load-local'),
+    btnModalNewLocal: document.getElementById('btn-modal-new-local')
 };
 
 // Months translation list
@@ -125,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFormHandlers();
     initMobileSidebar();
     initLandingActions();
+    checkLocalCache();
 });
 
 // Theme Toggle Handler
@@ -181,8 +193,11 @@ function initLandingActions() {
     // Demo Triggers
     const triggerDemo = () => {
         state.isDemoMode = true;
+        state.isLocalMode = false;
+        localStorage.setItem('contable_is_local_mode', 'false');
         loadDemoData();
         showAppInterface();
+        updateLocalModeUI();
         DOM.demoModeBadge.classList.remove('hidden');
         DOM.apiStatus.className = 'api-status-badge connected';
         DOM.apiStatusText.textContent = 'Modo Demo';
@@ -199,7 +214,10 @@ function initLandingActions() {
         
         if (state.apiUrl) {
             DOM.inApiUrl.value = state.apiUrl;
+            state.isLocalMode = false;
+            localStorage.setItem('contable_is_local_mode', 'false');
             showAppInterface();
+            updateLocalModeUI();
             syncData();
         } else {
             DOM.modalApiSetup.classList.remove('hidden');
@@ -212,6 +230,25 @@ function initLandingActions() {
     DOM.btnModalCancel.addEventListener('click', () => {
         DOM.modalApiSetup.classList.add('hidden');
     });
+
+    // Local file triggers
+    const triggerSelectLocalFile = () => {
+        DOM.inputLocalFile.click();
+    };
+    
+    DOM.btnLandingLocal.addEventListener('click', triggerSelectLocalFile);
+    DOM.btnHeroLocal.addEventListener('click', triggerSelectLocalFile);
+    DOM.btnModalLoadLocal.addEventListener('click', triggerSelectLocalFile);
+    DOM.btnConfigLoadLocal.addEventListener('click', triggerSelectLocalFile);
+    
+    DOM.inputLocalFile.addEventListener('change', (e) => {
+        handleLocalFileSelected(e.target.files[0]);
+    });
+    
+    DOM.btnModalNewLocal.addEventListener('click', createNewLocalDB);
+    
+    DOM.btnDownloadLocal.addEventListener('click', downloadLocalDB);
+    DOM.btnConfigDownloadLocal.addEventListener('click', downloadLocalDB);
 
     // Exit Application back to Landing page
     DOM.btnExitApp.addEventListener('click', (e) => {
@@ -292,6 +329,11 @@ async function apiRequest(action, method = 'GET', data = null) {
         return handleDemoWriteAction(action, data);
     }
 
+    if (state.isLocalMode) {
+        // Intercept writes/updates to local DB
+        return handleLocalWriteAction(action, data);
+    }
+
     if (!state.apiUrl) {
         showToast('Debes configurar la URL de la API.', 'error');
         return null;
@@ -335,6 +377,16 @@ async function apiRequest(action, method = 'GET', data = null) {
 // Full sync from Google Sheets
 async function syncData() {
     if (state.isDemoMode) return;
+    
+    if (state.isLocalMode) {
+        populateSelectors();
+        updateDashboardMetrics();
+        recreateCharts();
+        applyMovementsFilters();
+        saveLocalCache();
+        return;
+    }
+
     if (!state.apiUrl) return;
     
     setLoading(true);
@@ -905,8 +957,11 @@ function initFormHandlers() {
             localStorage.setItem('contable_api_url', url);
             state.apiUrl = url;
             state.isDemoMode = false;
+            state.isLocalMode = false;
+            localStorage.setItem('contable_is_local_mode', 'false');
             DOM.demoModeBadge.classList.add('hidden');
-            showToast('Enlace de la API guardado', 'success');
+            updateLocalModeUI();
+            showToast('Enlace de la API guardado. Conectando...', 'success');
             syncData();
         }
     });
@@ -935,9 +990,12 @@ function initFormHandlers() {
             localStorage.setItem('contable_api_url', url);
             state.apiUrl = url;
             state.isDemoMode = false;
+            state.isLocalMode = false;
+            localStorage.setItem('contable_is_local_mode', 'false');
             DOM.inApiUrl.value = url;
             DOM.modalApiSetup.classList.add('hidden');
             showAppInterface();
+            updateLocalModeUI();
             showToast('Conectado con éxito', 'success');
             syncData();
         }
@@ -1339,3 +1397,281 @@ function showToast(message, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
+
+/* ==========================================================================
+   Local Offline Mode Helper Functions
+   ========================================================================== */
+
+function checkLocalCache() {
+    const wasLocal = localStorage.getItem('contable_is_local_mode') === 'true';
+    if (wasLocal) {
+        const cached = localStorage.getItem('contable_local_db');
+        if (cached) {
+            try {
+                const data = JSON.parse(cached);
+                if (validateLocalJSON(data)) {
+                    state.isLocalMode = true;
+                    state.isDemoMode = false;
+                    state.categorias = data.categorias;
+                    state.subcategorias = data.subcategorias || [];
+                    state.presupuestos = data.presupuestos || [];
+                    state.movimientos = data.movimientos || [];
+                    
+                    showAppInterface();
+                    updateLocalModeUI();
+                    
+                    populateSelectors();
+                    updateDashboardMetrics();
+                    recreateCharts();
+                    applyMovementsFilters();
+                    
+                    showToast('Base de datos local cargada desde la caché del navegador', 'success');
+                }
+            } catch (e) {
+                console.error('Error loading cached local DB', e);
+            }
+        }
+    }
+}
+
+function validateLocalJSON(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (!Array.isArray(data.categorias)) return false;
+    
+    if (!Array.isArray(data.subcategorias)) data.subcategorias = [];
+    if (!Array.isArray(data.presupuestos)) data.presupuestos = [];
+    if (!Array.isArray(data.movimientos)) data.movimientos = [];
+    
+    return true;
+}
+
+function handleLocalFileSelected(file) {
+    if (!file) return;
+    if (!file.name.endsWith('.json')) {
+        showToast('Por favor, selecciona un archivo .json válido', 'error');
+        return;
+    }
+    
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        setLoading(false);
+        try {
+            const data = JSON.parse(e.target.result);
+            if (validateLocalJSON(data)) {
+                state.isLocalMode = true;
+                state.isDemoMode = false;
+                localStorage.setItem('contable_is_local_mode', 'true');
+                
+                state.categorias = data.categorias;
+                state.subcategorias = data.subcategorias || [];
+                state.presupuestos = data.presupuestos || [];
+                state.movimientos = data.movimientos || [];
+                
+                saveLocalCache();
+                
+                DOM.modalApiSetup.classList.add('hidden');
+                
+                showAppInterface();
+                updateLocalModeUI();
+                
+                populateSelectors();
+                updateDashboardMetrics();
+                recreateCharts();
+                applyMovementsFilters();
+                
+                showToast(`Base de datos '${file.name}' cargada correctamente`, 'success');
+            } else {
+                showToast('El archivo JSON no tiene una estructura compatible', 'error');
+            }
+        } catch (error) {
+            console.error(error);
+            showToast('Error al parsear el archivo JSON', 'error');
+        }
+    };
+    reader.onerror = () => {
+        setLoading(false);
+        showToast('Error al leer el archivo', 'error');
+    };
+    reader.readAsText(file);
+}
+
+function createNewLocalDB() {
+    if (state.movimientos.length > 0 || state.categorias.length > 0) {
+        if (!confirm('¿Estás seguro de que deseas crear una nueva base de datos local? Esto sobrescribirá los datos actuales en memoria.')) {
+            return;
+        }
+    }
+    
+    state.isLocalMode = true;
+    state.isDemoMode = false;
+    localStorage.setItem('contable_is_local_mode', 'true');
+    
+    loadDefaultLocalStructure();
+    saveLocalCache();
+    
+    DOM.modalApiSetup.classList.add('hidden');
+    showAppInterface();
+    updateLocalModeUI();
+    
+    populateSelectors();
+    updateDashboardMetrics();
+    recreateCharts();
+    applyMovementsFilters();
+    
+    showToast('Nueva base de datos local creada con categorías por defecto', 'success');
+}
+
+function loadDefaultLocalStructure() {
+    state.categorias = [
+        { id: 1, nombre: "Agua", icono: "💧", activa: true },
+        { id: 2, nombre: "Basuras", icono: "🗑️", activa: true },
+        { id: 3, nombre: "Internet", icono: "🛜", activa: true },
+        { id: 4, nombre: "Gas", icono: "💨", activa: true },
+        { id: 5, nombre: "Luz", icono: "💡", activa: true },
+        { id: 6, nombre: "Compra", icono: "🛒", activa: true },
+        { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
+        { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
+        { id: 9, nombre: "Ahorro", icono: "💰", activa: true }
+    ];
+
+    state.subcategorias = [
+        { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },
+        { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true },
+        { id: 3, categoriaId: 6, nombre: "Compra Limpieza", icono: "🧹", activa: true },
+        { id: 4, categoriaId: 6, nombre: "Compra Baño", icono: "🛁", activa: true },
+        { id: 5, categoriaId: 6, nombre: "Compra Medicina", icono: "💊", activa: true },
+        { id: 6, categoriaId: 8, nombre: "Electrodomésticos", icono: "📺", activa: true },
+        { id: 7, categoriaId: 8, nombre: "Bricolaje", icono: "🪛", activa: true },
+        { id: 8, categoriaId: 8, nombre: "Evento", icono: "🥳", activa: true },
+        { id: 9, categoriaId: 8, nombre: "Ocio", icono: "🎉", activa: true },
+        { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true }
+    ];
+
+    state.presupuestos = [];
+    state.movimientos = [];
+}
+
+function saveLocalCache() {
+    localStorage.setItem('contable_local_db', JSON.stringify({
+        categorias: state.categorias,
+        subcategorias: state.subcategorias,
+        presupuestos: state.presupuestos,
+        movimientos: state.movimientos
+    }));
+}
+
+function updateLocalModeUI() {
+    if (state.isLocalMode) {
+        DOM.apiStatus.className = 'api-status-badge local-mode';
+        DOM.apiStatusText.textContent = 'Archivo Local';
+        DOM.btnDownloadLocal.classList.remove('hidden');
+        DOM.cardConfigLocal.classList.remove('hidden');
+    } else {
+        DOM.btnDownloadLocal.classList.add('hidden');
+        DOM.cardConfigLocal.classList.add('hidden');
+        
+        if (state.isDemoMode) {
+            DOM.apiStatus.className = 'api-status-badge connected';
+            DOM.apiStatusText.textContent = 'Modo Demo';
+        } else if (state.apiUrl) {
+            DOM.apiStatus.className = 'api-status-badge connected';
+            DOM.apiStatusText.textContent = 'Sincronizado';
+        } else {
+            DOM.apiStatus.className = 'api-status-badge disconnected';
+            DOM.apiStatusText.textContent = 'Desconectado';
+        }
+    }
+}
+
+function downloadLocalDB() {
+    const dbData = {
+        categorias: state.categorias,
+        subcategorias: state.subcategorias,
+        presupuestos: state.presupuestos,
+        movimientos: state.movimientos
+    };
+    const blob = new Blob([JSON.stringify(dbData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `registro_contable_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Copia de seguridad descargada con éxito', 'success');
+}
+
+function handleLocalWriteAction(action, data) {
+    if (action === 'movimiento') {
+        const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
+        state.movimientos.push({
+            id: id,
+            fecha: data.fecha,
+            tipo: data.tipo,
+            categoriaId: data.categoriaId || "",
+            subcategoriaId: data.subcategoriaId || "",
+            categoriaOrigenId: "",
+            categoriaDestinoId: "",
+            concepto: data.concepto,
+            importe: data.importe
+        });
+        saveLocalCache();
+        return { success: true, id: id, message: "Movimiento guardado localmente" };
+    } else if (action === 'transferencia') {
+        const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
+        state.movimientos.push({
+            id: id,
+            fecha: data.fecha,
+            tipo: "TRANSFERENCIA",
+            categoriaId: "",
+            subcategoriaId: "",
+            categoriaOrigenId: data.categoriaOrigenId,
+            categoriaDestinoId: data.categoriaDestinoId,
+            concepto: data.concepto,
+            importe: data.importe
+        });
+        saveLocalCache();
+        return { success: true, id: id, message: "Transferencia guardada localmente" };
+    } else if (action === 'presupuesto') {
+        const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
+        if (p) {
+            p.presupuesto = data.presupuesto;
+        } else {
+            const id = state.presupuestos.length > 0 ? Math.max(...state.presupuestos.map(pr => pr.id)) + 1 : 1;
+            state.presupuestos.push({
+                id: id,
+                categoriaId: data.categoriaId,
+                mes: data.mes,
+                año: data.año,
+                presupuesto: data.presupuesto
+            });
+        }
+        saveLocalCache();
+        return { success: true, message: "Presupuesto guardado localmente" };
+    } else if (action === 'categoria') {
+        const id = state.categorias.length > 0 ? Math.max(...state.categorias.map(c => c.id)) + 1 : 1;
+        state.categorias.push({
+            id: id,
+            nombre: data.nombre,
+            icono: data.icono,
+            activa: true
+        });
+        saveLocalCache();
+        return { success: true, id: id, message: "Categoría creada localmente" };
+    } else if (action === 'subcategoria') {
+        const id = state.subcategorias.length > 0 ? Math.max(...state.subcategorias.map(s => s.id)) + 1 : 1;
+        state.subcategorias.push({
+            id: id,
+            categoriaId: data.categoriaId,
+            nombre: data.nombre,
+            icono: data.icono,
+            activa: true
+        });
+        saveLocalCache();
+        return { success: true, id: id, message: "Subcategoría creada localmente" };
+    }
+    return { success: false, error: 'Acción local no contemplada' };
+}
+

@@ -1484,3 +1484,64 @@ body:not(.dark-mode) .loading-overlay {
         font-size: 36px;
     }
 }
+
+/* ==========================================================================
+   Soporte de Archivo Local (.json)
+   ========================================================================== */
+.api-status-badge.local-mode {
+    background-color: rgba(99, 102, 241, 0.15);
+    color: var(--primary);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.modal-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+.modal-divider::before, .modal-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+.modal-divider::before {
+    margin-right: 15px;
+}
+.modal-divider::after {
+    margin-left: 15px;
+}
+
+.local-setup-box {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: background-color var(--transition-fast);
+}
+body:not(.dark-mode) .local-setup-box {
+    background-color: rgba(0, 0, 0, 0.01);
+}
+.local-setup-box:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: var(--primary);
+}
+body:not(.dark-mode) .local-setup-box:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+.local-setup-box h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.local-setup-box p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+

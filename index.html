@@ -29,6 +29,7 @@
             <nav class="landing-nav">
                 <a href="#features" class="landing-nav-link">Características</a>
                 <a href="#how-it-works" class="landing-nav-link">Cómo Funciona</a>
+                <button class="btn btn-secondary" id="btn-landing-local">Cargar JSON</button>
                 <button class="btn btn-secondary" id="btn-landing-demo">Ver Demo En Vivo</button>
                 <button class="btn btn-primary" id="btn-landing-connect">Conectar Mi Sheets</button>
             </nav>
@@ -42,6 +43,7 @@
                 <p class="hero-description">Una interfaz web moderna y fluida para registrar tus gastos diarios, gestionar presupuestos por categorías y ver la evolución de tus ahorros en tiempo real.</p>
                 <div class="hero-actions">
                     <button class="btn btn-primary btn-large" id="btn-hero-start">Comenzar Ahora</button>
+                    <button class="btn btn-secondary btn-large" id="btn-hero-local">📁 Cargar Archivo Local (.json)</button>
                     <button class="btn btn-secondary btn-large" id="btn-hero-demo">Iniciar Demo Interactiva</button>
                 </div>
             </div>
@@ -227,6 +229,11 @@
                             <!-- JS populated -->
                         </select>
                     </div>
+                    
+                    <!-- Download JSON Button -->
+                    <button class="btn btn-secondary btn-icon-only hidden" id="btn-download-local" title="Descargar Base de Datos (.json)">
+                        📥
+                    </button>
                     
                     <!-- API Status Indicator -->
                     <div class="api-status-badge disconnected" id="api-status">
@@ -486,6 +493,16 @@
                 <section class="app-screen" id="screen-configuracion">
                     <div class="config-grid">
                         
+                        <!-- Local File Configuration -->
+                        <div class="card hidden" id="card-config-local">
+                            <h3 class="card-subtitle">Base de Datos Local (.json)</h3>
+                            <p class="card-description">Estás trabajando con un archivo local offline. Los cambios se guardan automáticamente en la caché del navegador, pero debes descargar tu archivo para guardarlos de forma permanente.</p>
+                            <div class="form-actions-inline">
+                                <button type="button" class="btn btn-primary" id="btn-config-download-local">Descargar Base de Datos (.json)</button>
+                                <button type="button" class="btn btn-secondary" id="btn-config-load-local">📂 Cargar Otro Archivo</button>
+                            </div>
+                        </div>
+
                         <!-- API Connection Configuration -->
                         <div class="card">
                             <h3 class="card-subtitle">Conexión con Google Sheets</h3>
@@ -633,9 +650,23 @@
                         <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
                     </div>
                 </form>
+                
+                <div class="modal-divider"><span>O BIEN</span></div>
+                
+                <div class="local-setup-box">
+                    <h3>Usar Archivo Local JSON (Offline)</h3>
+                    <p>Trabaja directamente en el navegador de forma 100% privada. Los cambios se guardan localmente y puedes descargar tu copia de seguridad.</p>
+                    <div class="form-actions-inline" style="margin-top: 15px; gap: 10px;">
+                        <button type="button" class="btn btn-secondary w-100" id="btn-modal-load-local">📂 Cargar Archivo</button>
+                        <button type="button" class="btn btn-secondary w-100" id="btn-modal-new-local">✨ Nueva Base</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Hidden input for local JSON file loading -->
+    <input type="file" id="input-local-file" accept=".json" style="display: none;">
 
     <!-- App JavaScript -->
     <script src="app.js"></script>
