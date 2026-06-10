@@ -1545,3 +1545,16 @@ body:not(.dark-mode) .local-setup-box:hover {
     line-height: 1.5;
 }
 
+/* Connection Tabs & OAuth UI Elements */
+.config-tabs button.active-tab, .modal-tabs button.active-tab {
+    background-color: var(--primary) !important;
+    color: #ffffff !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 4px 12px var(--primary-glow) !important;
+}
+
+.auth-status-box {
+    animation: fade-in var(--transition-normal);
+}
+
+

@@ -5,6 +5,11 @@
 // App State
 const state = {
     apiUrl: localStorage.getItem('contable_api_url') || '',
+    isGoogleDirectMode: localStorage.getItem('contable_is_google_direct') === 'true',
+    googleClientId: localStorage.getItem('contable_google_client_id') || '',
+    googleSpreadsheetId: localStorage.getItem('contable_google_spreadsheet_id') || '',
+    googleAccessToken: localStorage.getItem('contable_google_access_token') || '',
+    googleTokenExpiry: parseInt(localStorage.getItem('contable_google_token_expiry')) || 0,
     selectedYear: new Date().getFullYear(),
     isDemoMode: false,
     isLocalMode: false,
@@ -94,6 +99,21 @@ const DOM = {
     inApiUrl: document.getElementById('in-api-url'),
     btnTestApi: document.getElementById('btn-test-api'),
     
+    // Config screen new Google Direct elements
+    tabConfigGoogleDirect: document.getElementById('tab-config-google-direct'),
+    tabConfigGoogleScript: document.getElementById('tab-config-google-script'),
+    panelConfigGoogleDirect: document.getElementById('panel-config-google-direct'),
+    panelConfigGoogleScript: document.getElementById('panel-config-google-script'),
+    inGoogleClientId: document.getElementById('in-google-client-id'),
+    btnGoogleLogin: document.getElementById('btn-google-login'),
+    btnGoogleLogout: document.getElementById('btn-google-logout'),
+    googleAuthStatus: document.getElementById('google-auth-status'),
+    selectGoogleSheet: document.getElementById('select-google-sheet'),
+    btnRefreshSheets: document.getElementById('btn-refresh-sheets'),
+    inGoogleSheetId: document.getElementById('in-google-sheet-id'),
+    btnSelectSheetConfirm: document.getElementById('btn-select-sheet-confirm'),
+    btnCreateGoogleSheet: document.getElementById('btn-create-google-sheet'),
+    
     cardConfigLocal: document.getElementById('card-config-local'),
     btnConfigDownloadLocal: document.getElementById('btn-config-download-local'),
     btnConfigLoadLocal: document.getElementById('btn-config-load-local'),
@@ -121,7 +141,16 @@ const DOM = {
     inModalApiUrl: document.getElementById('in-modal-api-url'),
     btnModalCancel: document.getElementById('btn-modal-cancel'),
     btnModalLoadLocal: document.getElementById('btn-modal-load-local'),
-    btnModalNewLocal: document.getElementById('btn-modal-new-local')
+    btnModalNewLocal: document.getElementById('btn-modal-new-local'),
+    
+    // New Modal Google elements
+    modalTabGoogleDirect: document.getElementById('modal-tab-google-direct'),
+    modalTabGoogleScript: document.getElementById('modal-tab-google-script'),
+    modalPanelGoogleDirect: document.getElementById('modal-panel-google-direct'),
+    modalPanelGoogleScript: document.getElementById('modal-panel-google-script'),
+    inModalGoogleClientId: document.getElementById('in-modal-google-client-id'),
+    btnModalGoogleLogin: document.getElementById('btn-modal-google-login'),
+    btnModalCancelDirect: document.getElementById('btn-modal-cancel-direct')
 };
 
 // Months translation list
@@ -138,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileSidebar();
     initLandingActions();
     checkLocalCache();
+    initGoogleDirectSetup();
 });
 
 // Theme Toggle Handler
@@ -213,8 +243,8 @@ function initLandingActions() {
         state.isDemoMode = false;
         DOM.demoModeBadge.classList.add('hidden');
         
-        if (state.apiUrl) {
-            DOM.inApiUrl.value = state.apiUrl;
+        if (state.apiUrl || (state.isGoogleDirectMode && state.googleSpreadsheetId)) {
+            if (state.apiUrl && DOM.inApiUrl) DOM.inApiUrl.value = state.apiUrl;
             state.isLocalMode = false;
             localStorage.setItem('contable_is_local_mode', 'false');
             showAppInterface();
@@ -255,7 +285,7 @@ function initLandingActions() {
         state.isDemoMode = false;
         DOM.demoModeBadge.classList.add('hidden');
         
-        if (state.apiUrl) {
+        if (state.apiUrl || (state.isGoogleDirectMode && state.googleSpreadsheetId)) {
             state.isLocalMode = false;
             localStorage.setItem('contable_is_local_mode', 'false');
             updateLocalModeUI();
@@ -263,7 +293,7 @@ function initLandingActions() {
             showToast('Sincronizando con Google Sheets...', 'info');
         } else {
             DOM.modalApiSetup.classList.remove('hidden');
-            showToast('Por favor, configura la URL de la API de Google Sheets.', 'warning');
+            showToast('Por favor, configura la conexión de Google Sheets.', 'warning');
         }
     });
 
@@ -351,6 +381,22 @@ async function apiRequest(action, method = 'GET', data = null) {
         return handleLocalWriteAction(action, data);
     }
 
+    if (state.isGoogleDirectMode) {
+        if (method === 'GET') {
+            setLoading(true);
+            try {
+                return await googleSheetsReadSheet(action);
+            } catch (err) {
+                console.error(err);
+                showToast('Error al leer de Google Sheets: ' + err.message, 'error');
+                return null;
+            } finally {
+                setLoading(false);
+            }
+        }
+        return await handleGoogleSheetsWriteAction(action, data);
+    }
+
     if (!state.apiUrl) {
         showToast('Debes configurar la URL de la API.', 'error');
         return null;
@@ -404,7 +450,7 @@ async function syncData() {
         return;
     }
 
-    if (!state.apiUrl) return;
+    if (!state.apiUrl && !state.isGoogleDirectMode) return;
     
     setLoading(true);
     DOM.apiStatus.className = 'api-status-badge disconnected';
@@ -423,7 +469,7 @@ async function syncData() {
             state.movimientos = movsData;
             
             DOM.apiStatus.className = 'api-status-badge connected';
-            DOM.apiStatusText.textContent = 'Sincronizado';
+            DOM.apiStatusText.textContent = state.isGoogleDirectMode ? 'Google Sheets' : 'Sincronizado';
             
             populateSelectors();
             updateDashboardMetrics();
@@ -1691,4 +1737,581 @@ function handleLocalWriteAction(action, data) {
     }
     return { success: false, error: 'Acción local no contemplada' };
 }
+
+/* ==========================================================================
+   Google Sheets Direct API Integration (OAuth 2.0 Client-side)
+   ========================================================================== */
+let tokenClient = null;
+
+function initGoogleDirectSetup() {
+    initGoogleAuth();
+    initGoogleTabs();
+    initGoogleEventListeners();
+    
+    // Fill client ID input if saved
+    if (state.googleClientId) {
+        if (DOM.inGoogleClientId) DOM.inGoogleClientId.value = state.googleClientId;
+        if (DOM.inModalGoogleClientId) DOM.inModalGoogleClientId.value = state.googleClientId;
+    }
+    
+    // Check if we are already logged in
+    if (isGoogleTokenValid()) {
+        onGoogleLoggedIn();
+    } else {
+        // Clear expired tokens
+        state.googleAccessToken = '';
+        state.googleTokenExpiry = 0;
+        localStorage.removeItem('google_access_token');
+        localStorage.removeItem('contable_google_token_expiry');
+    }
+}
+
+function initGoogleAuth() {
+    const clientId = state.googleClientId;
+    if (!clientId) return;
+    
+    try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly',
+            callback: (tokenResponse) => {
+                if (tokenResponse && tokenResponse.access_token) {
+                    state.googleAccessToken = tokenResponse.access_token;
+                    const expiry = Date.now() + (tokenResponse.expires_in || 3600) * 1000;
+                    state.googleTokenExpiry = expiry;
+                    
+                    localStorage.setItem('google_access_token', state.googleAccessToken);
+                    localStorage.setItem('contable_google_token_expiry', expiry);
+                    
+                    showToast('Sesión de Google iniciada con éxito', 'success');
+                    onGoogleLoggedIn();
+                }
+            },
+        });
+    } catch (e) {
+        console.error('Error al inicializar Google Auth:', e);
+    }
+}
+
+function initGoogleTabs() {
+    // Config Screen Tabs
+    if (DOM.tabConfigGoogleDirect && DOM.tabConfigGoogleScript) {
+        DOM.tabConfigGoogleDirect.addEventListener('click', () => {
+            DOM.tabConfigGoogleDirect.classList.add('active-tab');
+            DOM.tabConfigGoogleScript.classList.remove('active-tab');
+            DOM.panelConfigGoogleDirect.classList.remove('hidden');
+            DOM.panelConfigGoogleScript.classList.add('hidden');
+        });
+        DOM.tabConfigGoogleScript.addEventListener('click', () => {
+            DOM.tabConfigGoogleScript.classList.add('active-tab');
+            DOM.tabConfigGoogleDirect.classList.remove('active-tab');
+            DOM.panelConfigGoogleScript.classList.remove('hidden');
+            DOM.panelConfigGoogleDirect.classList.add('hidden');
+        });
+    }
+
+    // Modal Tabs
+    if (DOM.modalTabGoogleDirect && DOM.modalTabGoogleScript) {
+        DOM.modalTabGoogleDirect.addEventListener('click', () => {
+            DOM.modalTabGoogleDirect.classList.add('active-tab');
+            DOM.modalTabGoogleScript.classList.remove('active-tab');
+            DOM.modalPanelGoogleDirect.classList.remove('hidden');
+            DOM.modalPanelGoogleScript.classList.add('hidden');
+        });
+        DOM.modalTabGoogleScript.addEventListener('click', () => {
+            DOM.modalTabGoogleScript.classList.add('active-tab');
+            DOM.modalTabGoogleDirect.classList.remove('active-tab');
+            DOM.modalPanelGoogleScript.classList.remove('hidden');
+            DOM.modalPanelGoogleDirect.classList.add('hidden');
+        });
+    }
+
+    // Toggle active state classes based on saved mode
+    if (state.isGoogleDirectMode) {
+        if (DOM.tabConfigGoogleDirect) DOM.tabConfigGoogleDirect.click();
+        if (DOM.modalTabGoogleDirect) DOM.modalTabGoogleDirect.click();
+    } else {
+        if (DOM.tabConfigGoogleScript) DOM.tabConfigGoogleScript.click();
+        if (DOM.modalTabGoogleScript) DOM.modalTabGoogleScript.click();
+    }
+}
+
+function initGoogleEventListeners() {
+    // Client ID Inputs sync
+    if (DOM.inGoogleClientId && DOM.inModalGoogleClientId) {
+        DOM.inGoogleClientId.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            state.googleClientId = val;
+            localStorage.setItem('contable_google_client_id', val);
+            DOM.inModalGoogleClientId.value = val;
+            initGoogleAuth();
+        });
+        DOM.inModalGoogleClientId.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            state.googleClientId = val;
+            localStorage.setItem('contable_google_client_id', val);
+            DOM.inGoogleClientId.value = val;
+            initGoogleAuth();
+        });
+    }
+
+    // Login triggers
+    const triggerLogin = async () => {
+        if (!state.googleClientId) {
+            showToast('Por favor, introduce tu Google Client ID primero.', 'error');
+            return;
+        }
+        try {
+            setLoading(true);
+            await refreshGoogleToken();
+        } catch (e) {
+            showToast('Error al iniciar sesión: ' + e.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.addEventListener('click', triggerLogin);
+    if (DOM.btnModalGoogleLogin) DOM.btnModalGoogleLogin.addEventListener('click', triggerLogin);
+
+    // Logout trigger
+    if (DOM.btnGoogleLogout) {
+        DOM.btnGoogleLogout.addEventListener('click', () => {
+            logoutWithGoogle();
+        });
+    }
+
+    // Refresh sheets list
+    if (DOM.btnRefreshSheets) {
+        DOM.btnRefreshSheets.addEventListener('click', () => {
+            refreshSheetsDropdown();
+        });
+    }
+
+    // Select sheet confirm
+    if (DOM.btnSelectSheetConfirm) {
+        DOM.btnSelectSheetConfirm.addEventListener('click', () => {
+            const sheetId = DOM.selectGoogleSheet.value;
+            if (!sheetId) {
+                showToast('Selecciona una hoja de cálculo primero', 'error');
+                return;
+            }
+            saveActiveGoogleSheet(sheetId);
+        });
+    }
+
+    // Create new sheet trigger
+    if (DOM.btnCreateGoogleSheet) {
+        DOM.btnCreateGoogleSheet.addEventListener('click', async () => {
+            try {
+                setLoading(true);
+                showToast('Creando nueva hoja "Registro Contable" en Drive...', 'info');
+                const sheetId = await googleSheetsCreateSpreadsheet();
+                showToast('Hoja de cálculo creada con éxito', 'success');
+                await refreshSheetsDropdown();
+                saveActiveGoogleSheet(sheetId);
+            } catch (e) {
+                console.error(e);
+                showToast('Error al crear hoja: ' + e.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+    }
+
+    // Cancel direct login inside Modal
+    if (DOM.btnModalCancelDirect) {
+        DOM.btnModalCancelDirect.addEventListener('click', () => {
+            DOM.modalApiSetup.classList.add('hidden');
+        });
+    }
+}
+
+function onGoogleLoggedIn() {
+    if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.classList.add('hidden');
+    if (DOM.btnGoogleLogout) DOM.btnGoogleLogout.classList.remove('hidden');
+    if (DOM.googleAuthStatus) DOM.googleAuthStatus.classList.remove('hidden');
+    
+    refreshSheetsDropdown();
+}
+
+function logoutWithGoogle() {
+    state.googleAccessToken = '';
+    state.googleTokenExpiry = 0;
+    state.isGoogleDirectMode = false;
+    
+    localStorage.removeItem('google_access_token');
+    localStorage.removeItem('contable_google_token_expiry');
+    localStorage.removeItem('contable_is_google_direct');
+    
+    if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.classList.remove('hidden');
+    if (DOM.btnGoogleLogout) DOM.btnGoogleLogout.classList.add('hidden');
+    if (DOM.googleAuthStatus) DOM.googleAuthStatus.classList.add('hidden');
+    
+    showToast('Sesión de Google cerrada', 'info');
+    
+    // Switch to local mode or disconnect status
+    state.isLocalMode = true;
+    localStorage.setItem('contable_is_local_mode', 'true');
+    updateLocalModeUI();
+    syncData();
+}
+
+function saveActiveGoogleSheet(sheetId) {
+    state.googleSpreadsheetId = sheetId;
+    localStorage.setItem('contable_google_spreadsheet_id', sheetId);
+    if (DOM.inGoogleSheetId) DOM.inGoogleSheetId.value = sheetId;
+    
+    state.isGoogleDirectMode = true;
+    state.isLocalMode = false;
+    state.isDemoMode = false;
+    localStorage.setItem('contable_is_google_direct', 'true');
+    localStorage.setItem('contable_is_local_mode', 'false');
+    
+    DOM.modalApiSetup.classList.add('hidden');
+    
+    updateLocalModeUI();
+    syncData();
+    showToast('Conectado a Google Sheet. Cargando datos...', 'success');
+}
+
+function isGoogleTokenValid() {
+    return state.googleAccessToken && state.googleTokenExpiry > Date.now();
+}
+
+async function refreshGoogleToken() {
+    return new Promise((resolve, reject) => {
+        if (isGoogleTokenValid()) {
+            resolve(state.googleAccessToken);
+            return;
+        }
+        
+        if (!tokenClient) {
+            initGoogleAuth();
+        }
+        
+        if (!tokenClient) {
+            reject(new Error('Google Auth no inicializado. Introduce tu Client ID.'));
+            return;
+        }
+
+        const oldCallback = tokenClient.callback;
+        tokenClient.callback = (response) => {
+            tokenClient.callback = oldCallback; // Restore callback
+            if (response && response.access_token) {
+                state.googleAccessToken = response.access_token;
+                const expiry = Date.now() + (response.expires_in || 3600) * 1000;
+                state.googleTokenExpiry = expiry;
+                localStorage.setItem('google_access_token', state.googleAccessToken);
+                localStorage.setItem('contable_google_token_expiry', expiry);
+                resolve(response.access_token);
+            } else {
+                reject(new Error('Inicio de sesión de Google cancelado o fallido.'));
+            }
+        };
+        
+        tokenClient.requestAccessToken();
+    });
+}
+
+/* API REST Client for Google Sheets */
+async function googleDriveListSpreadsheets() {
+    if (!isGoogleTokenValid()) {
+        await refreshGoogleToken();
+    }
+    const url = "https://www.googleapis.com/drive/v3/files?q=mimeType%3D'application/vnd.google-apps.spreadsheet'+and+trashed%3Dfalse&fields=files(id,name)&orderBy=name";
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
+    });
+    if (!res.ok) {
+        throw new Error('Error al listar hojas de cálculo');
+    }
+    const data = await res.json();
+    return data.files || [];
+}
+
+async function googleSheetsCreateSpreadsheet() {
+    if (!isGoogleTokenValid()) {
+        await refreshGoogleToken();
+    }
+    
+    // Create new sheet
+    const url = "https://sheets.googleapis.com/v4/spreadsheets";
+    const body = {
+        properties: {
+            title: "Registro Contable"
+        },
+        sheets: [
+            { properties: { title: "categorias" } },
+            { properties: { title: "subcategorias" } },
+            { properties: { title: "presupuestos" } },
+            { properties: { title: "movimientos" } }
+        ]
+    };
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${state.googleAccessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || 'Error al crear la hoja');
+    }
+
+    const sheetData = await res.json();
+    const spreadsheetId = sheetData.spreadsheetId;
+
+    // Initialize sheets headers and default categories / subcategories
+    const defaultCats = [
+        [1, "Agua", "💧", "TRUE"],
+        [2, "Basuras", "🗑️", "TRUE"],
+        [3, "Internet", "🛜", "TRUE"],
+        [4, "Gas", "💨", "TRUE"],
+        [5, "Luz", "💡", "TRUE"],
+        [6, "Compra", "🛒", "TRUE"],
+        [7, "Restaurantes", "🍽️", "TRUE"],
+        [8, "Otras Compras", "🛍️", "TRUE"],
+        [9, "Ahorro", "💰", "TRUE"]
+    ];
+
+    const defaultSubs = [
+        [1, 6, "Compra Comida", "🛒", "TRUE"],
+        [2, 6, "Compra Cocina", "🍳", "TRUE"],
+        [3, 6, "Compra Limpieza", "🧹", "TRUE"],
+        [4, 6, "Compra Baño", "🛁", "TRUE"],
+        [5, 6, "Compra Medicina", "💊", "TRUE"],
+        [6, 8, "Electrodomésticos", "📺", "TRUE"],
+        [7, 8, "Bricolaje", "🪛", "TRUE"],
+        [8, 8, "Evento", "🥳", "TRUE"],
+        [9, 8, "Ocio", "🎉", "TRUE"],
+        [10, 8, "Otro", "💵", "TRUE"]
+    ];
+
+    const initUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
+    const initBody = {
+        valueInputOption: "USER_ENTERED",
+        data: [
+            { range: "categorias!A1:D10", values: [["id", "nombre", "icono", "activa"], ...defaultCats] },
+            { range: "subcategorias!A1:E11", values: [["id", "categoriaId", "nombre", "icono", "activa"], ...defaultSubs] },
+            { range: "presupuestos!A1:E1", values: [["id", "categoriaId", "mes", "año", "presupuesto"]] },
+            { range: "movimientos!A1:I1", values: [["id", "fecha", "tipo", "categoriaId", "subcategoriaId", "categoriaOrigenId", "categoriaDestinoId", "concepto", "importe"]] }
+        ]
+    };
+
+    const initRes = await fetch(initUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${state.googleAccessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(initBody)
+    });
+
+    if (!initRes.ok) {
+        console.warn('No se pudieron inicializar las cabeceras por defecto automáticamente');
+    }
+
+    return spreadsheetId;
+}
+
+async function googleSheetsReadSheet(sheetName) {
+    if (!isGoogleTokenValid()) {
+        await refreshGoogleToken();
+    }
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.googleSpreadsheetId}/values/${encodeURIComponent(sheetName)}!A1:Z1000`;
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || 'Error al leer la hoja ' + sheetName);
+    }
+    const data = await res.json();
+    if (!data.values || data.values.length === 0) return [];
+    
+    const headers = data.values[0];
+    const rows = data.values.slice(1);
+    
+    return parseRows(rows, headers);
+}
+
+function parseRows(rows, headers) {
+    return rows.map((row, rowIdx) => {
+        const obj = {};
+        headers.forEach((header, idx) => {
+            let val = row[idx];
+            if (val === undefined) val = '';
+            
+            if (header === 'id' || header.endsWith('Id') || header === 'mes' || header === 'año' || header === 'categoriaId' || header === 'subcategoriaId' || header === 'categoriaOrigenId' || header === 'categoriaDestinoId') {
+                obj[header] = val !== '' ? parseInt(val) : '';
+            } else if (header === 'presupuesto' || header === 'importe') {
+                obj[header] = val !== '' ? parseFloat(val) : 0;
+            } else if (header === 'activa') {
+                obj[header] = val === 'TRUE' || val === true || val === 'true';
+            } else {
+                obj[header] = val;
+            }
+        });
+        obj._sheetRowNumber = rowIdx + 2; 
+        return obj;
+    });
+}
+
+async function googleSheetsAppendRow(sheetName, headers, obj) {
+    if (!isGoogleTokenValid()) {
+        await refreshGoogleToken();
+    }
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.googleSpreadsheetId}/values/${encodeURIComponent(sheetName)}!A:A:append?valueInputOption=USER_ENTERED`;
+    
+    const row = headers.map(header => {
+        let val = obj[header];
+        if (val === undefined || val === null) return '';
+        if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+        return val;
+    });
+
+    const body = {
+        values: [row]
+    };
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${state.googleAccessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || 'Error al escribir en ' + sheetName);
+    }
+    return await res.json();
+}
+
+async function googleSheetsSaveBudget(data) {
+    if (!isGoogleTokenValid()) {
+        await refreshGoogleToken();
+    }
+    
+    const budgets = await googleSheetsReadSheet('presupuestos');
+    const existing = budgets.find(p => p.categoriaId === data.categoriaId && p.mes === data.mes && p.año === data.año);
+    
+    const headers = ['id', 'categoriaId', 'mes', 'año', 'presupuesto'];
+    
+    if (existing) {
+        const rowNumber = existing._sheetRowNumber;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.googleSpreadsheetId}/values/presupuestos!A${rowNumber}:E${rowNumber}?valueInputOption=USER_ENTERED`;
+        
+        const row = [existing.id, data.categoriaId, data.mes, data.año, data.presupuesto];
+        const body = { values: [row] };
+        
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${state.googleAccessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error?.message || 'Error al actualizar presupuesto');
+        }
+        return { success: true };
+    } else {
+        const newId = budgets.length > 0 ? Math.max(...budgets.map(b => b.id)) + 1 : 1;
+        const newBudget = {
+            id: newId,
+            categoriaId: data.categoriaId,
+            mes: data.mes,
+            año: data.año,
+            presupuesto: data.presupuesto
+        };
+        await googleSheetsAppendRow('presupuestos', headers, newBudget);
+        return { success: true };
+    }
+}
+
+async function handleGoogleSheetsWriteAction(action, data) {
+    setLoading(true);
+    try {
+        if (action === 'movimiento') {
+            const existingMovs = await googleSheetsReadSheet('movimientos');
+            const newId = existingMovs.length > 0 ? Math.max(...existingMovs.map(m => m.id)) + 1 : 1;
+            const newMov = {
+                id: newId,
+                fecha: data.fecha,
+                tipo: data.tipo,
+                categoriaId: data.categoriaId || "",
+                subcategoriaId: data.subcategoriaId || "",
+                categoriaOrigenId: "",
+                categoriaDestinoId: "",
+                concepto: data.concepto,
+                importe: data.importe
+            };
+            await googleSheetsAppendRow('movimientos', ['id', 'fecha', 'tipo', 'categoriaId', 'subcategoriaId', 'categoriaOrigenId', 'categoriaDestinoId', 'concepto', 'importe'], newMov);
+            return { success: true, id: newId, message: "Movimiento guardado en Google Sheets" };
+        } else if (action === 'transferencia') {
+            const existingMovs = await googleSheetsReadSheet('movimientos');
+            const newId = existingMovs.length > 0 ? Math.max(...existingMovs.map(m => m.id)) + 1 : 1;
+            const newMov = {
+                id: newId,
+                fecha: data.fecha,
+                tipo: "TRANSFERENCIA",
+                categoriaId: "",
+                subcategoriaId: "",
+                categoriaOrigenId: data.categoriaOrigenId,
+                categoriaDestinoId: data.categoriaDestinoId,
+                concepto: data.concepto,
+                importe: data.importe
+            };
+            await googleSheetsAppendRow('movimientos', ['id', 'fecha', 'tipo', 'categoriaId', 'subcategoriaId', 'categoriaOrigenId', 'categoriaDestinoId', 'concepto', 'importe'], newMov);
+            return { success: true, id: newId, message: "Transferencia guardada en Google Sheets" };
+        } else if (action === 'presupuesto') {
+            const res = await googleSheetsSaveBudget(data);
+            return { success: true, message: "Presupuesto guardado en Google Sheets" };
+        } else if (action === 'categoria') {
+            const existingCats = await googleSheetsReadSheet('categorias');
+            const newId = existingCats.length > 0 ? Math.max(...existingCats.map(c => c.id)) + 1 : 1;
+            const newCat = {
+                id: newId,
+                nombre: data.nombre,
+                icono: data.icono,
+                activa: 'TRUE'
+            };
+            await googleSheetsAppendRow('categorias', ['id', 'nombre', 'icono', 'activa'], newCat);
+            state.categorias.push({ id: newId, nombre: data.nombre, icono: data.icono, activa: true });
+            return { success: true, id: newId, message: "Categoría creada en Google Sheets" };
+        } else if (action === 'subcategoria') {
+            const existingSubs = await googleSheetsReadSheet('subcategorias');
+            const newId = existingSubs.length > 0 ? Math.max(...existingSubs.map(s => s.id)) + 1 : 1;
+            const newSub = {
+                id: newId,
+                categoriaId: data.categoriaId,
+                nombre: data.nombre,
+                icono: data.icono,
+                activa: 'TRUE'
+            };
+            await googleSheetsAppendRow('subcategorias', ['id', 'categoriaId', 'nombre', 'icono', 'activa'], newSub);
+            state.subcategorias.push({ id: newId, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true });
+            return { success: true, id: newId, message: "Subcategoría creada en Google Sheets" };
+        }
+        return { success: false, error: 'Acción de Google Sheets no contemplada' };
+    } catch (error) {
+        console.error(error);
+        showToast('Error al guardar en Google Sheets: ' + error.message, 'error');
+        return { success: false, error: error.message };
+    } finally {
+        setLoading(false);
+    }
+}
+
 
