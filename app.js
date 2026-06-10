@@ -5,12 +5,11 @@
 // App State
 const state = {
     apiUrl: localStorage.getItem('contable_api_url') || '',
-    isGoogleDirectMode: localStorage.getItem('contable_is_google_direct') === 'true',
-    googleClientId: localStorage.getItem('contable_google_client_id') || '',
-    googleSpreadsheetId: localStorage.getItem('contable_google_spreadsheet_id') || '',
-    googleAccessToken: localStorage.getItem('contable_google_access_token') || '',
-    googleTokenExpiry: parseInt(localStorage.getItem('contable_google_token_expiry')) || 0,
     selectedYear: new Date().getFullYear(),
+    dashboardRange: 'year', // 'month' | '3months' | '6months' | 'year'
+    currentPage: 1,
+    itemsPerPage: 20,
+    filteredMovimientos: [], // cache for pagination
     isDemoMode: false,
     isLocalMode: false,
     categorias: [],
@@ -18,10 +17,15 @@ const state = {
     presupuestos: [],
     movimientos: [],
     charts: {
-        ahorro: null,
-        gastoMensual: null,
+        ingresosGastos: null,
+        balanceNeto: null,
         categorias: null,
-        subcategorias: null
+        subcategorias: null,
+        presupuestoVsReal: null,
+        topCategorias: null,
+        ahorro: null,
+        comparativa: null,
+        gastoMensual: null
     }
 };
 
@@ -55,7 +59,6 @@ const DOM = {
     loadingSpinner: document.getElementById('loading-spinner'),
     barTitle: document.getElementById('bar-title'),
     btnDownloadLocal: document.getElementById('btn-download-local'),
-    btnReconnect: document.getElementById('btn-reconnect'),
     
     // Screens
     screens: document.querySelectorAll('.app-screen'),
@@ -66,6 +69,9 @@ const DOM = {
     valIngresos: document.getElementById('val-ingresos'),
     valGastos: document.getElementById('val-gastos'),
     valAhorro: document.getElementById('val-ahorro'),
+    
+    // Dashboard range filter buttons
+    rangeBtns: document.querySelectorAll('.range-btn'),
     
     // Movements screen
     filterSearch: document.getElementById('filter-search'),
@@ -78,6 +84,12 @@ const DOM = {
     btnClearFilters: document.getElementById('btn-clear-filters'),
     listMovimientosBody: document.getElementById('list-movimientos-body'),
     tableEmpty: document.getElementById('table-empty'),
+    paginationControls: document.getElementById('pagination-controls'),
+    paginationPages: document.getElementById('pagination-pages'),
+    btnPagePrev: document.getElementById('btn-page-prev'),
+    btnPageNext: document.getElementById('btn-page-next'),
+    paginationInfo: document.getElementById('pagination-info'),
+    paginationCountText: document.getElementById('pagination-count-text'),
     
     // Transaction screen
     formMovimiento: document.getElementById('form-movimiento'),
@@ -98,21 +110,6 @@ const DOM = {
     formApiUrl: document.getElementById('form-api-url'),
     inApiUrl: document.getElementById('in-api-url'),
     btnTestApi: document.getElementById('btn-test-api'),
-    
-    // Config screen new Google Direct elements
-    tabConfigGoogleDirect: document.getElementById('tab-config-google-direct'),
-    tabConfigGoogleScript: document.getElementById('tab-config-google-script'),
-    panelConfigGoogleDirect: document.getElementById('panel-config-google-direct'),
-    panelConfigGoogleScript: document.getElementById('panel-config-google-script'),
-    inGoogleClientId: document.getElementById('in-google-client-id'),
-    btnGoogleLogin: document.getElementById('btn-google-login'),
-    btnGoogleLogout: document.getElementById('btn-google-logout'),
-    googleAuthStatus: document.getElementById('google-auth-status'),
-    selectGoogleSheet: document.getElementById('select-google-sheet'),
-    btnRefreshSheets: document.getElementById('btn-refresh-sheets'),
-    inGoogleSheetId: document.getElementById('in-google-sheet-id'),
-    btnSelectSheetConfirm: document.getElementById('btn-select-sheet-confirm'),
-    btnCreateGoogleSheet: document.getElementById('btn-create-google-sheet'),
     
     cardConfigLocal: document.getElementById('card-config-local'),
     btnConfigDownloadLocal: document.getElementById('btn-config-download-local'),
@@ -141,27 +138,16 @@ const DOM = {
     inModalApiUrl: document.getElementById('in-modal-api-url'),
     btnModalCancel: document.getElementById('btn-modal-cancel'),
     btnModalLoadLocal: document.getElementById('btn-modal-load-local'),
-    btnModalNewLocal: document.getElementById('btn-modal-new-local'),
-    
-    // New Modal Google elements
-    modalTabGoogleDirect: document.getElementById('modal-tab-google-direct'),
-    modalTabGoogleScript: document.getElementById('modal-tab-google-script'),
-    modalPanelGoogleDirect: document.getElementById('modal-panel-google-direct'),
-    modalPanelGoogleScript: document.getElementById('modal-panel-google-script'),
-    inModalGoogleClientId: document.getElementById('in-modal-google-client-id'),
-    btnModalGoogleLogin: document.getElementById('btn-modal-google-login'),
-    btnModalCancelDirect: document.getElementById('btn-modal-cancel-direct')
+    btnModalNewLocal: document.getElementById('btn-modal-new-local')
 };
 
 // Months translation list
 const MESES_ABR = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const MESES_FULL = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 /* ==========================================================================
    Initialization & Setup
    ========================================================================== */
-let isDomLoaded = false;
-let isGoogleInitialized = false;
-
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     initYearSelector();
@@ -169,18 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initFormHandlers();
     initMobileSidebar();
     initLandingActions();
+    initDashboardRangeFilter();
+    initPaginationControls();
     checkLocalCache();
-    
-    isDomLoaded = true;
-    window.attemptGoogleInitialization();
 });
-
-window.attemptGoogleInitialization = function() {
-    if (isDomLoaded && window.isGoogleSdkLoaded && !isGoogleInitialized) {
-        isGoogleInitialized = true;
-        initGoogleDirectSetup();
-    }
-};
 
 // Theme Toggle Handler
 function initTheme() {
@@ -200,11 +178,11 @@ function initTheme() {
         localStorage.setItem('theme', dark ? 'dark' : 'light');
         DOM.themeIcon.textContent = dark ? '☀️' : '🌙';
         DOM.themeText.textContent = dark ? 'Modo Claro' : 'Modo Oscuro';
-        recreateCharts(); // redraw charts with theme-specific colors
+        recreateCharts();
     });
 }
 
-// Year dropdown setup (Current year, last year, next year)
+// Year dropdown setup
 function initYearSelector() {
     const currentYear = new Date().getFullYear();
     const years = [currentYear - 1, currentYear, currentYear + 1];
@@ -212,7 +190,6 @@ function initYearSelector() {
     DOM.yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
     DOM.yearSelect.value = state.selectedYear;
     
-    // Config screen year inputs
     DOM.inPresupuestoAno.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
     
     DOM.yearSelect.addEventListener('change', (e) => {
@@ -223,17 +200,100 @@ function initYearSelector() {
     });
 }
 
+// Dashboard range filter
+function initDashboardRangeFilter() {
+    DOM.rangeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            DOM.rangeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.dashboardRange = btn.getAttribute('data-range');
+            recreateCharts();
+        });
+    });
+}
+
+// Pagination controls
+function initPaginationControls() {
+    DOM.btnPagePrev.addEventListener('click', () => {
+        if (state.currentPage > 1) {
+            state.currentPage--;
+            renderMovementsPage();
+        }
+    });
+    DOM.btnPageNext.addEventListener('click', () => {
+        const totalPages = Math.ceil(state.filteredMovimientos.length / state.itemsPerPage);
+        if (state.currentPage < totalPages) {
+            state.currentPage++;
+            renderMovementsPage();
+        }
+    });
+}
+
 // Mobile sidebar toggles
 function initMobileSidebar() {
     DOM.btnMenuToggle.addEventListener('click', () => DOM.sidebar.classList.add('mobile-open'));
     DOM.btnCloseSidebar.addEventListener('click', () => DOM.sidebar.classList.remove('mobile-open'));
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (DOM.sidebar.classList.contains('mobile-open') &&
+            !DOM.sidebar.contains(e.target) &&
+            !DOM.btnMenuToggle.contains(e.target)) {
+            DOM.sidebar.classList.remove('mobile-open');
+        }
+    });
+}
+
+/* ==========================================================================
+   Dashboard Range Helpers
+   ========================================================================== */
+function getDashboardDateRange() {
+    const now = new Date();
+    const year = state.selectedYear;
+    let startDate, endDate;
+
+    if (state.dashboardRange === 'year') {
+        startDate = new Date(year, 0, 1);
+        endDate = new Date(year, 11, 31);
+    } else if (state.dashboardRange === 'month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (state.dashboardRange === '3months') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (state.dashboardRange === '6months') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    }
+
+    return { startDate, endDate };
+}
+
+function getMovimientosInRange() {
+    const { startDate, endDate } = getDashboardDateRange();
+    return state.movimientos.filter(m => {
+        try {
+            const d = new Date(m.fecha);
+            return d >= startDate && d <= endDate;
+        } catch(e) { return false; }
+    });
+}
+
+// Get months array for the current range
+function getRangeMonths() {
+    const { startDate, endDate } = getDashboardDateRange();
+    const months = [];
+    const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    while (cur <= endDate) {
+        months.push({ year: cur.getFullYear(), month: cur.getMonth() + 1 });
+        cur.setMonth(cur.getMonth() + 1);
+    }
+    return months;
 }
 
 /* ==========================================================================
    Landing View Triggers
    ========================================================================== */
 function initLandingActions() {
-    // Demo Triggers
     const triggerDemo = () => {
         state.isDemoMode = true;
         state.isLocalMode = false;
@@ -250,13 +310,12 @@ function initLandingActions() {
     DOM.btnLandingDemo.addEventListener('click', triggerDemo);
     DOM.btnHeroDemo.addEventListener('click', triggerDemo);
 
-    // Connect Sheets Triggers
     const triggerConnect = () => {
         state.isDemoMode = false;
         DOM.demoModeBadge.classList.add('hidden');
         
-        if (state.apiUrl || (state.isGoogleDirectMode && state.googleSpreadsheetId)) {
-            if (state.apiUrl && DOM.inApiUrl) DOM.inApiUrl.value = state.apiUrl;
+        if (state.apiUrl) {
+            DOM.inApiUrl.value = state.apiUrl;
             state.isLocalMode = false;
             localStorage.setItem('contable_is_local_mode', 'false');
             showAppInterface();
@@ -274,7 +333,6 @@ function initLandingActions() {
         DOM.modalApiSetup.classList.add('hidden');
     });
 
-    // Local file triggers
     const triggerSelectLocalFile = () => {
         DOM.inputLocalFile.click();
     };
@@ -292,24 +350,7 @@ function initLandingActions() {
     
     DOM.btnDownloadLocal.addEventListener('click', downloadLocalDB);
     DOM.btnConfigDownloadLocal.addEventListener('click', downloadLocalDB);
-    
-    DOM.btnReconnect.addEventListener('click', () => {
-        state.isDemoMode = false;
-        DOM.demoModeBadge.classList.add('hidden');
-        
-        if (state.apiUrl || (state.isGoogleDirectMode && state.googleSpreadsheetId)) {
-            state.isLocalMode = false;
-            localStorage.setItem('contable_is_local_mode', 'false');
-            updateLocalModeUI();
-            syncData();
-            showToast('Sincronizando con Google Sheets...', 'info');
-        } else {
-            DOM.modalApiSetup.classList.remove('hidden');
-            showToast('Por favor, configura la conexión de Google Sheets.', 'warning');
-        }
-    });
 
-    // Exit Application back to Landing page
     DOM.btnExitApp.addEventListener('click', (e) => {
         e.preventDefault();
         hideAppInterface();
@@ -334,11 +375,11 @@ function hideAppInterface() {
    ========================================================================== */
 function initRouting() {
     window.addEventListener('hashchange', handleRoute);
-    handleRoute(); // initial route
+    handleRoute();
     
     DOM.navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            DOM.sidebar.classList.remove('mobile-open'); // Close on mobile
+        item.addEventListener('click', () => {
+            DOM.sidebar.classList.remove('mobile-open');
         });
     });
 }
@@ -347,10 +388,9 @@ function handleRoute() {
     const hash = window.location.hash || '#dashboard';
     
     if (document.body.classList.contains('landing-active')) {
-        return; // ignore route changes if landing page is showing
+        return;
     }
     
-    // Toggle active screen
     DOM.screens.forEach(screen => {
         if (`#${screen.id.replace('screen-', '')}` === hash) {
             screen.classList.add('active');
@@ -359,7 +399,6 @@ function handleRoute() {
         }
     });
     
-    // Toggle active nav menu link
     DOM.navItems.forEach(item => {
         if (item.getAttribute('href') === hash) {
             item.classList.add('active');
@@ -369,7 +408,6 @@ function handleRoute() {
         }
     });
 
-    // Run view specific initializers
     if (hash === '#dashboard') {
         recreateCharts();
     } else if (hash === '#movimientos') {
@@ -384,29 +422,11 @@ function handleRoute() {
    ========================================================================== */
 async function apiRequest(action, method = 'GET', data = null) {
     if (state.isDemoMode) {
-        // Mock API responses for demo mode
         return handleDemoWriteAction(action, data);
     }
 
     if (state.isLocalMode) {
-        // Intercept writes/updates to local DB
         return handleLocalWriteAction(action, data);
-    }
-
-    if (state.isGoogleDirectMode) {
-        if (method === 'GET') {
-            setLoading(true);
-            try {
-                return await googleSheetsReadSheet(action);
-            } catch (err) {
-                console.error(err);
-                showToast('Error al leer de Google Sheets: ' + err.message, 'error');
-                return null;
-            } finally {
-                setLoading(false);
-            }
-        }
-        return await handleGoogleSheetsWriteAction(action, data);
     }
 
     if (!state.apiUrl) {
@@ -417,18 +437,14 @@ async function apiRequest(action, method = 'GET', data = null) {
     setLoading(true);
     try {
         let url = state.apiUrl;
-        let options = {
-            mode: 'cors'
-        };
+        let options = { mode: 'cors' };
 
         if (method === 'GET') {
             options.method = 'GET';
             url += (url.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action);
         } else {
             options.method = 'POST';
-            options.headers = {
-                'Content-Type': 'text/plain;charset=utf-8',
-            };
+            options.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
             options.body = JSON.stringify({ action: action, ...data });
         }
 
@@ -449,7 +465,6 @@ async function apiRequest(action, method = 'GET', data = null) {
     }
 }
 
-// Full sync from Google Sheets
 async function syncData() {
     if (state.isDemoMode) return;
     
@@ -462,7 +477,7 @@ async function syncData() {
         return;
     }
 
-    if (!state.apiUrl && !state.isGoogleDirectMode) return;
+    if (!state.apiUrl) return;
     
     setLoading(true);
     DOM.apiStatus.className = 'api-status-badge disconnected';
@@ -481,7 +496,7 @@ async function syncData() {
             state.movimientos = movsData;
             
             DOM.apiStatus.className = 'api-status-badge connected';
-            DOM.apiStatusText.textContent = state.isGoogleDirectMode ? 'Google Sheets' : 'Sincronizado';
+            DOM.apiStatusText.textContent = 'Sincronizado';
             
             populateSelectors();
             updateDashboardMetrics();
@@ -507,8 +522,6 @@ function populateSelectors() {
     
     const catOptions = activeCats.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
     DOM.inCategoria.innerHTML = catOptions;
-    
-    // Transfer Origen & Destino
     DOM.inCatOrigen.innerHTML = catOptions;
     DOM.inCatDestino.innerHTML = catOptions;
     
@@ -516,14 +529,11 @@ function populateSelectors() {
         DOM.inCatDestino.selectedIndex = 1;
     }
 
-    // Config subcategories parent
     const filteredParents = activeCats.filter(c => c.id !== 9);
     DOM.inNewSubParent.innerHTML = filteredParents.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
 
-    // Config Budget Category
     DOM.inPresupuestoCat.innerHTML = catOptions;
 
-    // Filters Category dropdown
     const filterCatOptions = '<option value="Todas">Todas</option>' + activeCats.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
     DOM.filterCategory.innerHTML = filterCatOptions;
     
@@ -531,7 +541,6 @@ function populateSelectors() {
     updateFilterSubcategoryOptions();
 }
 
-// Dynamic subcategories for Transaction form
 function updateSubcategoryOptions() {
     const parentId = parseInt(DOM.inCategoria.value);
     const subs = state.subcategorias.filter(sc => sc.categoriaId === parentId && sc.activa);
@@ -545,7 +554,6 @@ function updateSubcategoryOptions() {
     }
 }
 
-// Dynamic subcategories for Filters panel
 function updateFilterSubcategoryOptions() {
     const selectedCat = DOM.filterCategory.value;
     let subs = [];
@@ -584,7 +592,6 @@ function updateDashboardMetrics() {
                 if (yMov === year) totalGastos += val;
             }
             
-            // Accumulated savings across all history
             if (m.tipo === 'INGRESO' && parseInt(m.categoriaId) === 9) {
                 totalAhorro += val;
             } else if (m.tipo === 'GASTO' && parseInt(m.categoriaId) === 9) {
@@ -596,7 +603,6 @@ function updateDashboardMetrics() {
         } catch (e) {}
     });
 
-    // Calculate total net balance (All-time Income - All-time Expenses)
     let totalNeto = 0;
     state.movimientos.forEach(m => {
         const val = parseFloat(m.importe) || 0;
@@ -613,11 +619,20 @@ function updateDashboardMetrics() {
 /* ==========================================================================
    Chart.js Integrations
    ========================================================================== */
+function getChartTheme() {
+    const isDark = document.body.classList.contains('dark-mode');
+    return {
+        isDark,
+        text: isDark ? '#94a3b8' : '#64748b',
+        grid: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+        border: isDark ? '#0f1524' : '#ffffff'
+    };
+}
+
 function recreateCharts() {
     if (window.location.hash !== '' && window.location.hash !== '#dashboard') return;
-    if (DOM.appInterface.classList.contains('hidden')) return; // ignore if app is hidden
+    if (DOM.appInterface.classList.contains('hidden')) return;
     
-    // Destroy previous charts
     Object.keys(state.charts).forEach(key => {
         if (state.charts[key]) {
             state.charts[key].destroy();
@@ -626,85 +641,339 @@ function recreateCharts() {
     });
 
     const year = state.selectedYear;
-    const isDark = document.body.classList.contains('dark-mode');
-    
-    const textTheme = isDark ? '#94a3b8' : '#64748b';
-    const gridTheme = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+    const theme = getChartTheme();
+    const rangeMovs = getMovimientosInRange();
+    const rangeMonths = getRangeMonths();
 
-    const monthlyGastos = new Array(12).fill(0);
-    const monthlyAhorro = new Array(12).fill(0);
+    buildChartIngresosGastos(rangeMonths, rangeMovs, theme);
+    buildChartBalanceNeto(rangeMonths, rangeMovs, theme);
+    buildChartCategorias(year, theme);
+    buildChartSubcategorias(year, theme);
+    buildChartPresupuestoVsReal(year, theme);
+    buildChartTopCategorias(rangeMovs, theme);
+    buildChartAhorro(year, theme);
+    buildChartComparativa(theme);
+    buildChartGastoMensual(year, theme);
+}
 
-    for (let mes = 1; mes <= 12; mes++) {
-        let saldoAcumuladoAhorro = 0;
-        state.movimientos.forEach(m => {
-            try {
-                const parts = m.fecha.split('-');
-                const yMov = parseInt(parts[0]);
-                const mMov = parseInt(parts[1]);
-                const val = parseFloat(m.importe) || 0;
+// 1. Ingresos vs Gastos
+function buildChartIngresosGastos(rangeMonths, rangeMovs, theme) {
+    const labels = rangeMonths.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
+    const ingresos = rangeMonths.map(({ year, month }) =>
+        rangeMovs.filter(m => m.tipo === 'INGRESO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
+            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0)
+    );
+    const gastos = rangeMonths.map(({ year, month }) =>
+        rangeMovs.filter(m => m.tipo === 'GASTO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
+            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0)
+    );
 
-                if (m.tipo === 'GASTO' && yMov === year && mMov === mes) {
-                    monthlyGastos[mes - 1] += val;
+    const ctx = document.getElementById('chart-ingresos-gastos').getContext('2d');
+    state.charts.ingresosGastos = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Ingresos (€)',
+                    data: ingresos,
+                    backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                    hoverBackgroundColor: '#10b981',
+                    borderRadius: 5
+                },
+                {
+                    label: 'Gastos (€)',
+                    data: gastos,
+                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                    hoverBackgroundColor: '#ef4444',
+                    borderRadius: 5
                 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: theme.text, boxWidth: 12 } }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: theme.text } },
+                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            }
+        }
+    });
+}
 
-                if (yMov < year || (yMov === year && mMov <= mes)) {
-                    if (m.tipo === 'INGRESO' && parseInt(m.categoriaId) === 9) {
-                        saldoAcumuladoAhorro += val;
-                    } else if (m.tipo === 'GASTO' && parseInt(m.categoriaId) === 9) {
-                        saldoAcumuladoAhorro -= val;
-                    } else if (m.tipo === 'TRANSFERENCIA') {
-                        if (parseInt(m.categoriaOrigenId) === 9) saldoAcumuladoAhorro -= val;
-                        if (parseInt(m.categoriaDestinoId) === 9) saldoAcumuladoAhorro += val;
+// 2. Balance Neto Mensual
+function buildChartBalanceNeto(rangeMonths, rangeMovs, theme) {
+    const labels = rangeMonths.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
+    const balances = rangeMonths.map(({ year, month }) => {
+        const ing = rangeMovs.filter(m => m.tipo === 'INGRESO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
+            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0);
+        const gas = rangeMovs.filter(m => m.tipo === 'GASTO' && parseInt(m.fecha.split('-')[0]) === year && parseInt(m.fecha.split('-')[1]) === month)
+            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0);
+        return ing - gas;
+    });
+
+    const pointColors = balances.map(b => b >= 0 ? '#10b981' : '#ef4444');
+    const barColors = balances.map(b => b >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+
+    const ctx = document.getElementById('chart-balance-neto').getContext('2d');
+    state.charts.balanceNeto = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Balance Neto (€)',
+                data: balances,
+                backgroundColor: barColors,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: theme.text } },
+                y: {
+                    grid: { color: theme.grid },
+                    ticks: { color: theme.text },
+                    afterDataLimits: (scale) => {
+                        const max = Math.max(Math.abs(scale.max), Math.abs(scale.min));
+                        scale.max = max * 1.1;
+                        scale.min = -max * 1.1;
                     }
                 }
-            } catch (e) {}
-        });
-        monthlyAhorro[mes - 1] = saldoAcumuladoAhorro;
-    }
+            }
+        }
+    });
+}
 
+// 3. Doughnut - Categorias
+function buildChartCategorias(year, theme) {
     const catExpenses = {};
-    const subExpenses = {};
+    const catColors = ['#6366f1', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'];
 
     state.movimientos.forEach(m => {
         try {
             const yMov = parseInt(m.fecha.split('-')[0]);
             const val = parseFloat(m.importe) || 0;
-
             if (m.tipo === 'GASTO' && yMov === year) {
-                const catId = m.categoriaId;
-                catExpenses[catId] = (catExpenses[catId] || 0) + val;
-
-                if (m.subcategoriaId) {
-                    const subId = m.subcategoriaId;
-                    subExpenses[subId] = (subExpenses[subId] || 0) + val;
-                }
+                catExpenses[m.categoriaId] = (catExpenses[m.categoriaId] || 0) + val;
             }
-        } catch (e) {}
+        } catch(e) {}
     });
 
-    const catLabels = [];
-    const catData = [];
-    const catColors = ['#6366f1', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'];
-
+    const catLabels = [], catData = [];
     Object.keys(catExpenses).forEach(id => {
         const cat = state.categorias.find(c => c.id === parseInt(id));
         catLabels.push(cat ? `${cat.icono} ${cat.nombre}` : `Cat ${id}`);
         catData.push(catExpenses[id]);
     });
 
-    const subLabels = [];
-    const subData = [];
+    const ctx = document.getElementById('chart-categorias').getContext('2d');
+    state.charts.categorias = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: catLabels.length ? catLabels : ['Sin datos'],
+            datasets: [{
+                data: catData.length ? catData : [1],
+                backgroundColor: catData.length ? catColors : ['#475569'],
+                borderWidth: theme.isDark ? 2 : 1,
+                borderColor: theme.border
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: theme.text, boxWidth: 12, padding: 12 } }
+            },
+            cutout: '60%'
+        }
+    });
+}
+
+// 4. Doughnut - Subcategorias
+function buildChartSubcategorias(year, theme) {
+    const subExpenses = {};
     const subColors = ['#f43f5e', '#a855f7', '#06b6d4', '#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444'];
 
+    state.movimientos.forEach(m => {
+        try {
+            const yMov = parseInt(m.fecha.split('-')[0]);
+            const val = parseFloat(m.importe) || 0;
+            if (m.tipo === 'GASTO' && yMov === year && m.subcategoriaId) {
+                subExpenses[m.subcategoriaId] = (subExpenses[m.subcategoriaId] || 0) + val;
+            }
+        } catch(e) {}
+    });
+
+    const subLabels = [], subData = [];
     Object.keys(subExpenses).forEach(id => {
         const sub = state.subcategorias.find(sc => sc.id === parseInt(id));
         subLabels.push(sub ? `${sub.icono} ${sub.nombre}` : `Sub ${id}`);
         subData.push(subExpenses[id]);
     });
 
-    // Ahorro Chart
-    const ctxAhorro = document.getElementById('chart-ahorro').getContext('2d');
-    state.charts.ahorro = new Chart(ctxAhorro, {
+    const ctx = document.getElementById('chart-subcategorias').getContext('2d');
+    state.charts.subcategorias = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: subLabels.length ? subLabels : ['Sin datos'],
+            datasets: [{
+                data: subData.length ? subData : [1],
+                backgroundColor: subData.length ? subColors : ['#475569'],
+                borderWidth: theme.isDark ? 2 : 1,
+                borderColor: theme.border
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: theme.text, boxWidth: 12, padding: 12 } }
+            },
+            cutout: '60%'
+        }
+    });
+}
+
+// 5. Presupuesto vs Real
+function buildChartPresupuestoVsReal(year, theme) {
+    const currentMonth = new Date().getMonth() + 1;
+    const activeCats = state.categorias.filter(c => c.activa && c.id !== 9);
+    
+    const labels = activeCats.map(c => `${c.icono} ${c.nombre}`);
+    const presupuestado = activeCats.map(c => {
+        const p = state.presupuestos.find(pr => pr.categoriaId === c.id && pr.mes === currentMonth && pr.año === year);
+        return p ? parseFloat(p.presupuesto) : 0;
+    });
+    const gastado = activeCats.map(c => {
+        return state.movimientos
+            .filter(m => {
+                const parts = m.fecha.split('-');
+                return m.tipo === 'GASTO' && parseInt(parts[0]) === year && parseInt(parts[1]) === currentMonth && m.categoriaId === c.id;
+            })
+            .reduce((s, m) => s + (parseFloat(m.importe) || 0), 0);
+    });
+
+    const ctx = document.getElementById('chart-presupuesto-vs-real').getContext('2d');
+    state.charts.presupuestoVsReal = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Presupuestado (€)',
+                    data: presupuestado,
+                    backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                    hoverBackgroundColor: '#6366f1',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Gastado (€)',
+                    data: gastado,
+                    backgroundColor: gastado.map((g, i) => g > presupuestado[i] ? 'rgba(239, 68, 68, 0.8)' : 'rgba(16, 185, 129, 0.8)'),
+                    hoverBackgroundColor: '#10b981',
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: theme.text, boxWidth: 12 } },
+                tooltip: {
+                    callbacks: {
+                        afterBody: (items) => {
+                            const idx = items[0].dataIndex;
+                            const diff = presupuestado[idx] - gastado[idx];
+                            return diff >= 0 ? `Restante: ${formatCurrency(diff)}` : `Excedido: ${formatCurrency(-diff)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: theme.text } },
+                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            }
+        }
+    });
+}
+
+// 6. Top Categorias de Gasto
+function buildChartTopCategorias(rangeMovs, theme) {
+    const catExpenses = {};
+    rangeMovs.forEach(m => {
+        if (m.tipo === 'GASTO') {
+            catExpenses[m.categoriaId] = (catExpenses[m.categoriaId] || 0) + (parseFloat(m.importe) || 0);
+        }
+    });
+
+    const sorted = Object.entries(catExpenses)
+        .map(([id, val]) => {
+            const cat = state.categorias.find(c => c.id === parseInt(id));
+            return { label: cat ? `${cat.icono} ${cat.nombre}` : `Cat ${id}`, val };
+        })
+        .sort((a, b) => b.val - a.val)
+        .slice(0, 7);
+
+    const palette = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6'];
+
+    const ctx = document.getElementById('chart-top-categorias').getContext('2d');
+    state.charts.topCategorias = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sorted.map(s => s.label),
+            datasets: [{
+                label: 'Gasto (€)',
+                data: sorted.map(s => s.val),
+                backgroundColor: palette.slice(0, sorted.length),
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
+                y: { grid: { display: false }, ticks: { color: theme.text } }
+            }
+        }
+    });
+}
+
+// 7. Ahorro Acumulado
+function buildChartAhorro(year, theme) {
+    const monthlyAhorro = new Array(12).fill(0);
+    for (let mes = 1; mes <= 12; mes++) {
+        let acc = 0;
+        state.movimientos.forEach(m => {
+            try {
+                const parts = m.fecha.split('-');
+                const yMov = parseInt(parts[0]);
+                const mMov = parseInt(parts[1]);
+                const val = parseFloat(m.importe) || 0;
+                if (yMov < year || (yMov === year && mMov <= mes)) {
+                    if (m.tipo === 'INGRESO' && parseInt(m.categoriaId) === 9) acc += val;
+                    else if (m.tipo === 'GASTO' && parseInt(m.categoriaId) === 9) acc -= val;
+                    else if (m.tipo === 'TRANSFERENCIA') {
+                        if (parseInt(m.categoriaOrigenId) === 9) acc -= val;
+                        if (parseInt(m.categoriaDestinoId) === 9) acc += val;
+                    }
+                }
+            } catch(e) {}
+        });
+        monthlyAhorro[mes - 1] = acc;
+    }
+
+    const ctx = document.getElementById('chart-ahorro').getContext('2d');
+    state.charts.ahorro = new Chart(ctx, {
         type: 'line',
         data: {
             labels: MESES_ABR,
@@ -725,15 +994,97 @@ function recreateCharts() {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { color: gridTheme }, ticks: { color: textTheme } },
-                y: { grid: { color: gridTheme }, ticks: { color: textTheme } }
+                x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
+                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
             }
         }
     });
+}
 
-    // Expenses Chart
-    const ctxGastos = document.getElementById('chart-gasto-mensual').getContext('2d');
-    state.charts.gastoMensual = new Chart(ctxGastos, {
+// 8. Comparativa Interanual
+function buildChartComparativa(theme) {
+    const year = state.selectedYear;
+    const prevYear = year - 1;
+    const palette = { current: '#6366f1', prev: '#f59e0b' };
+
+    const monthlyGastosCur = new Array(12).fill(0);
+    const monthlyGastosPrev = new Array(12).fill(0);
+
+    state.movimientos.forEach(m => {
+        try {
+            const parts = m.fecha.split('-');
+            const yMov = parseInt(parts[0]);
+            const mMov = parseInt(parts[1]);
+            const val = parseFloat(m.importe) || 0;
+            if (m.tipo === 'GASTO') {
+                if (yMov === year) monthlyGastosCur[mMov - 1] += val;
+                else if (yMov === prevYear) monthlyGastosPrev[mMov - 1] += val;
+            }
+        } catch(e) {}
+    });
+
+    const ctx = document.getElementById('chart-comparativa').getContext('2d');
+    state.charts.comparativa = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: MESES_ABR,
+            datasets: [
+                {
+                    label: `Gastos ${year}`,
+                    data: monthlyGastosCur,
+                    borderColor: palette.current,
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 4,
+                    pointBackgroundColor: palette.current
+                },
+                {
+                    label: `Gastos ${prevYear}`,
+                    data: monthlyGastosPrev,
+                    borderColor: palette.prev,
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                    borderDash: [5, 5],
+                    pointBackgroundColor: palette.prev
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { color: theme.text, boxWidth: 12 } }
+            },
+            scales: {
+                x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
+                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            }
+        }
+    });
+}
+
+// 9. Historial de Gasto Mensual
+function buildChartGastoMensual(year, theme) {
+    const monthlyGastos = new Array(12).fill(0);
+    state.movimientos.forEach(m => {
+        try {
+            const parts = m.fecha.split('-');
+            const yMov = parseInt(parts[0]);
+            const mMov = parseInt(parts[1]);
+            const val = parseFloat(m.importe) || 0;
+            if (m.tipo === 'GASTO' && yMov === year) {
+                monthlyGastos[mMov - 1] += val;
+            }
+        } catch(e) {}
+    });
+
+    const ctx = document.getElementById('chart-gasto-mensual').getContext('2d');
+    state.charts.gastoMensual = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: MESES_ABR,
@@ -750,67 +1101,15 @@ function recreateCharts() {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { display: false }, ticks: { color: textTheme } },
-                y: { grid: { color: gridTheme }, ticks: { color: textTheme } }
+                x: { grid: { display: false }, ticks: { color: theme.text } },
+                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
             }
-        }
-    });
-
-    // Categories Donut
-    const ctxCats = document.getElementById('chart-categorias').getContext('2d');
-    state.charts.categorias = new Chart(ctxCats, {
-        type: 'doughnut',
-        data: {
-            labels: catLabels.length ? catLabels : ['Sin datos'],
-            datasets: [{
-                data: catData.length ? catData : [1],
-                backgroundColor: catData.length ? catColors : ['#475569'],
-                borderWidth: isDark ? 2 : 1,
-                borderColor: isDark ? '#0f1524' : '#ffffff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textTheme, boxWidth: 12, padding: 12 }
-                }
-            },
-            cutout: '60%'
-        }
-    });
-
-    // Subcategories Donut
-    const ctxSubs = document.getElementById('chart-subcategorias').getContext('2d');
-    state.charts.subcategorias = new Chart(ctxSubs, {
-        type: 'doughnut',
-        data: {
-            labels: subLabels.length ? subLabels : ['Sin datos'],
-            datasets: [{
-                data: subData.length ? subData : [1],
-                backgroundColor: subData.length ? subColors : ['#475569'],
-                borderWidth: isDark ? 2 : 1,
-                borderColor: isDark ? '#0f1524' : '#ffffff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textTheme, boxWidth: 12, padding: 12 }
-                }
-            },
-            cutout: '60%'
         }
     });
 }
 
 /* ==========================================================================
-   Movements Listing & Filtering
+   Movements Listing, Filtering & Pagination
    ========================================================================== */
 function applyMovementsFilters() {
     if (window.location.hash !== '#movimientos') return;
@@ -828,18 +1127,9 @@ function applyMovementsFilters() {
             const yMov = parseInt(parts[0]);
             const mMov = parseInt(parts[1]);
 
-            if (query && (!m.concepto || !m.concepto.toLowerCase().includes(query))) {
-                return false;
-            }
-            
-            if (yMov !== year) {
-                return false;
-            }
-
-            if (typeFilter !== 'Todos' && m.tipo !== typeFilter) {
-                return false;
-            }
-
+            if (query && (!m.concepto || !m.concepto.toLowerCase().includes(query))) return false;
+            if (yMov !== year) return false;
+            if (typeFilter !== 'Todos' && m.tipo !== typeFilter) return false;
             if (catFilter !== 'Todas') {
                 const catId = parseInt(catFilter);
                 if (m.tipo === 'TRANSFERENCIA') {
@@ -848,29 +1138,85 @@ function applyMovementsFilters() {
                     if (m.categoriaId !== catId) return false;
                 }
             }
-
             if (subFilter !== 'Todas') {
                 const subId = parseInt(subFilter);
                 if (m.subcategoriaId !== subId) return false;
             }
-
             if (monthFilter !== 'Todos') {
                 const mes = parseInt(monthFilter);
                 if (mMov !== mes) return false;
             }
-
             return true;
-        } catch (e) {
-            return false;
-        }
+        } catch (e) { return false; }
     });
 
     filtered.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id - a.id);
-    renderMovementsTable(filtered);
+    
+    // Store filtered list and reset to page 1
+    state.filteredMovimientos = filtered;
+    state.currentPage = 1;
+    renderMovementsPage();
+}
+
+function renderMovementsPage() {
+    const total = state.filteredMovimientos.length;
+    const totalPages = Math.ceil(total / state.itemsPerPage);
+    const start = (state.currentPage - 1) * state.itemsPerPage;
+    const end = Math.min(start + state.itemsPerPage, total);
+    const pageMovs = state.filteredMovimientos.slice(start, end);
+
+    // Update count text
+    if (total > 0) {
+        DOM.paginationCountText.textContent = `Mostrando ${start + 1}–${end} de ${total} movimientos`;
+        DOM.paginationInfo.classList.remove('hidden');
+    } else {
+        DOM.paginationInfo.classList.add('hidden');
+    }
+
+    renderMovementsTable(pageMovs);
+    renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+    if (totalPages <= 1) {
+        DOM.paginationControls.classList.add('hidden');
+        return;
+    }
+    DOM.paginationControls.classList.remove('hidden');
+
+    DOM.btnPagePrev.disabled = state.currentPage === 1;
+    DOM.btnPageNext.disabled = state.currentPage === totalPages;
+
+    // Generate page number buttons (max 5 visible + ellipsis)
+    let pages = [];
+    if (totalPages <= 7) {
+        pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+    } else {
+        pages = [1];
+        if (state.currentPage > 3) pages.push('...');
+        for (let i = Math.max(2, state.currentPage - 1); i <= Math.min(totalPages - 1, state.currentPage + 1); i++) {
+            pages.push(i);
+        }
+        if (state.currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    DOM.paginationPages.innerHTML = pages.map(p => {
+        if (p === '...') return '<span class="pagination-ellipsis">…</span>';
+        const active = p === state.currentPage ? 'active' : '';
+        return `<button class="pagination-num ${active}" data-page="${p}">${p}</button>`;
+    }).join('');
+
+    DOM.paginationPages.querySelectorAll('.pagination-num').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.currentPage = parseInt(btn.getAttribute('data-page'));
+            renderMovementsPage();
+        });
+    });
 }
 
 function renderMovementsTable(movs) {
-    if (movs.length === 0) {
+    if (movs.length === 0 && state.filteredMovimientos.length === 0) {
         DOM.listMovimientosBody.innerHTML = '';
         DOM.tableEmpty.classList.remove('hidden');
         return;
@@ -903,7 +1249,6 @@ function renderMovementsTable(movs) {
             typeBadge = '<span class="val-badge transfer">Transf.</span>';
             amountClass = 'val-importe transfer';
             amountText = `${parseFloat(m.importe).toFixed(2)} €`;
-            
             const catO = state.categorias.find(c => c.id === m.categoriaOrigenId);
             const catD = state.categorias.find(c => c.id === m.categoriaDestinoId);
             categoryText = `${catO ? catO.icono : '❓'} ➔ ${catD ? catD.icono : '❓'}`;
@@ -911,13 +1256,13 @@ function renderMovementsTable(movs) {
         }
 
         return `
-            <tr>
-                <td>${formatDate(m.fecha)}</td>
-                <td>${typeBadge}</td>
-                <td>${categoryText}</td>
-                <td>${subcatText}</td>
-                <td>${m.concepto}</td>
-                <td class="${amountClass} text-right">${amountText}</td>
+            <tr class="mov-row">
+                <td data-label="Fecha">${formatDate(m.fecha)}</td>
+                <td data-label="Tipo">${typeBadge}</td>
+                <td data-label="Categoría">${categoryText}</td>
+                <td data-label="Subcategoría">${subcatText}</td>
+                <td data-label="Concepto">${m.concepto}</td>
+                <td data-label="Importe" class="${amountClass} text-right">${amountText}</td>
             </tr>
         `;
     }).join('');
@@ -985,13 +1330,7 @@ function initFormHandlers() {
             return;
         }
 
-        let payload = {
-            tipo: tipo,
-            importe: importe,
-            concepto: concepto,
-            fecha: fecha
-        };
-
+        let payload = { tipo, importe, concepto, fecha };
         let action = 'movimiento';
 
         if (tipo === 'GASTO') {
@@ -1003,7 +1342,6 @@ function initFormHandlers() {
             action = 'transferencia';
             payload.categoriaOrigenId = parseInt(DOM.inCatOrigen.value);
             payload.categoriaDestinoId = parseInt(DOM.inCatDestino.value);
-            
             if (payload.categoriaOrigenId === payload.categoriaDestinoId) {
                 showToast('La categoría origen y destino no pueden ser iguales', 'error');
                 return;
@@ -1024,7 +1362,6 @@ function initFormHandlers() {
         }
     });
 
-    // Setup API URL Form
     DOM.formApiUrl.addEventListener('submit', (e) => {
         e.preventDefault();
         const url = DOM.inApiUrl.value.trim();
@@ -1047,24 +1384,15 @@ function initFormHandlers() {
             showToast('Introduce una URL antes de probar', 'error');
             return;
         }
-        
         state.apiUrl = url;
         const test = await apiRequest('categorias', 'GET');
         if (test) {
-            showToast('¡Conexión probada con éxito!', 'success');
+            showToast('Conexión probada con éxito!', 'success');
         } else {
             showToast('Error al probar conexión. Verifica tu URL', 'error');
         }
     });
 
-    // Clear all saved configuration (API URL, Google tokens, etc.)
-    const clearConfigHandler = () => clearAllConfig();
-    const btnClearDirect = document.getElementById('btn-clear-all-config-direct');
-    const btnClearScript = document.getElementById('btn-clear-all-config');
-    if (btnClearDirect) btnClearDirect.addEventListener('click', clearConfigHandler);
-    if (btnClearScript) btnClearScript.addEventListener('click', clearConfigHandler);
-
-    // Modal API form submission
     DOM.formModalApi.addEventListener('submit', (e) => {
         e.preventDefault();
         const url = DOM.inModalApiUrl.value.trim();
@@ -1083,7 +1411,6 @@ function initFormHandlers() {
         }
     });
 
-    // Budget creation submission
     DOM.formPresupuesto.addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = {
@@ -1108,14 +1435,12 @@ function initFormHandlers() {
         }
     });
 
-    // Category Creation
     DOM.formCrearCategoria.addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = {
             nombre: DOM.inNewCatNombre.value.trim(),
             icono: DOM.inNewCatIcono.value.trim()
         };
-
         const res = await apiRequest('categoria', 'POST', payload);
         if (res && res.success) {
             showToast('Categoría creada con éxito', 'success');
@@ -1125,7 +1450,6 @@ function initFormHandlers() {
         }
     });
 
-    // Subcategory Creation
     DOM.formCrearSubcategoria.addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = {
@@ -1133,7 +1457,6 @@ function initFormHandlers() {
             nombre: DOM.inNewSubNombre.value.trim(),
             icono: DOM.inNewSubIcono.value.trim()
         };
-
         const res = await apiRequest('subcategoria', 'POST', payload);
         if (res && res.success) {
             showToast('Subcategoría creada con éxito', 'success');
@@ -1143,11 +1466,8 @@ function initFormHandlers() {
         }
     });
 
-    // Automation: Transfer leftovers
     DOM.btnTransferirSobrantes.addEventListener('click', async () => {
-        if (!confirm('¿Estás seguro de que deseas transferir los saldos sobrantes del mes anterior al Ahorro? Esta acción generará transferencias automáticas.')) {
-            return;
-        }
+        if (!confirm('¿Estás seguro de que deseas transferir los saldos sobrantes del mes anterior al Ahorro?')) return;
         
         const activeCatIds = state.categorias.filter(c => c.activa && c.id !== 9).map(c => c.id);
         if (activeCatIds.length === 0) {
@@ -1186,15 +1506,13 @@ function initFormHandlers() {
                     concepto: `Transferencia sobrante ${cat ? cat.nombre : catId} (${MESES_ABR[currentMonth-1]} ${currentYear})`,
                     fecha: new Date().toISOString().split('T')[0]
                 });
-                if (res && res.success) {
-                    transfersCreated++;
-                }
+                if (res && res.success) transfersCreated++;
             }
         }
 
         setLoading(false);
         if (transfersCreated > 0) {
-            showToast(`Automatización finalizada: se crearon ${transfersCreated} transferencias de sobrantes.`, 'success');
+            showToast(`Automatizacion finalizada: ${transfersCreated} transferencias creadas.`, 'success');
             if (!state.isDemoMode) {
                 await syncData();
             } else {
@@ -1236,85 +1554,53 @@ function loadDemoData() {
         { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true }
     ];
 
-    // Build some budgets
     state.presupuestos = [];
     const currentYear = state.selectedYear;
     for (let mes = 1; mes <= 12; mes++) {
         state.presupuestos.push(
-            { id: mes*10+1, categoriaId: 1, mes: mes, año: currentYear, presupuesto: 35 },
-            { id: mes*10+2, categoriaId: 2, mes: mes, año: currentYear, presupuesto: 15 },
-            { id: mes*10+3, categoriaId: 3, mes: mes, año: currentYear, presupuesto: 40 },
-            { id: mes*10+4, categoriaId: 4, mes: mes, año: currentYear, presupuesto: 50 },
-            { id: mes*10+5, categoriaId: 5, mes: mes, año: currentYear, presupuesto: 75 },
-            { id: mes*10+6, categoriaId: 6, mes: mes, año: currentYear, presupuesto: 250 },
-            { id: mes*10+7, categoriaId: 7, mes: mes, año: currentYear, presupuesto: 100 },
-            { id: mes*10+8, categoriaId: 8, mes: mes, año: currentYear, presupuesto: 80 }
+            { id: mes*10+1, categoriaId: 1, mes, año: currentYear, presupuesto: 35 },
+            { id: mes*10+2, categoriaId: 2, mes, año: currentYear, presupuesto: 15 },
+            { id: mes*10+3, categoriaId: 3, mes, año: currentYear, presupuesto: 40 },
+            { id: mes*10+4, categoriaId: 4, mes, año: currentYear, presupuesto: 50 },
+            { id: mes*10+5, categoriaId: 5, mes, año: currentYear, presupuesto: 75 },
+            { id: mes*10+6, categoriaId: 6, mes, año: currentYear, presupuesto: 250 },
+            { id: mes*10+7, categoriaId: 7, mes, año: currentYear, presupuesto: 100 },
+            { id: mes*10+8, categoriaId: 8, mes, año: currentYear, presupuesto: 80 }
         );
     }
 
-    // Generate simulated movements for current selected year
     state.movimientos = [];
     let mId = 1;
-    
-    // Monthly income entries
+    const prevYear = currentYear - 1;
+
+    // Previous year data for comparative chart
     for (let mes = 1; mes <= 12; mes++) {
         const mm = mes < 10 ? `0${mes}` : mes;
-        state.movimientos.push({
-            id: mId++,
-            fecha: `${currentYear}-${mm}-01`,
-            tipo: "INGRESO",
-            categoriaId: 9, // income directly accumulates as total balance/saving
-            subcategoriaId: "",
-            categoriaOrigenId: "",
-            categoriaDestinoId: "",
-            concepto: "Nómina Mensual Trabajo",
-            importe: 1850.00
-        });
-
-        // Fixed bills
         state.movimientos.push(
+            { id: mId++, fecha: `${prevYear}-${mm}-01`, tipo: "INGRESO", categoriaId: 9, subcategoriaId: "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: "Nomina Mensual", importe: 1750 },
+            { id: mId++, fecha: `${prevYear}-${mm}-05`, tipo: "GASTO", categoriaId: 5, subcategoriaId: "", concepto: "Recibo Luz", importe: 68 },
+            { id: mId++, fecha: `${prevYear}-${mm}-08`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 1, concepto: "Supermercado", importe: 70 },
+            { id: mId++, fecha: `${prevYear}-${mm}-15`, tipo: "GASTO", categoriaId: 7, subcategoriaId: "", concepto: "Restaurante", importe: 40 }
+        );
+    }
+
+    // Current year data
+    for (let mes = 1; mes <= 12; mes++) {
+        const mm = mes < 10 ? `0${mes}` : mes;
+        state.movimientos.push(
+            { id: mId++, fecha: `${currentYear}-${mm}-01`, tipo: "INGRESO", categoriaId: 9, subcategoriaId: "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: "Nomina Mensual Trabajo", importe: 1850 },
             { id: mId++, fecha: `${currentYear}-${mm}-05`, tipo: "GASTO", categoriaId: 5, subcategoriaId: "", concepto: "Recibo de la Luz", importe: 62.45 },
-            { id: mId++, fecha: `${currentYear}-${mm}-06`, tipo: "GASTO", categoriaId: 1, subcategoriaId: "", concepto: "Consumo de Agua Canal", importe: 24.10 },
-            { id: mId++, fecha: `${currentYear}-${mm}-10`, tipo: "GASTO", categoriaId: 3, subcategoriaId: "", concepto: "Fibra + Móvil", importe: 38.90 }
-        );
-
-        // Shopping
-        state.movimientos.push(
+            { id: mId++, fecha: `${currentYear}-${mm}-06`, tipo: "GASTO", categoriaId: 1, subcategoriaId: "", concepto: "Consumo de Agua", importe: 24.10 },
+            { id: mId++, fecha: `${currentYear}-${mm}-10`, tipo: "GASTO", categoriaId: 3, subcategoriaId: "", concepto: "Fibra + Movil", importe: 38.90 },
             { id: mId++, fecha: `${currentYear}-${mm}-04`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 1, concepto: "Supermercado Semanal", importe: 64.20 },
-            { id: mId++, fecha: `${currentYear}-${mm}-12`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 1, concepto: "Compra semanal comida", importe: 58.30 },
-            { id: mId++, fecha: `${currentYear}-${mm}-18`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 2, concepto: "Sartén antiadherente Tefal", importe: 24.99 },
-            { id: mId++, fecha: `${currentYear}-${mm}-20`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 3, concepto: "Detergente y suavizante", importe: 12.80 }
+            { id: mId++, fecha: `${currentYear}-${mm}-12`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 1, concepto: "Compra semanal", importe: 58.30 },
+            { id: mId++, fecha: `${currentYear}-${mm}-18`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 2, concepto: "Sarten antiadherente", importe: 24.99 },
+            { id: mId++, fecha: `${currentYear}-${mm}-20`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 3, concepto: "Detergente y suavizante", importe: 12.80 },
+            { id: mId++, fecha: `${currentYear}-${mm}-07`, tipo: "GASTO", categoriaId: 7, subcategoriaId: "", concepto: "Cena fin de semana", importe: 35.50 },
+            { id: mId++, fecha: `${currentYear}-${mm}-22`, tipo: "GASTO", categoriaId: 7, subcategoriaId: "", concepto: "Almuerzo oficina", importe: 12.50 },
+            { id: mId++, fecha: `${currentYear}-${mm}-${mes % 2 === 0 ? '15' : '25'}`, tipo: "GASTO", categoriaId: 8, subcategoriaId: mes % 2 === 0 ? 9 : 7, concepto: mes % 2 === 0 ? "Cine + Palomitas" : "Herramientas", importe: mes % 2 === 0 ? 18 : 34.50 },
+            { id: mId++, fecha: `${currentYear}-${mm}-28`, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: 6, categoriaDestinoId: 9, concepto: "Sobrante mensual ahorro", importe: 50 }
         );
-
-        // Leisure & Restaurants
-        state.movimientos.push(
-            { id: mId++, fecha: `${currentYear}-${mm}-07`, tipo: "GASTO", categoriaId: 7, subcategoriaId: "", concepto: "Cena pizzería fin de semana", importe: 35.50 },
-            { id: mId++, fecha: `${currentYear}-${mm}-22`, tipo: "GASTO", categoriaId: 7, subcategoriaId: "", concepto: "Almuerzo menú diario oficina", importe: 12.50 }
-        );
-
-        // Other expenses
-        if (mes % 2 === 0) {
-            state.movimientos.push(
-                { id: mId++, fecha: `${currentYear}-${mm}-15`, tipo: "GASTO", categoriaId: 8, subcategoriaId: 9, concepto: "Entradas Cine + Palomitas", importe: 18.00 }
-            );
-        } else {
-            state.movimientos.push(
-                { id: mId++, fecha: `${currentYear}-${mm}-25`, tipo: "GASTO", categoriaId: 8, subcategoriaId: 7, concepto: "Caja de herramientas y tornillos", importe: 34.50 }
-            );
-        }
-
-        // Monthly automated transfer to savings (Category 9)
-        state.movimientos.push({
-            id: mId++,
-            fecha: `${currentYear}-${mm}-28`,
-            tipo: "TRANSFERENCIA",
-            categoriaId: "",
-            subcategoriaId: "",
-            categoriaOrigenId: 6, // from Compra
-            categoriaDestinoId: 9, // to Ahorro
-            concepto: "Sobrante mensual ahorro automático",
-            importe: 50.00
-        });
     }
 
     populateSelectors();
@@ -1326,67 +1612,27 @@ function loadDemoData() {
 function handleDemoWriteAction(action, data) {
     if (action === 'movimiento') {
         const id = state.movimientos.length + 1;
-        state.movimientos.push({
-            id: id,
-            fecha: data.fecha,
-            tipo: data.tipo,
-            categoriaId: data.categoriaId || "",
-            subcategoriaId: data.subcategoriaId || "",
-            categoriaOrigenId: "",
-            categoriaDestinoId: "",
-            concepto: data.concepto,
-            importe: data.importe
-        });
-        return { success: true, id: id, message: "Movimiento insertado (Demo)" };
+        state.movimientos.push({ id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
+        return { success: true, id, message: "Movimiento insertado (Demo)" };
     } else if (action === 'transferencia') {
         const id = state.movimientos.length + 1;
-        state.movimientos.push({
-            id: id,
-            fecha: data.fecha,
-            tipo: "TRANSFERENCIA",
-            categoriaId: "",
-            subcategoriaId: "",
-            categoriaOrigenId: data.categoriaOrigenId,
-            categoriaDestinoId: data.categoriaDestinoId,
-            concepto: data.concepto,
-            importe: data.importe
-        });
-        return { success: true, id: id, message: "Transferencia insertada (Demo)" };
+        state.movimientos.push({ id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
+        return { success: true, id, message: "Transferencia insertada (Demo)" };
     } else if (action === 'presupuesto') {
         const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
-        if (p) {
-            p.presupuesto = data.presupuesto;
-        } else {
-            state.presupuestos.push({
-                id: state.presupuestos.length + 1,
-                categoriaId: data.categoriaId,
-                mes: data.mes,
-                año: data.año,
-                presupuesto: data.presupuesto
-            });
-        }
+        if (p) { p.presupuesto = data.presupuesto; }
+        else { state.presupuestos.push({ id: state.presupuestos.length + 1, ...data }); }
         return { success: true, message: "Presupuesto guardado (Demo)" };
     } else if (action === 'categoria') {
         const id = state.categorias.length + 1;
-        state.categorias.push({
-            id: id,
-            nombre: data.nombre,
-            icono: data.icono,
-            activa: true
-        });
-        return { success: true, id: id, message: "Categoría creada (Demo)" };
+        state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true });
+        return { success: true, id, message: "Categoria creada (Demo)" };
     } else if (action === 'subcategoria') {
         const id = state.subcategorias.length + 1;
-        state.subcategorias.push({
-            id: id,
-            categoriaId: data.categoriaId,
-            nombre: data.nombre,
-            icono: data.icono,
-            activa: true
-        });
-        return { success: true, id: id, message: "Subcategoría creada (Demo)" };
+        state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true });
+        return { success: true, id, message: "Subcategoria creada (Demo)" };
     }
-    return { success: false, error: 'Acción demo no contemplada' };
+    return { success: false, error: 'Accion demo no contemplada' };
 }
 
 /* ==========================================================================
@@ -1411,11 +1657,8 @@ function formatDate(dateStr) {
         const y = parts[0];
         const m = parseInt(parts[1]) - 1;
         const d = parseInt(parts[2]);
-        
         return `${d} ${MESES_ABR[m]} ${y}`;
-    } catch (e) {
-        return dateStr;
-    }
+    } catch (e) { return dateStr; }
 }
 
 function showToast(message, type = 'info') {
@@ -1435,9 +1678,11 @@ function showToast(message, type = 'info') {
                 flex-direction: column;
                 gap: 12px;
                 z-index: 9999;
+                max-width: calc(100vw - 48px);
             }
             .toast {
-                min-width: 280px;
+                min-width: 260px;
+                max-width: 360px;
                 padding: 14px 20px;
                 border-radius: 10px;
                 color: #ffffff;
@@ -1449,6 +1694,7 @@ function showToast(message, type = 'info') {
                 gap: 12px;
                 animation: toast-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 transition: all 0.3s ease;
+                word-break: break-word;
             }
             .toast.success { background-color: #10b981; }
             .toast.error { background-color: #ef4444; }
@@ -1457,6 +1703,10 @@ function showToast(message, type = 'info') {
             @keyframes toast-in {
                 from { transform: translateY(20px) scale(0.9); opacity: 0; }
                 to { transform: translateY(0) scale(1); opacity: 1; }
+            }
+            @media (max-width: 480px) {
+                .toast-container { bottom: 16px; right: 16px; left: 16px; }
+                .toast { min-width: unset; width: 100%; }
             }
         `;
         document.head.appendChild(style);
@@ -1483,7 +1733,6 @@ function showToast(message, type = 'info') {
 /* ==========================================================================
    Local Offline Mode Helper Functions
    ========================================================================== */
-
 function checkLocalCache() {
     const wasLocal = localStorage.getItem('contable_is_local_mode') === 'true';
     if (wasLocal) {
@@ -1501,13 +1750,11 @@ function checkLocalCache() {
                     
                     showAppInterface();
                     updateLocalModeUI();
-                    
                     populateSelectors();
                     updateDashboardMetrics();
                     recreateCharts();
                     applyMovementsFilters();
-                    
-                    showToast('Base de datos local cargada desde la caché del navegador', 'success');
+                    showToast('Base de datos local cargada desde la cache del navegador', 'success');
                 }
             } catch (e) {
                 console.error('Error loading cached local DB', e);
@@ -1519,18 +1766,16 @@ function checkLocalCache() {
 function validateLocalJSON(data) {
     if (!data || typeof data !== 'object') return false;
     if (!Array.isArray(data.categorias)) return false;
-    
     if (!Array.isArray(data.subcategorias)) data.subcategorias = [];
     if (!Array.isArray(data.presupuestos)) data.presupuestos = [];
     if (!Array.isArray(data.movimientos)) data.movimientos = [];
-    
     return true;
 }
 
 function handleLocalFileSelected(file) {
     if (!file) return;
     if (!file.name.endsWith('.json')) {
-        showToast('Por favor, selecciona un archivo .json válido', 'error');
+        showToast('Por favor, selecciona un archivo .json valido', 'error');
         return;
     }
     
@@ -1544,24 +1789,18 @@ function handleLocalFileSelected(file) {
                 state.isLocalMode = true;
                 state.isDemoMode = false;
                 localStorage.setItem('contable_is_local_mode', 'true');
-                
                 state.categorias = data.categorias;
                 state.subcategorias = data.subcategorias || [];
                 state.presupuestos = data.presupuestos || [];
                 state.movimientos = data.movimientos || [];
-                
                 saveLocalCache();
-                
                 DOM.modalApiSetup.classList.add('hidden');
-                
                 showAppInterface();
                 updateLocalModeUI();
-                
                 populateSelectors();
                 updateDashboardMetrics();
                 recreateCharts();
                 applyMovementsFilters();
-                
                 showToast(`Base de datos '${file.name}' cargada correctamente`, 'success');
             } else {
                 showToast('El archivo JSON no tiene una estructura compatible', 'error');
@@ -1571,37 +1810,27 @@ function handleLocalFileSelected(file) {
             showToast('Error al parsear el archivo JSON', 'error');
         }
     };
-    reader.onerror = () => {
-        setLoading(false);
-        showToast('Error al leer el archivo', 'error');
-    };
+    reader.onerror = () => { setLoading(false); showToast('Error al leer el archivo', 'error'); };
     reader.readAsText(file);
 }
 
 function createNewLocalDB() {
     if (state.movimientos.length > 0 || state.categorias.length > 0) {
-        if (!confirm('¿Estás seguro de que deseas crear una nueva base de datos local? Esto sobrescribirá los datos actuales en memoria.')) {
-            return;
-        }
+        if (!confirm('Esto sobrescribira los datos actuales en memoria. Continuar?')) return;
     }
-    
     state.isLocalMode = true;
     state.isDemoMode = false;
     localStorage.setItem('contable_is_local_mode', 'true');
-    
     loadDefaultLocalStructure();
     saveLocalCache();
-    
     DOM.modalApiSetup.classList.add('hidden');
     showAppInterface();
     updateLocalModeUI();
-    
     populateSelectors();
     updateDashboardMetrics();
     recreateCharts();
     applyMovementsFilters();
-    
-    showToast('Nueva base de datos local creada con categorías por defecto', 'success');
+    showToast('Nueva base de datos local creada con categorias por defecto', 'success');
 }
 
 function loadDefaultLocalStructure() {
@@ -1616,20 +1845,18 @@ function loadDefaultLocalStructure() {
         { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
         { id: 9, nombre: "Ahorro", icono: "💰", activa: true }
     ];
-
     state.subcategorias = [
         { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },
         { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true },
         { id: 3, categoriaId: 6, nombre: "Compra Limpieza", icono: "🧹", activa: true },
         { id: 4, categoriaId: 6, nombre: "Compra Baño", icono: "🛁", activa: true },
         { id: 5, categoriaId: 6, nombre: "Compra Medicina", icono: "💊", activa: true },
-        { id: 6, categoriaId: 8, nombre: "Electrodomésticos", icono: "📺", activa: true },
+        { id: 6, categoriaId: 8, nombre: "Electrodomesticos", icono: "📺", activa: true },
         { id: 7, categoriaId: 8, nombre: "Bricolaje", icono: "🪛", activa: true },
         { id: 8, categoriaId: 8, nombre: "Evento", icono: "🥳", activa: true },
         { id: 9, categoriaId: 8, nombre: "Ocio", icono: "🎉", activa: true },
         { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true }
     ];
-
     state.presupuestos = [];
     state.movimientos = [];
 }
@@ -1652,7 +1879,6 @@ function updateLocalModeUI() {
     } else {
         DOM.btnDownloadLocal.classList.add('hidden');
         DOM.cardConfigLocal.classList.add('hidden');
-        
         if (state.isDemoMode) {
             DOM.apiStatus.className = 'api-status-badge connected';
             DOM.apiStatusText.textContent = 'Modo Demo';
@@ -1682,735 +1908,39 @@ function downloadLocalDB() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('Copia de seguridad descargada con éxito', 'success');
+    showToast('Copia de seguridad descargada con exito', 'success');
 }
 
 function handleLocalWriteAction(action, data) {
     if (action === 'movimiento') {
         const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
-        state.movimientos.push({
-            id: id,
-            fecha: data.fecha,
-            tipo: data.tipo,
-            categoriaId: data.categoriaId || "",
-            subcategoriaId: data.subcategoriaId || "",
-            categoriaOrigenId: "",
-            categoriaDestinoId: "",
-            concepto: data.concepto,
-            importe: data.importe
-        });
+        state.movimientos.push({ id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
         saveLocalCache();
-        return { success: true, id: id, message: "Movimiento guardado localmente" };
+        return { success: true, id, message: "Movimiento guardado localmente" };
     } else if (action === 'transferencia') {
         const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
-        state.movimientos.push({
-            id: id,
-            fecha: data.fecha,
-            tipo: "TRANSFERENCIA",
-            categoriaId: "",
-            subcategoriaId: "",
-            categoriaOrigenId: data.categoriaOrigenId,
-            categoriaDestinoId: data.categoriaDestinoId,
-            concepto: data.concepto,
-            importe: data.importe
-        });
+        state.movimientos.push({ id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
         saveLocalCache();
-        return { success: true, id: id, message: "Transferencia guardada localmente" };
+        return { success: true, id, message: "Transferencia guardada localmente" };
     } else if (action === 'presupuesto') {
         const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
-        if (p) {
-            p.presupuesto = data.presupuesto;
-        } else {
+        if (p) { p.presupuesto = data.presupuesto; }
+        else {
             const id = state.presupuestos.length > 0 ? Math.max(...state.presupuestos.map(pr => pr.id)) + 1 : 1;
-            state.presupuestos.push({
-                id: id,
-                categoriaId: data.categoriaId,
-                mes: data.mes,
-                año: data.año,
-                presupuesto: data.presupuesto
-            });
+            state.presupuestos.push({ id, categoriaId: data.categoriaId, mes: data.mes, año: data.año, presupuesto: data.presupuesto });
         }
         saveLocalCache();
         return { success: true, message: "Presupuesto guardado localmente" };
     } else if (action === 'categoria') {
         const id = state.categorias.length > 0 ? Math.max(...state.categorias.map(c => c.id)) + 1 : 1;
-        state.categorias.push({
-            id: id,
-            nombre: data.nombre,
-            icono: data.icono,
-            activa: true
-        });
+        state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true });
         saveLocalCache();
-        return { success: true, id: id, message: "Categoría creada localmente" };
+        return { success: true, id, message: "Categoria creada localmente" };
     } else if (action === 'subcategoria') {
         const id = state.subcategorias.length > 0 ? Math.max(...state.subcategorias.map(s => s.id)) + 1 : 1;
-        state.subcategorias.push({
-            id: id,
-            categoriaId: data.categoriaId,
-            nombre: data.nombre,
-            icono: data.icono,
-            activa: true
-        });
+        state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true });
         saveLocalCache();
-        return { success: true, id: id, message: "Subcategoría creada localmente" };
+        return { success: true, id, message: "Subcategoria creada localmente" };
     }
-    return { success: false, error: 'Acción local no contemplada' };
-}
-
-/* ==========================================================================
-   Google Sheets Direct API Integration (OAuth 2.0 Client-side)
-   ========================================================================== */
-let tokenClient = null;
-
-function initGoogleDirectSetup() {
-    initGoogleAuth();
-    initGoogleTabs();
-    initGoogleEventListeners();
-    
-    // Fill client ID input if saved
-    if (state.googleClientId) {
-        if (DOM.inGoogleClientId) DOM.inGoogleClientId.value = state.googleClientId;
-        if (DOM.inModalGoogleClientId) DOM.inModalGoogleClientId.value = state.googleClientId;
-    }
-    
-    // Check if we are already logged in
-    if (isGoogleTokenValid()) {
-        onGoogleLoggedIn();
-    } else {
-        // Clear expired tokens
-        state.googleAccessToken = '';
-        state.googleTokenExpiry = 0;
-        localStorage.removeItem('google_access_token');
-        localStorage.removeItem('contable_google_token_expiry');
-    }
-}
-
-function initGoogleAuth() {
-    const clientId = state.googleClientId;
-    if (!clientId) return;
-    
-    try {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly',
-            callback: (tokenResponse) => {
-                if (tokenResponse && tokenResponse.access_token) {
-                    state.googleAccessToken = tokenResponse.access_token;
-                    const expiry = Date.now() + (tokenResponse.expires_in || 3600) * 1000;
-                    state.googleTokenExpiry = expiry;
-                    
-                    localStorage.setItem('google_access_token', state.googleAccessToken);
-                    localStorage.setItem('contable_google_token_expiry', expiry);
-                    
-                    showToast('Sesión de Google iniciada con éxito', 'success');
-                    onGoogleLoggedIn();
-                }
-            },
-        });
-    } catch (e) {
-        console.error('Error al inicializar Google Auth:', e);
-    }
-}
-
-function initGoogleTabs() {
-    // Config Screen Tabs
-    if (DOM.tabConfigGoogleDirect && DOM.tabConfigGoogleScript) {
-        DOM.tabConfigGoogleDirect.addEventListener('click', () => {
-            DOM.tabConfigGoogleDirect.classList.add('active-tab');
-            DOM.tabConfigGoogleScript.classList.remove('active-tab');
-            DOM.panelConfigGoogleDirect.classList.remove('hidden');
-            DOM.panelConfigGoogleScript.classList.add('hidden');
-        });
-        DOM.tabConfigGoogleScript.addEventListener('click', () => {
-            DOM.tabConfigGoogleScript.classList.add('active-tab');
-            DOM.tabConfigGoogleDirect.classList.remove('active-tab');
-            DOM.panelConfigGoogleScript.classList.remove('hidden');
-            DOM.panelConfigGoogleDirect.classList.add('hidden');
-        });
-    }
-
-    // Modal Tabs
-    if (DOM.modalTabGoogleDirect && DOM.modalTabGoogleScript) {
-        DOM.modalTabGoogleDirect.addEventListener('click', () => {
-            DOM.modalTabGoogleDirect.classList.add('active-tab');
-            DOM.modalTabGoogleScript.classList.remove('active-tab');
-            DOM.modalPanelGoogleDirect.classList.remove('hidden');
-            DOM.modalPanelGoogleScript.classList.add('hidden');
-        });
-        DOM.modalTabGoogleScript.addEventListener('click', () => {
-            DOM.modalTabGoogleScript.classList.add('active-tab');
-            DOM.modalTabGoogleDirect.classList.remove('active-tab');
-            DOM.modalPanelGoogleScript.classList.remove('hidden');
-            DOM.modalPanelGoogleDirect.classList.add('hidden');
-        });
-    }
-
-    // Toggle active state classes based on saved mode
-    if (state.isGoogleDirectMode) {
-        if (DOM.tabConfigGoogleDirect) DOM.tabConfigGoogleDirect.click();
-        if (DOM.modalTabGoogleDirect) DOM.modalTabGoogleDirect.click();
-    } else {
-        if (DOM.tabConfigGoogleScript) DOM.tabConfigGoogleScript.click();
-        if (DOM.modalTabGoogleScript) DOM.modalTabGoogleScript.click();
-    }
-}
-
-function initGoogleEventListeners() {
-    // Client ID Inputs sync
-    if (DOM.inGoogleClientId && DOM.inModalGoogleClientId) {
-        DOM.inGoogleClientId.addEventListener('input', (e) => {
-            const val = e.target.value.trim();
-            state.googleClientId = val;
-            localStorage.setItem('contable_google_client_id', val);
-            DOM.inModalGoogleClientId.value = val;
-            initGoogleAuth();
-        });
-        DOM.inModalGoogleClientId.addEventListener('input', (e) => {
-            const val = e.target.value.trim();
-            state.googleClientId = val;
-            localStorage.setItem('contable_google_client_id', val);
-            DOM.inGoogleClientId.value = val;
-            initGoogleAuth();
-        });
-    }
-
-    // Login triggers
-    const triggerLogin = async () => {
-        if (!state.googleClientId) {
-            showToast('Por favor, introduce tu Google Client ID primero.', 'error');
-            return;
-        }
-        try {
-            setLoading(true);
-            await refreshGoogleToken();
-            onGoogleLoggedIn();
-        } catch (e) {
-            showToast('Error al iniciar sesión: ' + e.message, 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.addEventListener('click', triggerLogin);
-    if (DOM.btnModalGoogleLogin) DOM.btnModalGoogleLogin.addEventListener('click', triggerLogin);
-
-    // Logout trigger
-    if (DOM.btnGoogleLogout) {
-        DOM.btnGoogleLogout.addEventListener('click', () => {
-            logoutWithGoogle();
-        });
-    }
-
-    // Refresh sheets list
-    if (DOM.btnRefreshSheets) {
-        DOM.btnRefreshSheets.addEventListener('click', () => {
-            refreshSheetsDropdown();
-        });
-    }
-
-    // Select sheet confirm
-    if (DOM.btnSelectSheetConfirm) {
-        DOM.btnSelectSheetConfirm.addEventListener('click', () => {
-            const sheetId = DOM.selectGoogleSheet.value;
-            if (!sheetId) {
-                showToast('Selecciona una hoja de cálculo primero', 'error');
-                return;
-            }
-            saveActiveGoogleSheet(sheetId);
-        });
-    }
-
-    // Create new sheet trigger
-    if (DOM.btnCreateGoogleSheet) {
-        DOM.btnCreateGoogleSheet.addEventListener('click', async () => {
-            try {
-                setLoading(true);
-                showToast('Creando nueva hoja "Registro Contable" en Drive...', 'info');
-                const sheetId = await googleSheetsCreateSpreadsheet();
-                showToast('Hoja de cálculo creada con éxito', 'success');
-                await refreshSheetsDropdown();
-                saveActiveGoogleSheet(sheetId);
-            } catch (e) {
-                console.error(e);
-                showToast('Error al crear hoja: ' + e.message, 'error');
-            } finally {
-                setLoading(false);
-            }
-        });
-    }
-
-    // Cancel direct login inside Modal
-    if (DOM.btnModalCancelDirect) {
-        DOM.btnModalCancelDirect.addEventListener('click', () => {
-            DOM.modalApiSetup.classList.add('hidden');
-        });
-    }
-}
-
-function onGoogleLoggedIn() {
-    if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.classList.add('hidden');
-    if (DOM.btnGoogleLogout) DOM.btnGoogleLogout.classList.remove('hidden');
-    if (DOM.googleAuthStatus) DOM.googleAuthStatus.classList.remove('hidden');
-
-    // Force Google Direct tab to be visible so the selector shows up
-    if (DOM.tabConfigGoogleDirect) DOM.tabConfigGoogleDirect.click();
-
-    // Close modal if open and redirect to configuracion screen to select spreadsheet
-    if (DOM.modalApiSetup && !DOM.modalApiSetup.classList.contains('hidden')) {
-        DOM.modalApiSetup.classList.add('hidden');
-        window.location.hash = '#configuracion';
-        handleRoute();
-        showToast('Sesión de Google iniciada. Por favor, selecciona o crea tu hoja de cálculo.', 'info');
-    }
-    
-    refreshSheetsDropdown();
-}
-
-function logoutWithGoogle() {
-    state.googleAccessToken = '';
-    state.googleTokenExpiry = 0;
-    state.isGoogleDirectMode = false;
-    
-    localStorage.removeItem('google_access_token');
-    localStorage.removeItem('contable_google_token_expiry');
-    localStorage.removeItem('contable_is_google_direct');
-    
-    if (DOM.btnGoogleLogin) DOM.btnGoogleLogin.classList.remove('hidden');
-    if (DOM.btnGoogleLogout) DOM.btnGoogleLogout.classList.add('hidden');
-    if (DOM.googleAuthStatus) DOM.googleAuthStatus.classList.add('hidden');
-    
-    showToast('Sesión de Google cerrada', 'info');
-    
-    // Switch to local mode or disconnect status
-    state.isLocalMode = true;
-    localStorage.setItem('contable_is_local_mode', 'true');
-    updateLocalModeUI();
-    syncData();
-}
-
-function saveActiveGoogleSheet(sheetId) {
-    state.googleSpreadsheetId = sheetId;
-    localStorage.setItem('contable_google_spreadsheet_id', sheetId);
-    if (DOM.inGoogleSheetId) DOM.inGoogleSheetId.value = sheetId;
-    
-    state.isGoogleDirectMode = true;
-    state.isLocalMode = false;
-    state.isDemoMode = false;
-    localStorage.setItem('contable_is_google_direct', 'true');
-    localStorage.setItem('contable_is_local_mode', 'false');
-    
-    DOM.modalApiSetup.classList.add('hidden');
-    
-    updateLocalModeUI();
-    syncData();
-    showToast('Conectado a Google Sheet. Cargando datos...', 'success');
-}
-
-function isGoogleTokenValid() {
-    return state.googleAccessToken && state.googleTokenExpiry > Date.now();
-}
-
-
-async function refreshSheetsDropdown() {
-    if (!DOM.selectGoogleSheet) return;
-
-    DOM.selectGoogleSheet.innerHTML = '<option value="">-- Cargando hojas... --</option>';
-
-    try {
-        const files = await googleDriveListSpreadsheets();
-
-        if (files.length === 0) {
-            DOM.selectGoogleSheet.innerHTML = '<option value="">-- No hay hojas en Drive --</option>';
-            return;
-        }
-
-        DOM.selectGoogleSheet.innerHTML = '<option value="">-- Selecciona una hoja --</option>';
-        files.forEach(file => {
-            const option = document.createElement('option');
-            option.value = file.id;
-            option.textContent = file.name;
-            if (state.googleSpreadsheetId && file.id === state.googleSpreadsheetId) {
-                option.selected = true;
-            }
-            DOM.selectGoogleSheet.appendChild(option);
-        });
-
-        if (state.googleSpreadsheetId && DOM.inGoogleSheetId) {
-            DOM.inGoogleSheetId.value = state.googleSpreadsheetId;
-        }
-
-    } catch (e) {
-        console.error('Error cargando hojas de Drive:', e);
-        DOM.selectGoogleSheet.innerHTML = '<option value="">-- Error. Inicia sesion de nuevo --</option>';
-        showToast('Error al cargar hojas: ' + e.message, 'error');
-    }
-}
-async function refreshGoogleToken() {
-    return new Promise((resolve, reject) => {
-        if (isGoogleTokenValid()) {
-            resolve(state.googleAccessToken);
-            return;
-        }
-        
-        if (!tokenClient) {
-            initGoogleAuth();
-        }
-        
-        if (!tokenClient) {
-            reject(new Error('Google Auth no inicializado. Introduce tu Client ID.'));
-            return;
-        }
-
-        const oldCallback = tokenClient.callback;
-        tokenClient.callback = (response) => {
-            tokenClient.callback = oldCallback; // Restore callback
-            if (response && response.access_token) {
-                state.googleAccessToken = response.access_token;
-                const expiry = Date.now() + (response.expires_in || 3600) * 1000;
-                state.googleTokenExpiry = expiry;
-                localStorage.setItem('google_access_token', state.googleAccessToken);
-                localStorage.setItem('contable_google_token_expiry', expiry);
-                resolve(response.access_token);
-            } else {
-                reject(new Error('Inicio de sesión de Google cancelado o fallido.'));
-            }
-        };
-        
-        tokenClient.requestAccessToken();
-    });
-}
-
-/* API REST Client for Google Sheets */
-async function googleDriveListSpreadsheets() {
-    if (!isGoogleTokenValid()) {
-        await refreshGoogleToken();
-    }
-    const url = "https://www.googleapis.com/drive/v3/files?q=mimeType%3D'application/vnd.google-apps.spreadsheet'+and+trashed%3Dfalse&fields=files(id,name)&orderBy=name";
-    const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
-    });
-    if (!res.ok) {
-        throw new Error('Error al listar hojas de cálculo');
-    }
-    const data = await res.json();
-    return data.files || [];
-}
-
-async function googleSheetsCreateSpreadsheet() {
-    if (!isGoogleTokenValid()) {
-        await refreshGoogleToken();
-    }
-    
-    // Create new sheet
-    const url = "https://sheets.googleapis.com/v4/spreadsheets";
-    const body = {
-        properties: {
-            title: "Registro Contable"
-        },
-        sheets: [
-            { properties: { title: "categorias" } },
-            { properties: { title: "subcategorias" } },
-            { properties: { title: "presupuestos" } },
-            { properties: { title: "movimientos" } }
-        ]
-    };
-
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${state.googleAccessToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || 'Error al crear la hoja');
-    }
-
-    const sheetData = await res.json();
-    const spreadsheetId = sheetData.spreadsheetId;
-
-    // Initialize sheets headers and default categories / subcategories
-    const defaultCats = [
-        [1, "Agua", "💧", "TRUE"],
-        [2, "Basuras", "🗑️", "TRUE"],
-        [3, "Internet", "🛜", "TRUE"],
-        [4, "Gas", "💨", "TRUE"],
-        [5, "Luz", "💡", "TRUE"],
-        [6, "Compra", "🛒", "TRUE"],
-        [7, "Restaurantes", "🍽️", "TRUE"],
-        [8, "Otras Compras", "🛍️", "TRUE"],
-        [9, "Ahorro", "💰", "TRUE"]
-    ];
-
-    const defaultSubs = [
-        [1, 6, "Compra Comida", "🛒", "TRUE"],
-        [2, 6, "Compra Cocina", "🍳", "TRUE"],
-        [3, 6, "Compra Limpieza", "🧹", "TRUE"],
-        [4, 6, "Compra Baño", "🛁", "TRUE"],
-        [5, 6, "Compra Medicina", "💊", "TRUE"],
-        [6, 8, "Electrodomésticos", "📺", "TRUE"],
-        [7, 8, "Bricolaje", "🪛", "TRUE"],
-        [8, 8, "Evento", "🥳", "TRUE"],
-        [9, 8, "Ocio", "🎉", "TRUE"],
-        [10, 8, "Otro", "💵", "TRUE"]
-    ];
-
-    const initUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
-    const initBody = {
-        valueInputOption: "USER_ENTERED",
-        data: [
-            { range: "categorias!A1:D10", values: [["id", "nombre", "icono", "activa"], ...defaultCats] },
-            { range: "subcategorias!A1:E11", values: [["id", "categoriaId", "nombre", "icono", "activa"], ...defaultSubs] },
-            { range: "presupuestos!A1:E1", values: [["id", "categoriaId", "mes", "año", "presupuesto"]] },
-            { range: "movimientos!A1:I1", values: [["id", "fecha", "tipo", "categoriaId", "subcategoriaId", "categoriaOrigenId", "categoriaDestinoId", "concepto", "importe"]] }
-        ]
-    };
-
-    const initRes = await fetch(initUrl, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${state.googleAccessToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(initBody)
-    });
-
-    if (!initRes.ok) {
-        console.warn('No se pudieron inicializar las cabeceras por defecto automáticamente');
-    }
-
-    return spreadsheetId;
-}
-
-async function googleSheetsReadSheet(sheetName) {
-    if (!isGoogleTokenValid()) {
-        await refreshGoogleToken();
-    }
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.googleSpreadsheetId}/values/${encodeURIComponent(sheetName)}!A1:Z1000`;
-    const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
-    });
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || 'Error al leer la hoja ' + sheetName);
-    }
-    const data = await res.json();
-    if (!data.values || data.values.length === 0) return [];
-    
-    const headers = data.values[0];
-    const rows = data.values.slice(1);
-    
-    return parseRows(rows, headers);
-}
-
-function parseRows(rows, headers) {
-    return rows.map((row, rowIdx) => {
-        const obj = {};
-        headers.forEach((header, idx) => {
-            let val = row[idx];
-            if (val === undefined) val = '';
-            
-            if (header === 'id' || header.endsWith('Id') || header === 'mes' || header === 'año' || header === 'categoriaId' || header === 'subcategoriaId' || header === 'categoriaOrigenId' || header === 'categoriaDestinoId') {
-                obj[header] = val !== '' ? parseInt(val) : '';
-            } else if (header === 'presupuesto' || header === 'importe') {
-                obj[header] = val !== '' ? parseFloat(val) : 0;
-            } else if (header === 'activa') {
-                obj[header] = val === 'TRUE' || val === true || val === 'true';
-            } else {
-                obj[header] = val;
-            }
-        });
-        obj._sheetRowNumber = rowIdx + 2; 
-        return obj;
-    });
-}
-
-async function googleSheetsAppendRow(sheetName, headers, obj) {
-    if (!isGoogleTokenValid()) {
-        await refreshGoogleToken();
-    }
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.googleSpreadsheetId}/values/${encodeURIComponent(sheetName)}!A:A:append?valueInputOption=USER_ENTERED`;
-    
-    const row = headers.map(header => {
-        let val = obj[header];
-        if (val === undefined || val === null) return '';
-        if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
-        return val;
-    });
-
-    const body = {
-        values: [row]
-    };
-
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${state.googleAccessToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || 'Error al escribir en ' + sheetName);
-    }
-    return await res.json();
-}
-
-async function googleSheetsSaveBudget(data) {
-    if (!isGoogleTokenValid()) {
-        await refreshGoogleToken();
-    }
-    
-    const budgets = await googleSheetsReadSheet('presupuestos');
-    const existing = budgets.find(p => p.categoriaId === data.categoriaId && p.mes === data.mes && p.año === data.año);
-    
-    const headers = ['id', 'categoriaId', 'mes', 'año', 'presupuesto'];
-    
-    if (existing) {
-        const rowNumber = existing._sheetRowNumber;
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.googleSpreadsheetId}/values/presupuestos!A${rowNumber}:E${rowNumber}?valueInputOption=USER_ENTERED`;
-        
-        const row = [existing.id, data.categoriaId, data.mes, data.año, data.presupuesto];
-        const body = { values: [row] };
-        
-        const res = await fetch(url, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${state.googleAccessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-        
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error?.message || 'Error al actualizar presupuesto');
-        }
-        return { success: true };
-    } else {
-        const newId = budgets.length > 0 ? Math.max(...budgets.map(b => b.id)) + 1 : 1;
-        const newBudget = {
-            id: newId,
-            categoriaId: data.categoriaId,
-            mes: data.mes,
-            año: data.año,
-            presupuesto: data.presupuesto
-        };
-        await googleSheetsAppendRow('presupuestos', headers, newBudget);
-        return { success: true };
-    }
-}
-
-async function handleGoogleSheetsWriteAction(action, data) {
-    setLoading(true);
-    try {
-        if (action === 'movimiento') {
-            const existingMovs = await googleSheetsReadSheet('movimientos');
-            const newId = existingMovs.length > 0 ? Math.max(...existingMovs.map(m => m.id)) + 1 : 1;
-            const newMov = {
-                id: newId,
-                fecha: data.fecha,
-                tipo: data.tipo,
-                categoriaId: data.categoriaId || "",
-                subcategoriaId: data.subcategoriaId || "",
-                categoriaOrigenId: "",
-                categoriaDestinoId: "",
-                concepto: data.concepto,
-                importe: data.importe
-            };
-            await googleSheetsAppendRow('movimientos', ['id', 'fecha', 'tipo', 'categoriaId', 'subcategoriaId', 'categoriaOrigenId', 'categoriaDestinoId', 'concepto', 'importe'], newMov);
-            return { success: true, id: newId, message: "Movimiento guardado en Google Sheets" };
-        } else if (action === 'transferencia') {
-            const existingMovs = await googleSheetsReadSheet('movimientos');
-            const newId = existingMovs.length > 0 ? Math.max(...existingMovs.map(m => m.id)) + 1 : 1;
-            const newMov = {
-                id: newId,
-                fecha: data.fecha,
-                tipo: "TRANSFERENCIA",
-                categoriaId: "",
-                subcategoriaId: "",
-                categoriaOrigenId: data.categoriaOrigenId,
-                categoriaDestinoId: data.categoriaDestinoId,
-                concepto: data.concepto,
-                importe: data.importe
-            };
-            await googleSheetsAppendRow('movimientos', ['id', 'fecha', 'tipo', 'categoriaId', 'subcategoriaId', 'categoriaOrigenId', 'categoriaDestinoId', 'concepto', 'importe'], newMov);
-            return { success: true, id: newId, message: "Transferencia guardada en Google Sheets" };
-        } else if (action === 'presupuesto') {
-            const res = await googleSheetsSaveBudget(data);
-            return { success: true, message: "Presupuesto guardado en Google Sheets" };
-        } else if (action === 'categoria') {
-            const existingCats = await googleSheetsReadSheet('categorias');
-            const newId = existingCats.length > 0 ? Math.max(...existingCats.map(c => c.id)) + 1 : 1;
-            const newCat = {
-                id: newId,
-                nombre: data.nombre,
-                icono: data.icono,
-                activa: 'TRUE'
-            };
-            await googleSheetsAppendRow('categorias', ['id', 'nombre', 'icono', 'activa'], newCat);
-            state.categorias.push({ id: newId, nombre: data.nombre, icono: data.icono, activa: true });
-            return { success: true, id: newId, message: "Categoría creada en Google Sheets" };
-        } else if (action === 'subcategoria') {
-            const existingSubs = await googleSheetsReadSheet('subcategorias');
-            const newId = existingSubs.length > 0 ? Math.max(...existingSubs.map(s => s.id)) + 1 : 1;
-            const newSub = {
-                id: newId,
-                categoriaId: data.categoriaId,
-                nombre: data.nombre,
-                icono: data.icono,
-                activa: 'TRUE'
-            };
-            await googleSheetsAppendRow('subcategorias', ['id', 'categoriaId', 'nombre', 'icono', 'activa'], newSub);
-            state.subcategorias.push({ id: newId, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true });
-            return { success: true, id: newId, message: "Subcategoría creada en Google Sheets" };
-        }
-        return { success: false, error: 'Acción de Google Sheets no contemplada' };
-    } catch (error) {
-        console.error(error);
-        showToast('Error al guardar en Google Sheets: ' + error.message, 'error');
-        return { success: false, error: error.message };
-    } finally {
-        setLoading(false);
-    }
-}
-
-/* ==========================================================================
-   Clear All Saved Configuration
-   ========================================================================== */
-function clearAllConfig() {
-    const confirmed = window.confirm(
-        'Seguro que quieres limpiar toda la configuracion guardada?\n\n' +
-        'Esto eliminara:\n' +
-        '  - La URL de Apps Script Web App\n' +
-        '  - Los tokens de Google (sesion)\n' +
-        '  - El ID de la hoja conectada\n' +
-        '  - El modo de conexion\n\n' +
-        'La pagina se recargara y podras configurarlo de nuevo.'
-    );
-
-    if (!confirmed) return;
-
-    const keysToRemove = [
-        'contable_api_url',
-        'contable_is_local_mode',
-        'contable_is_google_direct',
-        'contable_google_spreadsheet_id',
-        'contable_google_client_id',
-        'contable_google_token_expiry',
-        'google_access_token'
-    ];
-
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-
-    showToast('Configuracion eliminada. Recargando...', 'success');
-
-    setTimeout(() => {
-        window.location.reload();
-    }, 1200);
+    return { success: false, error: 'Accion local no contemplada' };
 }

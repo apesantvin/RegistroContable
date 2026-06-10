@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro Contable - Gestiona tus Finanzas en Google Sheets</title>
     <meta name="description" content="Una aplicación web elegante, rápida y privada para controlar tus finanzas personales y presupuestos, conectada directamente a tu Google Sheets.">
-    <!-- Favicon inline (evita el 404 automatico del navegador) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <!-- Google Fonts: Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,18 +12,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Pre-define GIS load callback to prevent race conditions -->
-    <script>
-        window.isGoogleSdkLoaded = false;
-        window.initGoogleOnLoad = function() {
-            window.isGoogleSdkLoaded = true;
-            if (typeof window.attemptGoogleInitialization === 'function') {
-                window.attemptGoogleInitialization();
-            }
-        };
-    </script>
-    <!-- Google Identity Services (GIS) library for Google Login -->
-    <script src="https://accounts.google.com/gsi/client" onload="initGoogleOnLoad()" async defer></script>
     <!-- CSS Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -116,8 +103,8 @@
 
                 <div class="feature-card">
                     <div class="feature-icon">📊</div>
-                    <h3 class="feature-title">Gráficos Interactivos</h3>
-                    <p class="feature-description">Analiza visualmente la distribución de tus gastos por categorías y subcategorías, e inspecciona la evolución de tus ahorros mes a mes.</p>
+                    <h3 class="feature-title">9 Gráficos Interactivos</h3>
+                    <p class="feature-description">Analiza visualmente la distribución de tus gastos, compara ingresos vs gastos, controla tus presupuestos y ve tendencias interanuales.</p>
                 </div>
 
                 <div class="feature-card">
@@ -233,12 +220,12 @@
                 <div class="right-section">
                     <!-- Demo Mode Banner -->
                     <div class="demo-badge hidden" id="demo-mode-badge">
-                        <span>MODO DEMOSTRACIÓN</span>
+                        <span>DEMO</span>
                     </div>
 
                     <!-- Global Year Selector -->
                     <div class="year-filter-wrapper">
-                        <label for="global-year-select" class="sr-only">Año:</label>
+                        <label for="global-year-select" class="year-label">Año:</label>
                         <select id="global-year-select" class="form-select year-select">
                             <!-- JS populated -->
                         </select>
@@ -247,11 +234,6 @@
                     <!-- Download JSON Button -->
                     <button class="btn btn-secondary btn-icon-only hidden" id="btn-download-local" title="Descargar Base de Datos (.json)">
                         📥
-                    </button>
-                    
-                    <!-- Force Reconnect Button -->
-                    <button class="btn btn-secondary btn-icon-only" id="btn-reconnect" title="Forzar Sincronización / Reconectar">
-                        🔄
                     </button>
                     
                     <!-- API Status Indicator -->
@@ -286,7 +268,7 @@
                         <div class="metric-card ingresos">
                             <div class="card-icon">📈</div>
                             <div class="card-info">
-                                <span class="card-label">Ingresos de este año</span>
+                                <span class="card-label">Ingresos del año</span>
                                 <h3 class="card-value" id="val-ingresos">0.00 €</h3>
                                 <span class="card-meta">Entradas acumuladas</span>
                             </div>
@@ -294,7 +276,7 @@
                         <div class="metric-card gastos">
                             <div class="card-icon">📉</div>
                             <div class="card-info">
-                                <span class="card-label">Gastos de este año</span>
+                                <span class="card-label">Gastos del año</span>
                                 <h3 class="card-value" id="val-gastos">0.00 €</h3>
                                 <span class="card-meta">Salidas acumuladas</span>
                             </div>
@@ -309,30 +291,82 @@
                         </div>
                     </div>
 
+                    <!-- Dashboard Range Filter -->
+                    <div class="dashboard-range-filter">
+                        <span class="range-filter-label">Ver:</span>
+                        <div class="range-btns">
+                            <button class="range-btn" data-range="month" id="range-btn-month">Último mes</button>
+                            <button class="range-btn" data-range="3months" id="range-btn-3months">3 meses</button>
+                            <button class="range-btn" data-range="6months" id="range-btn-6months">6 meses</button>
+                            <button class="range-btn active" data-range="year" id="range-btn-year">Este año</button>
+                        </div>
+                    </div>
+
                     <!-- Charts Grid -->
                     <div class="charts-grid">
+                        <!-- Row 1: Full-width line charts -->
                         <div class="chart-card large">
-                            <h4 class="chart-title">Evolución de Ahorro Acumulado Mensual</h4>
+                            <h4 class="chart-title">📈 Ingresos vs Gastos Mensual</h4>
                             <div class="chart-wrapper">
-                                <canvas id="chart-ahorro"></canvas>
+                                <canvas id="chart-ingresos-gastos"></canvas>
                             </div>
                         </div>
                         <div class="chart-card large">
-                            <h4 class="chart-title">Historial de Gasto Mensual</h4>
+                            <h4 class="chart-title">💹 Balance Neto Mensual</h4>
                             <div class="chart-wrapper">
-                                <canvas id="chart-gasto-mensual"></canvas>
+                                <canvas id="chart-balance-neto"></canvas>
                             </div>
                         </div>
+
+                        <!-- Row 2: Half-width donuts -->
                         <div class="chart-card">
-                            <h4 class="chart-title">Distribución por Categorías</h4>
+                            <h4 class="chart-title">🍩 Distribución por Categorías</h4>
                             <div class="chart-wrapper donut-wrapper">
                                 <canvas id="chart-categorias"></canvas>
                             </div>
                         </div>
                         <div class="chart-card">
-                            <h4 class="chart-title">Distribución por Subcategorías</h4>
+                            <h4 class="chart-title">🍩 Distribución por Subcategorías</h4>
                             <div class="chart-wrapper donut-wrapper">
                                 <canvas id="chart-subcategorias"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Budget vs Real (full width) -->
+                        <div class="chart-card large">
+                            <h4 class="chart-title">🎯 Presupuesto vs Gasto Real por Categoría</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-presupuesto-vs-real"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Row 4: Top categories + Comparative -->
+                        <div class="chart-card">
+                            <h4 class="chart-title">🏆 Top Categorías de Gasto</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-top-categorias"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h4 class="chart-title">📅 Ahorro Acumulado Mensual</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-ahorro"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Row 5: Interannual comparative (full width) -->
+                        <div class="chart-card large">
+                            <h4 class="chart-title">📊 Comparativa Interanual de Gastos</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-comparativa"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Row 6: Monthly expense history -->
+                        <div class="chart-card large">
+                            <h4 class="chart-title">📉 Historial de Gasto Mensual</h4>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-gasto-mensual"></canvas>
                             </div>
                         </div>
                     </div>
@@ -405,6 +439,11 @@
 
                     <!-- Movements List Card -->
                     <div class="card table-card">
+                        <!-- Pagination info bar -->
+                        <div class="pagination-info" id="pagination-info">
+                            <span id="pagination-count-text"></span>
+                        </div>
+
                         <div class="table-responsive">
                             <table class="data-table" id="table-movimientos">
                                 <thead>
@@ -427,6 +466,17 @@
                         </div>
                         <div class="table-empty-state hidden" id="table-empty">
                             <p>No se encontraron movimientos con los filtros seleccionados.</p>
+                        </div>
+
+                        <!-- Pagination Controls -->
+                        <div class="pagination-controls hidden" id="pagination-controls">
+                            <button class="pagination-btn" id="btn-page-prev" title="Página anterior">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            </button>
+                            <div class="pagination-pages" id="pagination-pages"></div>
+                            <button class="pagination-btn" id="btn-page-next" title="Página siguiente">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -521,81 +571,22 @@
                                 <button type="button" class="btn btn-secondary" id="btn-config-load-local">📂 Cargar Otro Archivo</button>
                             </div>
                         </div>
+
+                        <!-- API Connection Configuration -->
                         <div class="card">
                             <h3 class="card-subtitle">Conexión con Google Sheets</h3>
+                            <p class="card-description">Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos en la nube.</p>
                             
-                            <div class="config-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                                <button type="button" class="btn btn-secondary active-tab" id="tab-config-google-direct" style="padding: 6px 12px; font-size: 0.85rem;">⚡ API Directo (Sin Script)</button>
-                                <button type="button" class="btn btn-secondary" id="tab-config-google-script" style="padding: 6px 12px; font-size: 0.85rem;">🔗 Web App (Apps Script)</button>
-                            </div>
-
-                            <!-- Panel 1: Direct API -->
-                            <div id="panel-config-google-direct" class="config-panel">
-                                <p class="card-description">Conecta tu cuenta de Google e interactúa directamente con Google Sheets desde el navegador.</p>
-                                
-                                <div class="modern-form">
-                                    <div class="form-grid">
-                                        <div class="form-group large">
-                                            <label for="in-google-client-id">Google Client ID</label>
-                                            <input type="text" id="in-google-client-id" class="form-input" placeholder="Ej: 123456789-abc.apps.googleusercontent.com">
-                                            <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 4px;">
-                                                Necesitas crear un ID de cliente OAuth 2.0 en Google Cloud Console para tu dominio (o localhost).
-                                            </small>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="form-actions-inline" style="margin-bottom: 15px; margin-top: 15px;">
-                                        <button type="button" class="btn btn-primary" id="btn-google-login">🔑 Iniciar Sesión con Google</button>
-                                        <button type="button" class="btn btn-danger hidden" id="btn-google-logout">Cerrar Sesión Google</button>
-                                    </div>
-
-                                    <div id="google-auth-status" class="auth-status-box hidden" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; margin-top: 15px;">
-                                        <div class="form-group large">
-                                            <label for="select-google-sheet">Selecciona una Hoja de Cálculo</label>
-                                            <div style="display: flex; gap: 10px;">
-                                                <select id="select-google-sheet" class="form-select" style="flex: 1;">
-                                                    <option value="">-- Cargando hojas de cálculo... --</option>
-                                                </select>
-                                                <button type="button" class="btn btn-secondary" id="btn-refresh-sheets" title="Recargar lista">🔄</button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="form-group large" style="margin-top: 10px;">
-                                            <label for="in-google-sheet-id">ID de Google Sheet Activo</label>
-                                            <input type="text" id="in-google-sheet-id" class="form-input" placeholder="ID de la hoja de cálculo de Google Sheets" readonly>
-                                        </div>
-
-                                        <div class="form-actions-inline" style="margin-top: 15px; gap: 10px;">
-                                            <button type="button" class="btn btn-secondary" id="btn-select-sheet-confirm">Conectar Hoja Seleccionada</button>
-                                            <button type="button" class="btn btn-primary" id="btn-create-google-sheet">✨ Crear Nueva Hoja</button>
-                                        </div>
-                                    </div>
+                            <form id="form-api-url" class="modern-form">
+                                <div class="form-group large">
+                                    <label for="in-api-url">URL de Google Apps Script Web App</label>
+                                    <input type="url" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
                                 </div>
-                                <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">¿Quieres cambiar de método de conexión o borrar los datos guardados?</p>
-                                    <button type="button" class="btn btn-danger-outline" id="btn-clear-all-config-direct">🗑️ Limpiar Configuración Guardada</button>
+                                <div class="form-actions-inline">
+                                    <button type="submit" class="btn btn-primary">Guardar Enlace API</button>
+                                    <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
                                 </div>
-                            </div>
-
-                            <!-- Panel 2: Apps Script Web App -->
-                            <div id="panel-config-google-script" class="config-panel hidden">
-                                <p class="card-description">Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos en la nube.</p>
-                                
-                                <form id="form-api-url" class="modern-form">
-                                    <div class="form-group large">
-                                        <label for="in-api-url">URL de Google Apps Script Web App</label>
-                                        <input type="url" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec">
-                                    </div>
-                                    <div class="form-actions-inline">
-                                        <button type="submit" class="btn btn-primary">Guardar Enlace API</button>
-                                        <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
-                                    </div>
-                                </form>
-                                <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">¿Quieres cambiar de método de conexión o borrar los datos guardados?</p>
-                                    <button type="button" class="btn btn-danger-outline" id="btn-clear-all-config">🗑️ Limpiar Configuración Guardada</button>
-                                </div>
-                            </div>
+                            </form>
                         </div>
 
                         <!-- Budget Editor -->
@@ -695,7 +686,8 @@
                         <!-- Automations Card -->
                         <div class="card border-danger">
                             <h3 class="card-subtitle text-danger">Acciones Automatizadas</h3>
-                                                 <div class="form-actions-inline">
+                            <p class="card-description">Realiza la transferencia automática de todos los saldos de presupuesto positivos sobrantes de tus categorías directamente hacia la categoría de Ahorro.</p>
+                            <div class="form-actions-inline">
                                 <button type="button" class="btn btn-danger" id="btn-transferir-sobrantes">Transferir Sobrantes de Mes a Ahorro</button>
                             </div>
                         </div>
@@ -709,46 +701,24 @@
 
     <!-- API URL Setup Modal (Shows if no API URL configured) -->
     <div class="modal-backdrop hidden" id="api-modal-setup">
-        <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-card">
             <div class="modal-header">
                 <h2>Conectar Google Sheets</h2>
             </div>
             <div class="modal-body">
-                <p>Elige un método de conexión para sincronizar tus datos financieros en la nube de forma segura y privada.</p>
+                <p>Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos.</p>
+                <p class="modal-alert">Esto conectará la aplicación de forma directa y privada con tu hoja de cálculo.</p>
                 
-                <div class="modal-tabs" style="display: flex; gap: 10px; margin: 15px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                    <button type="button" class="btn btn-secondary active-tab" id="modal-tab-google-direct" style="flex: 1; padding: 6px; font-size: 0.8rem;">⚡ API Directo</button>
-                    <button type="button" class="btn btn-secondary" id="modal-tab-google-script" style="flex: 1; padding: 6px; font-size: 0.8rem;">🔗 Apps Script</button>
-                </div>
-
-                <!-- Modal Panel 1: Direct Google Login -->
-                <div id="modal-panel-google-direct">
-                    <p class="modal-alert" style="margin-bottom: 15px;">Recomendado: Inicia sesión con tu cuenta de Google para leer y escribir en tu hoja sin configurar código intermedio.</p>
-                    <div class="modern-form">
-                        <div class="form-group large">
-                            <label for="in-modal-google-client-id">Google Client ID</label>
-                            <input type="text" id="in-modal-google-client-id" class="form-input" placeholder="ID de cliente de Google Cloud">
-                        </div>
-                        <div class="form-actions-inline" style="gap: 10px;">
-                            <button type="button" class="btn btn-primary btn-large w-100" id="btn-modal-google-login">🔑 Conectar con Google</button>
-                            <button type="button" class="btn btn-secondary" id="btn-modal-cancel-direct">Cancelar</button>
-                        </div>
+                <form id="form-modal-api">
+                    <div class="form-group large">
+                        <label for="in-modal-api-url">URL de Apps Script Web App</label>
+                        <input type="url" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
                     </div>
-                </div>
-
-                <!-- Modal Panel 2: Apps Script URL -->
-                <div id="modal-panel-google-script" class="hidden">
-                    <form id="form-modal-api">
-                        <div class="form-group large">
-                            <label for="in-modal-api-url">URL de Apps Script Web App</label>
-                            <input type="url" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec">
-                        </div>
-                        <div class="form-actions-inline" style="gap: 10px;">
-                            <button type="submit" class="btn btn-primary btn-large w-100">Guardar y Sincronizar</button>
-                            <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
+                    <div class="form-actions-inline">
+                        <button type="submit" class="btn btn-primary btn-large w-100">Guardar y Sincronizar</button>
+                        <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
+                    </div>
+                </form>
                 
                 <div class="modal-divider"><span>O BIEN</span></div>
                 
@@ -769,5 +739,6 @@
 
     <!-- App JavaScript -->
     <script src="app.js"></script>
+
 </body>
 </html>

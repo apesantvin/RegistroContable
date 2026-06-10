@@ -790,19 +790,6 @@ body:not(.dark-mode) .top-bar {
     box-shadow: 0 6px 18px rgba(239, 68, 68, 0.3);
 }
 
-.btn-danger-outline {
-    background: transparent;
-    color: #ef4444;
-    border: 1px solid #ef4444;
-    box-shadow: none;
-}
-
-.btn-danger-outline:hover {
-    background: rgba(239, 68, 68, 0.1);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
-}
-
 .btn-icon-only {
     padding: 10px;
     border-radius: 10px;
@@ -920,6 +907,7 @@ body:not(.dark-mode) .top-bar {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
+    margin-top: 8px;
 }
 
 .chart-card {
@@ -1395,6 +1383,161 @@ body:not(.dark-mode) .loading-overlay {
 }
 
 /* ==========================================================================
+   Dashboard Range Filter
+   ========================================================================== */
+.dashboard-range-filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.range-filter-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.range-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.range-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.range-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.range-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+/* ==========================================================================
+   Pagination Controls
+   ========================================================================== */
+.pagination-info {
+    padding: 12px 20px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.pagination-pages {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pagination-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.pagination-num:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.pagination-num.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 4px 10px var(--primary-glow);
+}
+
+.pagination-ellipsis {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+/* ==========================================================================
+   Table Responsive: card view on mobile
+   ========================================================================== */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Year label helper */
+.year-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* ==========================================================================
    Responsive Breakpoints
    ========================================================================== */
 @media (max-width: 1024px) {
@@ -1432,12 +1575,17 @@ body:not(.dark-mode) .loading-overlay {
 }
 
 @media (max-width: 768px) {
+    /* Sidebar overlay */
     .sidebar {
         transform: translateX(-100%);
+        z-index: 200;
+        position: fixed;
+        height: 100vh;
     }
     
     .sidebar.mobile-open {
         transform: translateX(0);
+        box-shadow: 0 0 60px rgba(0,0,0,0.5);
     }
     
     .mobile-close {
@@ -1452,22 +1600,78 @@ body:not(.dark-mode) .loading-overlay {
         display: block;
     }
     
+    /* Top bar */
     .top-bar {
         padding: 0 16px;
+        min-height: 60px;
+        gap: 10px;
     }
-    
+
+    .right-section {
+        gap: 8px;
+    }
+
+    .year-label {
+        display: none;
+    }
+
+    .status-text {
+        display: none;
+    }
+
+    .api-status-badge {
+        padding: 6px;
+        min-width: unset;
+    }
+
+    /* Content */
     .content-container {
         padding: 16px;
+        gap: 16px;
     }
     
+    /* Metrics */
     .metrics-grid {
-        gap: 16px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .metric-card {
+        padding: 16px;
+    }
+
+    .card-value {
+        font-size: 18px;
+    }
+
+    .card-icon {
+        font-size: 24px;
     }
     
+    /* Charts */
     .charts-grid {
-        gap: 16px;
+        gap: 14px;
+    }
+
+    .chart-wrapper {
+        height: 240px;
+    }
+
+    .chart-wrapper.donut-wrapper {
+        height: 220px;
+    }
+
+    .chart-card {
+        padding: 16px;
+    }
+
+    /* Dashboard range filter */
+    .range-btn {
+        padding: 5px 12px;
+        font-size: 12px;
     }
     
+    /* Forms */
     .form-grid {
         grid-template-columns: 1fr;
     }
@@ -1479,7 +1683,17 @@ body:not(.dark-mode) .loading-overlay {
     .filter-row {
         grid-template-columns: 1fr;
     }
+
+    .form-actions-inline {
+        flex-direction: column;
+    }
+
+    /* Config grid */
+    .config-grid {
+        grid-template-columns: 1fr;
+    }
     
+    /* Landing */
     .landing-header {
         flex-direction: column;
         height: auto;
@@ -1495,6 +1709,176 @@ body:not(.dark-mode) .loading-overlay {
     
     .hero-title {
         font-size: 36px;
+    }
+
+    /* Pagination */
+    .pagination-controls {
+        padding: 14px 12px;
+        gap: 6px;
+    }
+
+    .pagination-num, .pagination-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+    }
+}
+
+/* Mobile: table becomes card list */
+@media (max-width: 600px) {
+    .data-table thead {
+        display: none;
+    }
+
+    .data-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid var(--border-color);
+        padding: 14px 16px;
+        gap: 4px;
+        position: relative;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: var(--bg-card-hover);
+    }
+
+    .data-table td {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 0;
+        border: none;
+        font-size: 13px;
+    }
+
+    /* Concept is main text */
+    .data-table td[data-label="Concepto"] {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+        order: -1;
+    }
+
+    /* Amount floats to right */
+    .data-table td[data-label="Importe"] {
+        position: absolute;
+        top: 14px;
+        right: 16px;
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    /* Date is secondary */
+    .data-table td[data-label="Fecha"] {
+        font-size: 12px;
+        color: var(--text-muted);
+        order: 1;
+    }
+
+    .data-table td[data-label="Tipo"] {
+        order: 0;
+    }
+
+    .data-table td[data-label="Categoría"],
+    .data-table td[data-label="Subcategoría"] {
+        font-size: 12px;
+        color: var(--text-secondary);
+        order: 2;
+    }
+
+    /* Hide subcategory if empty dash */
+    .data-table td[data-label="Subcategoría"]:empty {
+        display: none;
+    }
+
+    .data-table td.text-right {
+        text-align: right;
+    }
+
+    .filter-card {
+        padding: 12px 14px;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 480px) {
+    .metrics-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .metric-card {
+        padding: 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .card-icon {
+        font-size: 20px;
+    }
+
+    .card-value {
+        font-size: 16px;
+    }
+
+    .card-meta {
+        display: none;
+    }
+
+    .content-container {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .chart-wrapper {
+        height: 200px;
+    }
+
+    .chart-wrapper.donut-wrapper {
+        height: 200px;
+    }
+
+    .top-bar {
+        height: 56px;
+        min-height: 56px;
+    }
+
+    .page-title {
+        font-size: 16px;
+    }
+
+    .hero-title {
+        font-size: 28px;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .hero-actions .btn {
+        width: 100%;
+    }
+
+    .dashboard-range-filter {
+        gap: 8px;
+    }
+
+    .range-btns {
+        gap: 4px;
+    }
+
+    .range-btn {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+
+    .modal-card {
+        margin: 12px;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
     }
 }
 
@@ -1557,17 +1941,4 @@ body:not(.dark-mode) .local-setup-box:hover {
     color: var(--text-secondary);
     line-height: 1.5;
 }
-
-/* Connection Tabs & OAuth UI Elements */
-.config-tabs button.active-tab, .modal-tabs button.active-tab {
-    background-color: var(--primary) !important;
-    color: #ffffff !important;
-    border-color: var(--primary) !important;
-    box-shadow: 0 4px 12px var(--primary-glow) !important;
-}
-
-.auth-status-box {
-    animation: fade-in var(--transition-normal);
-}
-
 
