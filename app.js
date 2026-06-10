@@ -1883,6 +1883,7 @@ function initGoogleEventListeners() {
         try {
             setLoading(true);
             await refreshGoogleToken();
+            onGoogleLoggedIn();
         } catch (e) {
             showToast('Error al iniciar sesión: ' + e.message, 'error');
         } finally {
