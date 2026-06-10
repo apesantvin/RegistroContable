@@ -50,6 +50,7 @@ const DOM = {
     loadingSpinner: document.getElementById('loading-spinner'),
     barTitle: document.getElementById('bar-title'),
     btnDownloadLocal: document.getElementById('btn-download-local'),
+    btnReconnect: document.getElementById('btn-reconnect'),
     
     // Screens
     screens: document.querySelectorAll('.app-screen'),
@@ -249,6 +250,22 @@ function initLandingActions() {
     
     DOM.btnDownloadLocal.addEventListener('click', downloadLocalDB);
     DOM.btnConfigDownloadLocal.addEventListener('click', downloadLocalDB);
+    
+    DOM.btnReconnect.addEventListener('click', () => {
+        state.isDemoMode = false;
+        DOM.demoModeBadge.classList.add('hidden');
+        
+        if (state.apiUrl) {
+            state.isLocalMode = false;
+            localStorage.setItem('contable_is_local_mode', 'false');
+            updateLocalModeUI();
+            syncData();
+            showToast('Sincronizando con Google Sheets...', 'info');
+        } else {
+            DOM.modalApiSetup.classList.remove('hidden');
+            showToast('Por favor, configura la URL de la API de Google Sheets.', 'warning');
+        }
+    });
 
     // Exit Application back to Landing page
     DOM.btnExitApp.addEventListener('click', (e) => {
