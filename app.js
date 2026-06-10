@@ -1932,6 +1932,14 @@ function onGoogleLoggedIn() {
     if (DOM.btnGoogleLogout) DOM.btnGoogleLogout.classList.remove('hidden');
     if (DOM.googleAuthStatus) DOM.googleAuthStatus.classList.remove('hidden');
     
+    // Close modal if open and redirect to configuracion screen to select spreadsheet
+    if (DOM.modalApiSetup && !DOM.modalApiSetup.classList.contains('hidden')) {
+        DOM.modalApiSetup.classList.add('hidden');
+        window.location.hash = '#configuracion';
+        handleRoute();
+        showToast('Sesión de Google iniciada. Por favor, selecciona o crea tu hoja de cálculo.', 'info');
+    }
+    
     refreshSheetsDropdown();
 }
 
