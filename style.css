@@ -1128,6 +1128,9 @@ body:not(.dark-mode) .btn-action-delete:hover {
 .val-importe.ingreso { color: var(--success); }
 .val-importe.transfer { color: var(--text-primary); }
 
+.desktop-cat      { display: inline; }
+.mobile-catsubcat { display: none; }
+
 .table-empty-state {
     padding: 40px;
     text-align: center;
@@ -1760,22 +1763,17 @@ body:not(.dark-mode) .loading-overlay {
 
 /* Mobile: table becomes card list */
 @media (max-width: 600px) {
-    .data-table thead {
-        display: none;
-    }
+    .data-table thead { display: none; }
 
     .data-table tbody tr {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr auto;
         border-bottom: 1px solid var(--border-color);
         padding: 14px 16px;
-        gap: 4px;
-        position: relative;
+        gap: 4px 8px;
     }
 
-    .data-table tbody tr:hover {
-        background-color: var(--bg-card-hover);
-    }
+    .data-table tbody tr:hover { background-color: var(--bg-card-hover); }
 
     .data-table td {
         display: flex;
@@ -1786,53 +1784,73 @@ body:not(.dark-mode) .loading-overlay {
         font-size: 13px;
     }
 
-    /* Concept is main text */
+    /* Fila 1: Fecha arriba del todo */
+    .data-table td[data-label="Fecha"] {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    /* Fila 2: Concepto ocupa todo el ancho */
     .data-table td[data-label="Concepto"] {
+        grid-column: 1 / -1;
+        grid-row: 2;
         font-size: 15px;
         font-weight: 700;
         color: var(--text-primary);
-        order: -1;
     }
 
-    /* Amount floats to right */
+    /* Fila 3 izquierda: Tipo */
+    .data-table td[data-label="Tipo"] {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    /* Fila 3 derecha: Importe */
     .data-table td[data-label="Importe"] {
-        position: absolute;
-        top: 14px;
-        right: 16px;
+        grid-column: 2;
+        grid-row: 3;
         font-size: 16px;
         font-weight: 800;
-    }
-
-    /* Date is secondary */
-    .data-table td[data-label="Fecha"] {
-        font-size: 12px;
-        color: var(--text-muted);
-        order: 1;
-    }
-
-    .data-table td[data-label="Tipo"] {
-        order: 0;
-    }
-
-    .data-table td[data-label="Categoría"],
-    .data-table td[data-label="Subcategoría"] {
-        font-size: 12px;
-        color: var(--text-secondary);
-        order: 2;
-    }
-
-    /* Hide subcategory if empty dash */
-    .data-table td[data-label="Subcategoría"]:empty {
-        display: none;
-    }
-
-    .data-table td.text-right {
+        justify-self: end;
         text-align: right;
     }
 
-    .filter-card {
-        padding: 12px 14px;
+    /* Fila 4 izquierda: Categoría / Subcategoría combinadas */
+    .data-table td[data-label="Categoría"] {
+        grid-column: 1;
+        grid-row: 4;
+        font-size: 12px;
+        color: var(--text-secondary);
     }
+
+    /* Fila 4 derecha: Acciones */
+    .data-table td[data-label="Acciones"] {
+        grid-column: 2;
+        grid-row: 4;
+        justify-self: end;
+        text-align: right;
+    }
+
+    /* Subcategoría oculta en mobile (info incluida en Categoría) */
+    .data-table td[data-label="Subcategoría"] {
+        display: none;
+    }
+
+    /* Swap de spans: mostrar versión mobile, ocultar desktop */
+    .mobile-catsubcat { display: inline; }
+    .desktop-cat      { display: none; }
+
+    /* Padding reducido en botones de acción */
+    .btn-action-edit,
+    .btn-action-delete {
+        padding: 2px;
+    }
+
+    .data-table td.text-right { text-align: right; }
+
+    .filter-card { padding: 12px 14px; }
 }
 
 /* Very small phones */

@@ -1594,14 +1594,14 @@ function renderMovementsTable(movs) {
             typeBadge = '<span class="val-badge gasto">Gasto</span>';
             amountClass = 'val-importe gasto';
             amountText = `- ${parseFloat(m.importe).toFixed(2)} €`;
-            categoryText = cat ? `${cat.icono} ${cat.nombre}` : '-';
-            subcatText = sub ? `${sub.icono} ${sub.nombre}` : '-';
+            categoryText = cat ? `${cat.icono} ${cat.nombre}` : '';
+            subcatText = sub ? `${sub.icono} ${sub.nombre}` : '';
         } else if (m.tipo === 'INGRESO') {
             typeBadge = '<span class="val-badge ingreso">Ingreso</span>';
             amountClass = 'val-importe ingreso';
             amountText = `+ ${parseFloat(m.importe).toFixed(2)} €`;
-            categoryText = cat ? `${cat.icono} ${cat.nombre}` : '-';
-            subcatText = '-';
+            categoryText = cat ? `${cat.icono} ${cat.nombre}` : '';
+            subcatText = '';
         } else if (m.tipo === 'TRANSFERENCIA') {
             typeBadge = '<span class="val-badge transfer">Transf.</span>';
             amountClass = 'val-importe transfer';
@@ -1612,11 +1612,16 @@ function renderMovementsTable(movs) {
             subcatText = 'Transferencia';
         }
 
+        const catSubcatCombined = [categoryText, subcatText].filter(Boolean).join(' / ');
+
         return `
             <tr class="mov-row">
                 <td data-label="Fecha">${formatDate(m.fecha)}</td>
                 <td data-label="Tipo">${typeBadge}</td>
-                <td data-label="Categoría">${categoryText}</td>
+                <td data-label="Categoría">
+                    <span class="desktop-cat">${categoryText}</span>
+                    <span class="mobile-catsubcat">${catSubcatCombined}</span>
+                </td>
                 <td data-label="Subcategoría">${subcatText}</td>
                 <td data-label="Concepto">${m.concepto}</td>
                 <td data-label="Importe" class="${amountClass} text-right">${amountText}</td>
