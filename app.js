@@ -147,7 +147,9 @@ const DOM = {
     containerCategoriasGestion: document.getElementById('container-categorias-gestion'),
     containerPresupuestosGestion: document.getElementById('container-presupuestos-gestion'),
     
-    btnTransferirSobrantes: document.getElementById('btn-transferir-sobrantes'),
+    btnTransferirTodosSobrantes: document.getElementById('btn-transferir-todos-sobrantes'),
+    automationMonthSelect: document.getElementById('automation-month-select'),
+    containerSobrantesGestion: document.getElementById('container-sobrantes-gestion'),
     chartPresupuestoMonthSelect: document.getElementById('chart-presupuesto-month-select'),
     chartPresupuestoSummary: document.getElementById('chart-presupuesto-summary'),
     
@@ -178,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initLandingActions();
     initDashboardRangeFilter();
     initPaginationControls();
+    initConfigTabs();
     checkLocalCache();
     startBackgroundSync();
 });
@@ -231,6 +234,39 @@ function initYearSelector() {
         updateDashboardMetrics();
         recreateCharts();
         applyMovementsFilters();
+    });
+}
+
+// Configuration Tabs Switcher Setup
+function initConfigTabs() {
+    const tabButtons = document.querySelectorAll('.config-nav-btn');
+    const tabPanels = document.querySelectorAll('.config-section-panel');
+    
+    // Set default month for automations
+    if (DOM.automationMonthSelect) {
+        DOM.automationMonthSelect.value = (new Date().getMonth() + 1).toString();
+        DOM.automationMonthSelect.addEventListener('change', () => {
+            renderConfigManagement();
+        });
+    }
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-tab');
+
+            // Toggle active classes on nav buttons
+            tabButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Toggle active panels
+            tabPanels.forEach(p => {
+                if (p.id === targetTab) {
+                    p.classList.add('active');
+                } else {
+                    p.classList.remove('active');
+                }
+            });
+        });
     });
 }
 
@@ -2305,53 +2341,84 @@ function initFormHandlers() {
         }
     });
 
-    DOM.btnTransferirSobrantes.addEventListener('click', async () => {
-        if (!confirm('¿Estás seguro de que deseas transferir los saldos sobrantes del mes anterior al Ahorro?')) return;
-        
-        const activeCatIds = state.categorias.filter(c => c.activa && c.id !== 9).map(c => c.id);
-        if (activeCatIds.length === 0) {
-            showToast('No hay categorías activas', 'error');
-            return;
-        }
-
-        let transfersCreated = 0;
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = state.selectedYear;
-
-        setLoading(true);
-        for (const catId of activeCatIds) {
-            const budgetObj = getEffectiveBudget(catId, currentMonth, currentYear);
-            const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
+    if (DOM.btnTransferirTodosSobrantes) {
+        DOM.btnTransferirTodosSobrantes.addEventListener('click', async () => {
+            const month = parseInt(DOM.automationMonthSelect.value);
+            const year = state.selectedYear;
             
-            const expenseVal = state.index.byYear[currentYear]?.byMonth[currentMonth]?.byCategoryExpenses[catId] || 0.0;
+            const activeCats = state.categorias.filter(c => c.activa && c.id !== 9);
+            if (activeCats.length === 0) {
+                showToast('No hay categorías activas', 'error');
+                return;
+            }
 
-            const surplus = budgetVal - expenseVal;
-            if (surplus > 0) {
-                const cat = state.categorias.find(c => c.id === catId);
+            // Calculate which categories have positive surplus
+            const categoriesToTransfer = [];
+            let totalSurplus = 0;
+
+            activeCats.forEach(cat => {
+                const budgetObj = getEffectiveBudget(cat.id, month, year);
+                const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
+                const expenseVal = state.index.byYear[year]?.byMonth[month]?.byCategoryExpenses[cat.id] || 0.0;
+                
+                // Calculate already transferred
+                const transferredVal = state.movimientos.reduce((sum, m) => {
+                    if (m.tipo === 'TRANSFERENCIA' && parseInt(m.categoriaOrigenId) === cat.id && parseInt(m.categoriaDestinoId) === 9) {
+                        const refDate = m.fecha_referencia || m.fecha;
+                        const parts = refDate.split('-');
+                        const yMov = parseInt(parts[0]);
+                        const mMov = parseInt(parts[1]);
+                        if (yMov === year && mMov === month) {
+                            return sum + (parseFloat(m.importe) || 0);
+                        }
+                    }
+                    return sum;
+                }, 0);
+
+                const surplus = budgetVal - expenseVal - transferredVal;
+                if (surplus > 0.01) { // avoid floating point issues near 0
+                    categoriesToTransfer.push({ cat, surplus });
+                    totalSurplus += surplus;
+                }
+            });
+
+            if (categoriesToTransfer.length === 0) {
+                showToast('No se encontraron saldos sobrantes positivos para transferir en este período.', 'warning');
+                return;
+            }
+
+            if (!confirm(`¿Estás seguro de que deseas transferir los saldos sobrantes de ${categoriesToTransfer.length} categorías (Total: ${formatCurrency(totalSurplus)}) del mes de ${MESES_ABR[month-1]} ${year} al Ahorro?`)) return;
+
+            setLoading(true);
+            let transfersCreated = 0;
+
+            for (const item of categoriesToTransfer) {
                 const res = await apiRequest('transferencia', 'POST', {
-                    categoriaOrigenId: catId,
+                    categoriaOrigenId: item.cat.id,
                     categoriaDestinoId: 9,
-                    importe: surplus,
-                    concepto: `Transferencia sobrante ${cat ? cat.nombre : catId} (${MESES_ABR[currentMonth-1]} ${currentYear})`,
-                    fecha: new Date().toISOString().split('T')[0]
+                    importe: item.surplus,
+                    concepto: `Transferencia sobrante ${item.cat.nombre} (${MESES_ABR[month-1]} ${year})`,
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_referencia: `${year}-${String(month).padStart(2, '0')}-01`
                 });
                 if (res && res.success) transfersCreated++;
             }
-        }
 
-        setLoading(false);
-        if (transfersCreated > 0) {
-            showToast(`Automatizacion finalizada: ${transfersCreated} transferencias creadas.`, 'success');
-            if (!state.isDemoMode) {
-                await syncData();
+            setLoading(false);
+            if (transfersCreated > 0) {
+                showToast(`Automatización finalizada: ${transfersCreated} transferencias creadas.`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    await syncData();
+                } else {
+                    updateDashboardMetrics();
+                    recreateCharts();
+                    renderConfigManagement();
+                }
             } else {
-                updateDashboardMetrics();
-                recreateCharts();
+                showToast('No se pudieron crear las transferencias.', 'error');
             }
-        } else {
-            showToast('No se encontraron saldos sobrantes positivos para transferir.', 'warning');
-        }
-    });
+        });
+    }
 }
 
 /* ==========================================================================
@@ -3011,6 +3078,126 @@ async function renderConfigManagement() {
     }
     budgetsHtml += `</div>`;
     DOM.containerPresupuestosGestion.innerHTML = budgetsHtml;
+
+    // 3. Render surplus categories for automations tab
+    if (DOM.containerSobrantesGestion && DOM.automationMonthSelect) {
+        const autoMonth = parseInt(DOM.automationMonthSelect.value);
+        const autoYear = state.selectedYear;
+        const activeCatsToEvaluate = state.categorias.filter(c => c.activa && c.id !== 9);
+
+        let sobrantesHtml = '<div class="mgmt-list">';
+        let hasPositiveSurplus = false;
+        
+        if (activeCatsToEvaluate.length === 0) {
+            sobrantesHtml += '<div class="card-description" style="text-align: center;">No hay categorías activas para evaluar.</div>';
+        } else {
+            activeCatsToEvaluate.forEach(cat => {
+                const budgetObj = getEffectiveBudget(cat.id, autoMonth, autoYear);
+                const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
+                const expenseVal = state.index.byYear[autoYear]?.byMonth[autoMonth]?.byCategoryExpenses[cat.id] || 0.0;
+                
+                // Calculate already transferred from this category to Ahorro (9) inside target month/year
+                const transferredVal = state.movimientos.reduce((sum, m) => {
+                    if (m.tipo === 'TRANSFERENCIA' && parseInt(m.categoriaOrigenId) === cat.id && parseInt(m.categoriaDestinoId) === 9) {
+                        const refDate = m.fecha_referencia || m.fecha;
+                        const parts = refDate.split('-');
+                        const yMov = parseInt(parts[0]);
+                        const mMov = parseInt(parts[1]);
+                        if (yMov === autoYear && mMov === autoMonth) {
+                            return sum + (parseFloat(m.importe) || 0);
+                        }
+                    }
+                    return sum;
+                }, 0);
+
+                const surplus = budgetVal - expenseVal - transferredVal;
+                const isPositive = surplus > 0.01;
+                if (isPositive) hasPositiveSurplus = true;
+
+                sobrantesHtml += `
+                    <div class="automation-item" data-cat-id="${cat.id}">
+                        <div class="automation-row">
+                            <div class="mgmt-info">
+                                <span class="mgmt-emoji">${cat.icono || '📁'}</span>
+                                <span class="mgmt-name" style="font-weight: 600;">${cat.nombre}</span>
+                            </div>
+                            <div class="mgmt-actions" style="display: flex; align-items: center; gap: 12px;">
+                                <span class="surplus-pill ${isPositive ? 'positive' : 'neutral'}">
+                                    ${isPositive ? '+' : ''}${formatCurrency(surplus)}
+                                </span>
+                                ${isPositive ? `
+                                    <button type="button" class="btn btn-secondary btn-sm btn-transfer-single" data-surplus="${surplus}" style="padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;">💸 Transferir</button>
+                                ` : `
+                                    <span style="font-size: 11px; color: var(--text-muted); font-style: italic;">Sin sobrante</span>
+                                `}
+                            </div>
+                        </div>
+                        <div class="automation-details">
+                            <span>📋 Presupuesto: <strong>${formatCurrency(budgetVal)}</strong></span>
+                            <span>📉 Gastado: <strong>${formatCurrency(expenseVal)}</strong></span>
+                            ${transferredVal > 0 ? `<span>💰 Transferido: <strong>${formatCurrency(transferredVal)}</strong></span>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        sobrantesHtml += '</div>';
+        DOM.containerSobrantesGestion.innerHTML = sobrantesHtml;
+
+        // Toggle bulk button state
+        const bulkBtn = DOM.btnTransferirTodosSobrantes;
+        if (bulkBtn) {
+            if (hasPositiveSurplus) {
+                bulkBtn.removeAttribute('disabled');
+                bulkBtn.style.opacity = '1';
+                bulkBtn.style.cursor = 'pointer';
+            } else {
+                bulkBtn.setAttribute('disabled', 'true');
+                bulkBtn.style.opacity = '0.5';
+                bulkBtn.style.cursor = 'not-allowed';
+            }
+        }
+
+        // Attach event listeners to single transfer buttons
+        DOM.containerSobrantesGestion.querySelectorAll('.btn-transfer-single').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const item = e.target.closest('.automation-item');
+                const catId = parseInt(item.getAttribute('data-cat-id'));
+                const cat = state.categorias.find(c => c.id === catId);
+                const surplusVal = parseFloat(e.target.getAttribute('data-surplus'));
+
+                if (!cat) return;
+
+                if (!confirm(`¿Estás seguro de que deseas transferir el saldo sobrante de ${formatCurrency(surplusVal)} de "${cat.nombre}" a la categoría de Ahorro?`)) {
+                    return;
+                }
+
+                setLoading(true);
+                const res = await apiRequest('transferencia', 'POST', {
+                    categoriaOrigenId: catId,
+                    categoriaDestinoId: 9,
+                    importe: surplusVal,
+                    concepto: `Transferencia sobrante ${cat.nombre} (${MESES_ABR[autoMonth-1]} ${autoYear})`,
+                    fecha: new Date().toISOString().split('T')[0],
+                    fecha_referencia: `${autoYear}-${String(autoMonth).padStart(2, '0')}-01`
+                });
+
+                setLoading(false);
+                if (res && res.success) {
+                    showToast(`Transferencia de ${formatCurrency(surplusVal)} realizada con éxito.`, 'success');
+                    if (!state.isDemoMode && !state.isLocalMode) {
+                        await syncData();
+                    } else {
+                        updateDashboardMetrics();
+                        recreateCharts();
+                        renderConfigManagement();
+                    }
+                } else {
+                    showToast('Ocurrió un error al realizar la transferencia.', 'error');
+                }
+            });
+        });
+    }
 
     // Attach Event Listeners to Category management buttons
     DOM.containerCategoriasGestion.querySelectorAll('.btn-edit-cat').forEach(btn => {

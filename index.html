@@ -600,145 +600,206 @@
 
                 <!-- 4. CONFIGURACION SCREEN -->
                 <section class="app-screen" id="screen-configuracion">
-                    <div class="config-grid">
-                        
-                        <!-- Local File Configuration -->
-                        <div class="card hidden" id="card-config-local">
-                            <h3 class="card-subtitle">Base de Datos Local (.json)</h3>
-                            <p class="card-description">Estás trabajando con un archivo local offline. Los cambios se guardan automáticamente en la caché del navegador, pero debes descargar tu archivo para guardarlos de forma permanente.</p>
-                            <div class="form-actions-inline">
-                                <button type="button" class="btn btn-primary" id="btn-config-download-local">Descargar Base de Datos (.json)</button>
-                                <button type="button" class="btn btn-secondary" id="btn-config-load-local">📂 Cargar Otro Archivo</button>
-                            </div>
-                        </div>
+                    
+                    <!-- Sub-pestañas de navegación para Configuración -->
+                    <div class="config-tabs-nav">
+                        <button type="button" class="config-nav-btn active" data-tab="config-db">
+                            <span class="tab-icon">⚙️</span> Base de Datos
+                        </button>
+                        <button type="button" class="config-nav-btn" data-tab="config-budgets">
+                            <span class="tab-icon">📊</span> Presupuestos
+                        </button>
+                        <button type="button" class="config-nav-btn" data-tab="config-categories">
+                            <span class="tab-icon">🏷️</span> Categorías y Subcategorías
+                        </button>
+                        <button type="button" class="config-nav-btn" data-tab="config-actions">
+                            <span class="tab-icon">⚡</span> Acciones Automatizadas
+                        </button>
+                    </div>
 
-                        <!-- API Connection Configuration -->
-                        <div class="card">
-                            <h3 class="card-subtitle" id="config-api-title">Configuración de Base de Datos Cloud</h3>
-                            <p class="card-description" id="config-api-desc">Introduce tus credenciales de Supabase para sincronizar tus datos en la nube.</p>
-                            
-                            <form id="form-api-url" class="modern-form">
-                                <div class="form-group large">
-                                    <label id="lbl-api-url" for="in-api-url">URL de la API de Supabase</label>
-                                    <input type="text" id="in-api-url" class="form-input" placeholder="https://xxxx.supabase.co" required>
-                                </div>
-                                <div class="form-group large" id="group-supabase-key">
-                                    <label for="in-supabase-key">Clave Pública Anónima (Anon Key)</label>
-                                    <input type="password" id="in-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off" required>
-                                </div>
+                    <!-- Panel 1: BASE DE DATOS -->
+                    <div class="config-section-panel active" id="config-db">
+                        <div class="config-grid">
+                            <!-- Local File Configuration -->
+                            <div class="card hidden" id="card-config-local">
+                                <h3 class="card-subtitle">Base de Datos Local (.json)</h3>
+                                <p class="card-description">Estás trabajando con un archivo local offline. Los cambios se guardan automáticamente en la caché del navegador, pero debes descargar tu archivo para guardarlos de forma permanente.</p>
                                 <div class="form-actions-inline">
-                                    <button type="submit" class="btn btn-primary">Guardar Configuración</button>
-                                    <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
+                                    <button type="button" class="btn btn-primary" id="btn-config-download-local">Descargar Base de Datos (.json)</button>
+                                    <button type="button" class="btn btn-secondary" id="btn-config-load-local">📂 Cargar Otro Archivo</button>
                                 </div>
-                            </form>
-                        </div>
+                            </div>
 
-                        <!-- Budget Editor -->
-                        <div class="card">
-                            <h3 class="card-subtitle">Modificar Presupuestos por Períodos</h3>
-                            <p class="card-description">Establece el límite de presupuesto para tus categorías principales definiendo un rango de meses (período de vigencia).</p>
-                            
-                            <form id="form-presupuesto" class="modern-form">
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="in-presupuesto-cat">Categoría</label>
-                                        <select id="in-presupuesto-cat" class="form-select">
-                                            <!-- JS populated -->
+                            <!-- API Connection Configuration -->
+                            <div class="card">
+                                <h3 class="card-subtitle" id="config-api-title">Configuración de Base de Datos Cloud</h3>
+                                <p class="card-description" id="config-api-desc">Introduce tus credenciales de Supabase para sincronizar tus datos en la nube.</p>
+                                
+                                <form id="form-api-url" class="modern-form">
+                                    <div class="form-group large">
+                                        <label id="lbl-api-url" for="in-api-url">URL de la API de Supabase</label>
+                                        <input type="text" id="in-api-url" class="form-input" placeholder="https://xxxx.supabase.co" required>
+                                    </div>
+                                    <div class="form-group large" id="group-supabase-key">
+                                        <label for="in-supabase-key">Clave Pública Anónima (Anon Key)</label>
+                                        <input type="password" id="in-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off" required>
+                                    </div>
+                                    <div class="form-actions-inline">
+                                        <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                                        <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: PRESUPUESTOS -->
+                    <div class="config-section-panel" id="config-budgets">
+                        <div class="config-grid config-grid-budgets">
+                            <!-- Budget Editor (Vertical) -->
+                            <div class="card">
+                                <h3 class="card-subtitle">Modificar Presupuestos por Períodos</h3>
+                                <p class="card-description">Establece el límite de presupuesto para tus categorías principales definiendo un rango de meses (período de vigencia).</p>
+                                
+                                <form id="form-presupuesto" class="modern-form">
+                                    <div class="form-grid vertical">
+                                        <div class="form-group">
+                                            <label for="in-presupuesto-cat">Categoría</label>
+                                            <select id="in-presupuesto-cat" class="form-select">
+                                                <!-- JS populated -->
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="in-presupuesto-inicio">Mes Inicio</label>
+                                            <input type="month" id="in-presupuesto-inicio" class="form-input" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="in-presupuesto-fin">Mes Fin (Opcional)</label>
+                                            <input type="month" id="in-presupuesto-fin" class="form-input" placeholder="Indefinido">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="in-presupuesto-importe">Límite Presupuestario (€)</label>
+                                            <input type="number" id="in-presupuesto-importe" step="0.01" min="0" class="form-input" placeholder="0.00" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions" style="margin-top: 20px;">
+                                        <button type="submit" class="btn btn-primary">Guardar Presupuesto</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Historial y Gestión de Presupuestos -->
+                            <div class="card">
+                                <h3 class="card-subtitle">Historial y Gestión de Presupuestos</h3>
+                                <p class="card-description">Consulta, edita y gestiona las versiones de tus presupuestos para el mes y año seleccionados. Puedes desactivar un presupuesto o ver su historial de cambios.</p>
+                                <div id="container-presupuestos-gestion">
+                                    <!-- Poblado por JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: CATEGORÍAS Y SUBCATEGORÍAS -->
+                    <div class="config-section-panel" id="config-categories">
+                        <div class="config-grid config-grid-categories">
+                            <!-- Columna de Formularios (Categorías y Subcategorías apiladas) -->
+                            <div class="forms-column" style="display: flex; flex-direction: column; gap: 24px;">
+                                <!-- Add Category Card -->
+                                <div class="card">
+                                    <h3 class="card-subtitle">Añadir Categoría Principal</h3>
+                                    
+                                    <form id="form-crear-categoria" class="modern-form">
+                                        <div class="form-grid vertical">
+                                            <div class="form-group">
+                                                <label for="in-new-cat-nombre">Nombre de Categoría</label>
+                                                <input type="text" id="in-new-cat-nombre" class="form-input" placeholder="Ej: Gimnasio" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="in-new-cat-icono">Icono (Emoji)</label>
+                                                <input type="text" id="in-new-cat-icono" class="form-input" placeholder="Ej: 💪" maxlength="2" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-actions" style="margin-top: 20px;">
+                                            <button type="submit" class="btn btn-primary">Crear Categoría</button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <!-- Add Subcategory Card -->
+                                <div class="card">
+                                    <h3 class="card-subtitle">Añadir Subcategoría</h3>
+                                    
+                                    <form id="form-crear-subcategoria" class="modern-form">
+                                        <div class="form-grid vertical">
+                                            <div class="form-group">
+                                                <label for="in-new-sub-parent">Categoría Principal Padre</label>
+                                                <select id="in-new-sub-parent" class="form-select">
+                                                    <!-- JS populated (except Ahorro ID 9) -->
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="in-new-sub-nombre">Nombre de Subcategoría</label>
+                                                <input type="text" id="in-new-sub-nombre" class="form-input" placeholder="Ej: Proteínas" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="in-new-sub-icono">Icono (Emoji)</label>
+                                                <input type="text" id="in-new-sub-icono" class="form-input" placeholder="Ej: 🥛" maxlength="2" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-actions" style="margin-top: 20px;">
+                                            <button type="submit" class="btn btn-primary">Crear Subcategoría</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Gestión de Categorías y Subcategorías -->
+                            <div class="card">
+                                <h3 class="card-subtitle">Gestión de Categorías y Subcategorías</h3>
+                                <p class="card-description">Edita el nombre y el emoji de las categorías y subcategorías, o actívalas/desactívalas según tus necesidades.</p>
+                                <div id="container-categorias-gestion">
+                                    <!-- Poblado por JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 4: ACCIONES AUTOMATIZADAS -->
+                    <div class="config-section-panel" id="config-actions">
+                        <div class="config-grid">
+                            <!-- Transferencia de Saldos Sobrantes -->
+                            <div class="card" style="grid-column: span 2;">
+                                <h3 class="card-subtitle">Transferencia de Saldos Sobrantes</h3>
+                                <p class="card-description">Consulta los sobrantes (Presupuesto - Gastado - Ya Transferido) de cada categoría para el mes seleccionado y transfiérelos a la cuenta de Ahorro (💰) con un solo clic o de manera masiva.</p>
+                                
+                                <div class="automation-controls" style="display: flex; gap: 16px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
+                                    <div class="form-group" style="margin: 0; min-width: 180px;">
+                                        <label for="automation-month-select" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block;">Mes a Evaluar</label>
+                                        <select id="automation-month-select" class="form-select" style="width: 100%;">
+                                            <option value="1">Enero</option>
+                                            <option value="2">Febrero</option>
+                                            <option value="3">Marzo</option>
+                                            <option value="4">Abril</option>
+                                            <option value="5">Mayo</option>
+                                            <option value="6">Junio</option>
+                                            <option value="7">Julio</option>
+                                            <option value="8">Agosto</option>
+                                            <option value="9">Septiembre</option>
+                                            <option value="10">Octubre</option>
+                                            <option value="11">Noviembre</option>
+                                            <option value="12">Diciembre</option>
                                         </select>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="in-presupuesto-inicio">Mes Inicio</label>
-                                        <input type="month" id="in-presupuesto-inicio" class="form-input" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="in-presupuesto-fin">Mes Fin (Opcional)</label>
-                                        <input type="month" id="in-presupuesto-fin" class="form-input" placeholder="Indefinido">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="in-presupuesto-importe">Límite Presupuestario (€)</label>
-                                        <input type="number" id="in-presupuesto-importe" step="0.01" min="0" class="form-input" placeholder="0.00" required>
-                                    </div>
+                                    <button type="button" class="btn btn-danger" id="btn-transferir-todos-sobrantes">
+                                        ⚡ Transferir todos los sobrantes
+                                    </button>
                                 </div>
-                                <div class="form-actions">
-                                    <button type="submit" class="btn btn-primary">Guardar Presupuesto</button>
-                                </div>
-                            </form>
-                        </div>
 
-                        <!-- Category & Subcategory Creation -->
-                        <div class="card">
-                            <h3 class="card-subtitle">Añadir Categoría Principal</h3>
-                            
-                            <form id="form-crear-categoria" class="modern-form">
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="in-new-cat-nombre">Nombre de Categoría</label>
-                                        <input type="text" id="in-new-cat-nombre" class="form-input" placeholder="Ej: Gimnasio" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="in-new-cat-icono">Icono (Emoji)</label>
-                                        <input type="text" id="in-new-cat-icono" class="form-input" placeholder="Ej: 💪" maxlength="2" required>
-                                    </div>
+                                <div id="container-sobrantes-gestion">
+                                    <!-- Poblado dinámicamente por JS -->
                                 </div>
-                                <div class="form-actions">
-                                    <button type="submit" class="btn btn-primary">Crear Categoría</button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <div class="card">
-                            <h3 class="card-subtitle">Añadir Subcategoría</h3>
-                            
-                            <form id="form-crear-subcategoria" class="modern-form">
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label for="in-new-sub-parent">Categoría Principal Padre</label>
-                                        <select id="in-new-sub-parent" class="form-select">
-                                            <!-- JS populated (except Ahorro ID 9) -->
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="in-new-sub-nombre">Nombre de Subcategoría</label>
-                                        <input type="text" id="in-new-sub-nombre" class="form-input" placeholder="Ej: Proteínas" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="in-new-sub-icono">Icono (Emoji)</label>
-                                        <input type="text" id="in-new-sub-icono" class="form-input" placeholder="Ej: 🥛" maxlength="2" required>
-                                    </div>
-                                </div>
-                                <div class="form-actions">
-                                    <button type="submit" class="btn btn-primary">Crear Subcategoría</button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <!-- Gestión de Categorías y Subcategorías -->
-                        <div class="card" style="grid-column: span 2;">
-                            <h3 class="card-subtitle">Gestión de Categorías y Subcategorías</h3>
-                            <p class="card-description">Edita el nombre y el emoji de las categorías y subcategorías, o actívalas/desactívalas según tus necesidades.</p>
-                            <div id="container-categorias-gestion">
-                                <!-- Poblado por JS -->
                             </div>
                         </div>
-
-                        <!-- Historial y Gestión de Presupuestos -->
-                        <div class="card" style="grid-column: span 2;">
-                            <h3 class="card-subtitle">Historial y Gestión de Presupuestos</h3>
-                            <p class="card-description">Consulta, edita y gestiona las versiones de tus presupuestos para el mes y año seleccionados. Puedes desactivar un presupuesto o ver su historial de cambios.</p>
-                            <div id="container-presupuestos-gestion">
-                                <!-- Poblado por JS -->
-                            </div>
-                        </div>
-
-                        <!-- Automations Card -->
-                        <div class="card border-danger">
-                            <h3 class="card-subtitle text-danger">Acciones Automatizadas</h3>
-                            <p class="card-description">Realiza la transferencia automática de todos los saldos de presupuesto positivos sobrantes de tus categorías directamente hacia la categoría de Ahorro.</p>
-                            <div class="form-actions-inline">
-                                <button type="button" class="btn btn-danger" id="btn-transferir-sobrantes">Transferir Sobrantes de Mes a Ahorro</button>
-                            </div>
-                        </div>
-
                     </div>
                 </section>
 

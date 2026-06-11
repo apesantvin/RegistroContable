@@ -14,6 +14,7 @@
 
 /* Light Theme Variables */
 body:not(.dark-mode) {
+    color-scheme: light;
     --bg-app: #f4f6fa;
     --bg-sidebar: #ffffff;
     --bg-card: rgba(255, 255, 255, 0.8);
@@ -44,6 +45,7 @@ body:not(.dark-mode) {
 
 /* Dark Theme Variables */
 body.dark-mode {
+    color-scheme: dark;
     --bg-app: #090d16;
     --bg-sidebar: #0f1524;
     --bg-card: rgba(20, 27, 45, 0.65);
@@ -1729,6 +1731,9 @@ body:not(.dark-mode) .loading-overlay {
     .config-grid {
         grid-template-columns: 1fr;
     }
+    .config-grid .card {
+        grid-column: span 1 !important;
+    }
     
     /* Landing */
     .landing-header {
@@ -2261,4 +2266,314 @@ body:not(.dark-mode) .version-item {
     background: var(--danger-light);
     color: var(--danger);
 }
+
+/* ==========================================================================
+   Mejoras de Navegación por Pestañas, Estilos del Selector de Año y Automatizaciones
+   ========================================================================== */
+
+/* Custom integrated pill style for the global year selector */
+.year-filter-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 2px 10px 2px 14px;
+    height: 36px;
+    transition: border-color var(--transition-normal);
+}
+
+.year-filter-wrapper:focus-within,
+.year-filter-wrapper:hover {
+    border-color: var(--primary);
+}
+
+.year-filter-wrapper .year-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.year-filter-wrapper .year-select {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 4px !important;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none !important;
+    box-shadow: none !important;
+    height: 100%;
+}
+
+@media (max-width: 1024px) {
+    .year-filter-wrapper {
+        padding-left: 10px;
+    }
+}
+
+/* Form grid vertical layout */
+.form-grid.vertical {
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+/* Configuration Screen layout wrapper to match form-card width */
+#screen-configuracion {
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Configuration Tabs Navigation */
+.config-tabs-nav {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px;
+    padding-bottom: 6px;
+    overflow-x: auto;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+}
+
+.config-tabs-nav::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for Chrome/Safari */
+}
+
+.config-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.config-nav-btn:hover {
+    color: var(--text-primary);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+body:not(.dark-mode) .config-nav-btn:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.config-nav-btn.active {
+    color: var(--primary);
+    background-color: var(--primary-glow);
+}
+
+.config-nav-btn .tab-icon {
+    font-size: 16px;
+}
+
+/* Config Section Panels styling */
+.config-section-panel {
+    display: none;
+}
+
+.config-section-panel.active {
+    display: block;
+    animation: fadeIn var(--transition-normal) ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Surplus list and details styling */
+.surplus-pill {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.surplus-pill.positive {
+    background-color: var(--success-light);
+    color: var(--success);
+}
+
+.surplus-pill.neutral {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+}
+
+body:not(.dark-mode) .surplus-pill.neutral {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.automation-item {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all var(--transition-normal);
+}
+
+body:not(.dark-mode) .automation-item {
+    background: rgba(0, 0, 0, 0.005);
+}
+
+.automation-item:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+body:not(.dark-mode) .automation-item:hover {
+    background: rgba(0, 0, 0, 0.01);
+}
+
+.automation-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.automation-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-top: 1px dashed var(--border-color);
+    padding-top: 8px;
+    margin-top: 4px;
+}
+
+.automation-details span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Explicit style for select options in year dropdown to fix contrast */
+.year-select option {
+    background-color: var(--bg-sidebar);
+    color: var(--text-primary);
+}
+
+/* Custom 1/3 (forms) and 2/3 (list) grid layouts for Categories and Budgets tabs on desktop */
+.config-grid-categories,
+.config-grid-budgets {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+}
+
+@media (max-width: 1024px) {
+    .config-grid-categories,
+    .config-grid-budgets {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Mobile responsive fixes to prevent horizontal scroll */
+@media (max-width: 768px) {
+    /* Stack budget items vertically */
+    .budget-mgmt-main {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+    
+    .budget-mgmt-value-box {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+    }
+    
+    .budget-mgmt-value-box .mgmt-actions {
+        margin-top: 4px;
+    }
+
+    /* Stack automated action items vertically */
+    .automation-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+    
+    .automation-row .mgmt-actions {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    /* Make category list rows wrap if names are long on mobile */
+    .mgmt-row,
+    .mgmt-sub-row {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    
+    .mgmt-info,
+    .mgmt-sub-info {
+        flex: 1 1 100% !important;
+    }
+    
+    .mgmt-row .mgmt-actions,
+    .mgmt-sub-row .mgmt-actions {
+        width: 100% !important;
+        justify-content: flex-end !important;
+    }
+
+    /* Hide global year label on mobile and shrink the wrapper */
+    .year-filter-wrapper {
+        height: 32px !important;
+        padding: 2px 6px 2px 8px !important;
+        gap: 2px !important;
+    }
+    .year-filter-wrapper .year-label {
+        display: none !important;
+    }
+    .year-filter-wrapper .year-select {
+        font-size: 12px !important;
+    }
+
+    /* Wrap configuration tabs in two lines (2x2 grid) on mobile */
+    .config-tabs-nav {
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+        gap: 8px !important;
+        border-bottom: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    .config-nav-btn {
+        flex: 1 1 calc(50% - 8px) !important;
+        justify-content: center !important;
+        font-size: 13px !important;
+        padding: 8px 12px !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+    }
+    
+    .config-nav-btn.active {
+        border-color: var(--primary) !important;
+    }
+}
+
 
