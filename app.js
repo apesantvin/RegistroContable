@@ -33,7 +33,6 @@ const state = {
 
 // DOM Elements
 const DOM = {
-    landingPage: document.getElementById('landing-page'),
     appInterface: document.getElementById('app-interface'),
     
     // Landing Buttons
@@ -150,7 +149,6 @@ const DOM = {
 
 // Months translation list
 const MESES_ABR = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-const MESES_FULL = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 /* ==========================================================================
    Initialization & Setup
@@ -276,16 +274,6 @@ function getDashboardDateRange() {
     return { startDate, endDate };
 }
 
-function getMovimientosInRange() {
-    const { startDate, endDate } = getDashboardDateRange();
-    return state.movimientos.filter(m => {
-        try {
-            const parts = m.fecha.split('-');
-            const d = new Date(parts[0], parts[1] - 1, parts[2]);
-            return d >= startDate && d <= endDate;
-        } catch(e) { return false; }
-    });
-}
 
 // Get months array for the current range
 function getRangeMonths() {
@@ -829,6 +817,10 @@ function recreateCharts() {
     if (window.location.hash !== '' && window.location.hash !== '#dashboard') return;
     if (DOM.appInterface.classList.contains('hidden')) return;
     
+    if (!state.index) {
+        rebuildIndex();
+    }
+    
     Object.keys(state.charts).forEach(key => {
         if (state.charts[key]) {
             state.charts[key].destroy();
@@ -838,22 +830,21 @@ function recreateCharts() {
 
     const year = state.selectedYear;
     const theme = getChartTheme();
-    const rangeMovs = getMovimientosInRange();
     const rangeMonths = getRangeMonths();
 
-    buildChartIngresosGastos(rangeMonths, rangeMovs, theme);
-    buildChartBalanceNeto(rangeMonths, rangeMovs, theme);
+    buildChartIngresosGastos(rangeMonths, theme);
+    buildChartBalanceNeto(rangeMonths, theme);
     buildChartCategorias(year, theme);
     buildChartSubcategorias(year, theme);
     buildChartPresupuestoVsReal(year, theme);
-    buildChartTopCategorias(rangeMovs, theme);
+    buildChartTopCategorias(theme);
     buildChartAhorro(year, theme);
     buildChartComparativa(theme);
     buildChartGastoMensual(year, theme);
 }
 
 // 1. Ingresos vs Gastos
-function buildChartIngresosGastos(rangeMonths, rangeMovs, theme) {
+function buildChartIngresosGastos(rangeMonths, theme) {
     const labels = rangeMonths.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
     const ingresos = rangeMonths.map(({ year, month }) => {
         return state.index.byYear[year]?.byMonth[month]?.ingresos || 0;
@@ -899,7 +890,7 @@ function buildChartIngresosGastos(rangeMonths, rangeMovs, theme) {
 }
 
 // 2. Balance Neto Mensual
-function buildChartBalanceNeto(rangeMonths, rangeMovs, theme) {
+function buildChartBalanceNeto(rangeMonths, theme) {
     const labels = rangeMonths.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
     const balances = rangeMonths.map(({ year, month }) => {
         const monthData = state.index.byYear[year]?.byMonth[month];
@@ -1070,7 +1061,7 @@ function buildChartPresupuestoVsReal(year, theme) {
 }
 
 // 6. Top Categorias de Gasto
-function buildChartTopCategorias(rangeMovs, theme) {
+function buildChartTopCategorias(theme) {
     const catExpenses = {};
     const rangeMonths = getRangeMonths();
 
@@ -2040,6 +2031,10 @@ function checkLocalCache() {
     } else if (state.apiUrl) {
         state.isLocalMode = false;
         state.isDemoMode = false;
+        
+        // Rellenar los inputs de la URL si ya están almacenados
+        DOM.inApiUrl.value = state.apiUrl;
+        DOM.inModalApiUrl.value = state.apiUrl;
         
         const cachedApi = localStorage.getItem('contable_api_cache');
         if (cachedApi) {
