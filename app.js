@@ -566,6 +566,20 @@ async function syncData(isBackground = false) {
    Form Selection Populators
    ========================================================================== */
 function populateSelectors() {
+    // Guardar todos los filtros y valores de formulario previos
+    const prevFilterSearch = DOM.filterSearch.value;
+    const prevFilterType = DOM.filterType.value;
+    const prevFilterCategory = DOM.filterCategory.value;
+    const prevFilterSubcategory = DOM.filterSubcategory.value;
+    const prevFilterMonth = DOM.filterMonth.value;
+
+    const prevInCategoria = DOM.inCategoria.value;
+    const prevInSubcategoria = DOM.inSubcategoria.value;
+    const prevInCatOrigen = DOM.inCatOrigen.value;
+    const prevInCatDestino = DOM.inCatDestino.value;
+    const prevInNewSubParent = DOM.inNewSubParent.value;
+    const prevInPresupuestoCat = DOM.inPresupuestoCat.value;
+
     const activeCats = state.categorias.filter(c => c.activa);
     
     const catOptions = activeCats.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
@@ -585,8 +599,29 @@ function populateSelectors() {
     const filterCatOptions = '<option value="Todas">Todas</option>' + activeCats.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
     DOM.filterCategory.innerHTML = filterCatOptions;
     
+    // Restaurar todos los filtros estáticos y valores del formulario
+    DOM.filterSearch.value = prevFilterSearch;
+    DOM.filterType.value = prevFilterType;
+    DOM.filterMonth.value = prevFilterMonth;
+    
+    if (prevInCategoria) DOM.inCategoria.value = prevInCategoria;
+    if (prevInCatOrigen) DOM.inCatOrigen.value = prevInCatOrigen;
+    if (prevInCatDestino) DOM.inCatDestino.value = prevInCatDestino;
+    if (prevInNewSubParent) DOM.inNewSubParent.value = prevInNewSubParent;
+    if (prevInPresupuestoCat) DOM.inPresupuestoCat.value = prevInPresupuestoCat;
+    
+    if (prevFilterCategory) DOM.filterCategory.value = prevFilterCategory;
+
+    // Poblar y restablecer las opciones y selecciones de subcategorías
     updateSubcategoryOptions();
+    if (prevInSubcategoria) {
+        DOM.inSubcategoria.value = prevInSubcategoria;
+    }
+    
     updateFilterSubcategoryOptions();
+    if (prevFilterSubcategory) {
+        DOM.filterSubcategory.value = prevFilterSubcategory;
+    }
 }
 
 function updateSubcategoryOptions() {
