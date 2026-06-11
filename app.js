@@ -884,6 +884,34 @@ function buildChartIngresosGastos(rangeMonths, theme) {
             scales: {
                 x: { grid: { display: false }, ticks: { color: theme.text } },
                 y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const datasetIndex = element.datasetIndex; // 0 = Ingreso, 1 = Gasto
+                    
+                    const selectedMonthObj = rangeMonths[dataIndex];
+                    if (selectedMonthObj) {
+                        const { year, month } = selectedMonthObj;
+                        
+                        if (state.selectedYear !== year) {
+                            DOM.yearSelect.value = year.toString();
+                            DOM.yearSelect.dispatchEvent(new Event('change'));
+                        }
+                        
+                        DOM.filterMonth.value = month.toString();
+                        DOM.filterType.value = datasetIndex === 0 ? 'INGRESO' : 'GASTO';
+                        DOM.filterCategory.value = 'Todas';
+                        updateFilterSubcategoryOptions();
+                        DOM.filterSubcategory.value = 'Todas';
+                        
+                        window.location.hash = '#movimientos';
+                    }
+                }
             }
         }
     });
@@ -926,6 +954,33 @@ function buildChartBalanceNeto(rangeMonths, theme) {
                         scale.min = -max * 1.1;
                     }
                 }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    
+                    const selectedMonthObj = rangeMonths[dataIndex];
+                    if (selectedMonthObj) {
+                        const { year, month } = selectedMonthObj;
+                        
+                        if (state.selectedYear !== year) {
+                            DOM.yearSelect.value = year.toString();
+                            DOM.yearSelect.dispatchEvent(new Event('change'));
+                        }
+                        
+                        DOM.filterMonth.value = month.toString();
+                        DOM.filterType.value = 'Todos';
+                        DOM.filterCategory.value = 'Todas';
+                        updateFilterSubcategoryOptions();
+                        DOM.filterSubcategory.value = 'Todas';
+                        
+                        window.location.hash = '#movimientos';
+                    }
+                }
             }
         }
     });
@@ -936,11 +991,12 @@ function buildChartCategorias(year, theme) {
     const catExpenses = state.index.byYear[year]?.byCategoryExpenses || {};
     const catColors = ['#6366f1', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e'];
 
-    const catLabels = [], catData = [];
+    const catLabels = [], catData = [], catIds = [];
     Object.keys(catExpenses).forEach(id => {
         const cat = state.categorias.find(c => c.id === parseInt(id));
         catLabels.push(cat ? `${cat.icono} ${cat.nombre}` : `Cat ${id}`);
         catData.push(catExpenses[id]);
+        catIds.push(parseInt(id));
     });
 
     const ctx = document.getElementById('chart-categorias').getContext('2d');
@@ -961,7 +1017,25 @@ function buildChartCategorias(year, theme) {
             plugins: {
                 legend: { position: 'bottom', labels: { color: theme.text, boxWidth: 12, padding: 12 } }
             },
-            cutout: '60%'
+            cutout: '60%',
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0 && catIds.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const categoryId = catIds[dataIndex];
+                    
+                    DOM.filterCategory.value = categoryId.toString();
+                    updateFilterSubcategoryOptions();
+                    DOM.filterSubcategory.value = 'Todas';
+                    DOM.filterType.value = 'GASTO';
+                    DOM.filterMonth.value = 'Todos';
+                    
+                    window.location.hash = '#movimientos';
+                }
+            }
         }
     });
 }
@@ -971,11 +1045,12 @@ function buildChartSubcategorias(year, theme) {
     const subExpenses = state.index.byYear[year]?.bySubcategoryExpenses || {};
     const subColors = ['#f43f5e', '#a855f7', '#06b6d4', '#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444'];
 
-    const subLabels = [], subData = [];
+    const subLabels = [], subData = [], subIds = [];
     Object.keys(subExpenses).forEach(id => {
         const sub = state.subcategorias.find(sc => sc.id === parseInt(id));
         subLabels.push(sub ? `${sub.icono} ${sub.nombre}` : `Sub ${id}`);
         subData.push(subExpenses[id]);
+        subIds.push(parseInt(id));
     });
 
     const ctx = document.getElementById('chart-subcategorias').getContext('2d');
@@ -996,7 +1071,28 @@ function buildChartSubcategorias(year, theme) {
             plugins: {
                 legend: { position: 'bottom', labels: { color: theme.text, boxWidth: 12, padding: 12 } }
             },
-            cutout: '60%'
+            cutout: '60%',
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0 && subIds.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const subId = subIds[dataIndex];
+                    
+                    const sub = state.subcategorias.find(sc => sc.id === subId);
+                    if (sub) {
+                        DOM.filterCategory.value = sub.categoriaId.toString();
+                        updateFilterSubcategoryOptions();
+                        DOM.filterSubcategory.value = subId.toString();
+                        DOM.filterType.value = 'GASTO';
+                        DOM.filterMonth.value = 'Todos';
+                        
+                        window.location.hash = '#movimientos';
+                    }
+                }
+            }
         }
     });
 }
@@ -1055,6 +1151,25 @@ function buildChartPresupuestoVsReal(year, theme) {
             scales: {
                 x: { grid: { display: false }, ticks: { color: theme.text } },
                 y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const cat = activeCats[dataIndex];
+                    if (cat) {
+                        DOM.filterCategory.value = cat.id.toString();
+                        updateFilterSubcategoryOptions();
+                        DOM.filterSubcategory.value = 'Todas';
+                        DOM.filterType.value = 'GASTO';
+                        DOM.filterMonth.value = currentMonth.toString();
+                        
+                        window.location.hash = '#movimientos';
+                    }
+                }
             }
         }
     });
@@ -1078,7 +1193,7 @@ function buildChartTopCategorias(theme) {
     const sorted = Object.entries(catExpenses)
         .map(([id, val]) => {
             const cat = state.categorias.find(c => c.id === parseInt(id));
-            return { label: cat ? `${cat.icono} ${cat.nombre}` : `Cat ${id}`, val };
+            return { id: parseInt(id), label: cat ? `${cat.icono} ${cat.nombre}` : `Cat ${id}`, val };
         })
         .sort((a, b) => b.val - a.val)
         .slice(0, 7);
@@ -1105,6 +1220,25 @@ function buildChartTopCategorias(theme) {
             scales: {
                 x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
                 y: { grid: { display: false }, ticks: { color: theme.text } }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const catObj = sorted[dataIndex];
+                    if (catObj) {
+                        DOM.filterCategory.value = catObj.id.toString();
+                        updateFilterSubcategoryOptions();
+                        DOM.filterSubcategory.value = 'Todas';
+                        DOM.filterType.value = 'GASTO';
+                        DOM.filterMonth.value = 'Todos';
+                        
+                        window.location.hash = '#movimientos';
+                    }
+                }
             }
         }
     });
@@ -1138,6 +1272,24 @@ function buildChartAhorro(year, theme) {
             scales: {
                 x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
                 y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const month = dataIndex + 1;
+                    
+                    DOM.filterMonth.value = month.toString();
+                    DOM.filterType.value = 'Todos';
+                    DOM.filterCategory.value = '9'; // Categoria Ahorro
+                    updateFilterSubcategoryOptions();
+                    DOM.filterSubcategory.value = 'Todas';
+                    
+                    window.location.hash = '#movimientos';
+                }
             }
         }
     });
@@ -1197,6 +1349,32 @@ function buildChartComparativa(theme) {
             scales: {
                 x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
                 y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const datasetIndex = element.datasetIndex; // 0 = Actual, 1 = Anterior
+                    
+                    const clickedYear = datasetIndex === 0 ? year : prevYear;
+                    const month = dataIndex + 1;
+                    
+                    if (state.selectedYear !== clickedYear) {
+                        DOM.yearSelect.value = clickedYear.toString();
+                        DOM.yearSelect.dispatchEvent(new Event('change'));
+                    }
+                    
+                    DOM.filterMonth.value = month.toString();
+                    DOM.filterType.value = 'GASTO';
+                    DOM.filterCategory.value = 'Todas';
+                    updateFilterSubcategoryOptions();
+                    DOM.filterSubcategory.value = 'Todas';
+                    
+                    window.location.hash = '#movimientos';
+                }
             }
         }
     });
@@ -1229,6 +1407,24 @@ function buildChartGastoMensual(year, theme) {
             scales: {
                 x: { grid: { display: false }, ticks: { color: theme.text } },
                 y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (elements.length > 0) {
+                    const element = elements[0];
+                    const dataIndex = element.index;
+                    const month = dataIndex + 1;
+                    
+                    DOM.filterMonth.value = month.toString();
+                    DOM.filterType.value = 'GASTO';
+                    DOM.filterCategory.value = 'Todas';
+                    updateFilterSubcategoryOptions();
+                    DOM.filterSubcategory.value = 'Todas';
+                    
+                    window.location.hash = '#movimientos';
+                }
             }
         }
     });
