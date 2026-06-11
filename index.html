@@ -586,17 +586,29 @@
 
                         <!-- API Connection Configuration -->
                         <div class="card">
-                            <h3 class="card-subtitle">Conexión con Google Sheets</h3>
-                            <p class="card-description">Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos en la nube.</p>
+                            <h3 class="card-subtitle" id="config-api-title">Configuración de Base de Datos Cloud</h3>
+                            <p class="card-description" id="config-api-desc">Elige tu proveedor de base de datos e introduce tus credenciales para sincronizar tus datos en la nube.</p>
                             
                             <form id="form-api-url" class="modern-form">
+                                <div class="form-group">
+                                    <label for="in-api-provider">Proveedor</label>
+                                    <select id="in-api-provider" class="form-select">
+                                        <option value="google">Google Sheets (Apps Script)</option>
+                                        <option value="supabase">Supabase (PostgreSQL)</option>
+                                    </select>
+                                </div>
                                 <div class="form-group large">
-                                    <label for="in-api-url">URL de Google Apps Script Web App</label>
+                                    <label id="lbl-api-url" for="in-api-url">URL de Google Apps Script Web App</label>
                                     <input type="text" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
                                 </div>
+                                <div class="form-group large hidden" id="group-supabase-key">
+                                    <label for="in-supabase-key">Clave Pública Anónima (Anon Key)</label>
+                                    <input type="password" id="in-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off">
+                                </div>
                                 <div class="form-actions-inline">
-                                    <button type="submit" class="btn btn-primary">Guardar Enlace API</button>
+                                    <button type="submit" class="btn btn-primary">Guardar Configuración</button>
                                     <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
+                                    <button type="button" class="btn btn-warning hidden" id="btn-migrar-supabase">Migrar Datos a Supabase</button>
                                 </div>
                             </form>
                         </div>
@@ -715,16 +727,26 @@
     <div class="modal-backdrop hidden" id="api-modal-setup">
         <div class="modal-card">
             <div class="modal-header">
-                <h2>Conectar Google Sheets</h2>
+                <h2>Conectar Base de Datos</h2>
             </div>
             <div class="modal-body">
-                <p>Introduce la URL de tu aplicación web de Google Apps Script para sincronizar tus datos.</p>
-                <p class="modal-alert">Esto conectará la aplicación de forma directa y privada con tu hoja de cálculo.</p>
+                <p>Elige tu proveedor de base de datos e introduce tus credenciales para sincronizar tus datos.</p>
                 
                 <form id="form-modal-api">
+                    <div class="form-group">
+                        <label for="in-modal-api-provider">Proveedor</label>
+                        <select id="in-modal-api-provider" class="form-select">
+                            <option value="google">Google Sheets (Apps Script)</option>
+                            <option value="supabase">Supabase (PostgreSQL)</option>
+                        </select>
+                    </div>
                     <div class="form-group large">
-                        <label for="in-modal-api-url">URL de Apps Script Web App</label>
+                        <label id="lbl-modal-api-url" for="in-modal-api-url">URL de Apps Script Web App</label>
                         <input type="text" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                    </div>
+                    <div class="form-group large hidden" id="group-modal-supabase-key">
+                        <label for="in-modal-supabase-key">Clave Pública Anónima (Anon Key)</label>
+                        <input type="password" id="in-modal-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off">
                     </div>
                     <div class="form-actions-inline">
                         <button type="submit" class="btn btn-primary btn-large w-100">Guardar y Sincronizar</button>
