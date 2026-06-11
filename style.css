@@ -2576,4 +2576,34 @@ body:not(.dark-mode) .automation-item:hover {
     }
 }
 
+.btn-add-inline {
+    background-color: var(--primary);
+    color: #ffffff;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 12px;
+    transition: all var(--transition-fast);
+    box-shadow: 0 4px 10px var(--primary-glow);
+    padding: 0;
+    line-height: 1;
+}
+
+.btn-add-inline:hover {
+    transform: scale(1.1);
+    background-color: var(--primary-hover);
+    box-shadow: 0 6px 15px var(--primary-glow);
+}
+
+.btn-add-inline:active {
+    transform: scale(0.95);
+}
+
 

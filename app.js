@@ -154,6 +154,9 @@ const DOM = {
     chartPresupuestoSummary: document.getElementById('chart-presupuesto-summary'),
     
     // Modals
+    modalTransaction: document.getElementById('modal-transaction'),
+    btnCloseTransactionModal: document.getElementById('btn-close-transaction-modal'),
+    btnAddMovimientoTrigger: document.getElementById('btn-add-movimiento-trigger'),
     modalApiSetup: document.getElementById('api-modal-setup'),
     formModalApi: document.getElementById('form-modal-api'),
     inModalApiUrl: document.getElementById('in-modal-api-url'),
@@ -457,9 +460,12 @@ function handleRoute() {
         return;
     }
 
-    // If navigating away from transaction screen, reset edit mode silently
-    if (hash !== '#nueva-transaccion' && state.editingMovimientoId) {
-        cancelEditMovimiento(false);
+    // If navigating away from movements screen, reset edit mode silently and close modal
+    if (hash !== '#movimientos') {
+        if (state.editingMovimientoId) {
+            cancelEditMovimiento(false);
+        }
+        if (DOM.modalTransaction) DOM.modalTransaction.classList.add('hidden');
     }
     
     DOM.screens.forEach(screen => {
@@ -479,16 +485,17 @@ function handleRoute() {
         }
     });
 
+    // Toggle add inline button next to title
+    if (hash === '#movimientos') {
+        if (DOM.btnAddMovimientoTrigger) DOM.btnAddMovimientoTrigger.classList.remove('hidden');
+    } else {
+        if (DOM.btnAddMovimientoTrigger) DOM.btnAddMovimientoTrigger.classList.add('hidden');
+    }
+
     if (hash === '#dashboard') {
         recreateCharts();
     } else if (hash === '#movimientos') {
         applyMovementsFilters();
-    } else if (hash === '#nueva-transaccion') {
-        if (!state.editingMovimientoId) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            DOM.inFecha.value = todayStr;
-            DOM.inFechaReferencia.value = todayStr.substring(0, 7);
-        }
     } else if (hash === '#configuracion') {
         renderConfigManagement();
     }
@@ -2018,8 +2025,10 @@ function startEditMovimiento(id) {
         DOM.inCatDestino.value = m.categoriaDestinoId;
     }
 
-    // Redirect to form screen
-    window.location.hash = '#nueva-transaccion';
+    const modalTitle = document.getElementById('modal-transaction-title');
+    if (modalTitle) modalTitle.textContent = 'Editar Transacción';
+    
+    if (DOM.modalTransaction) DOM.modalTransaction.classList.remove('hidden');
 }
 
 function cancelEditMovimiento(shouldRedirect = true) {
@@ -2044,6 +2053,8 @@ function cancelEditMovimiento(shouldRedirect = true) {
     DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
     DOM.condGasto.forEach(el => el.classList.remove('hidden'));
     DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
+
+    if (DOM.modalTransaction) DOM.modalTransaction.classList.add('hidden');
 
     if (shouldRedirect) {
         window.location.hash = '#movimientos';
@@ -2086,6 +2097,40 @@ DOM.btnToggleFilters.addEventListener('click', () => {
     DOM.advancedFilters.classList.toggle('collapsed');
 });
 
+function openNewTransactionModal() {
+    state.editingMovimientoId = null;
+    DOM.editIndicator.classList.add('hidden');
+    DOM.btnCancelEdit.classList.add('hidden');
+    DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
+    
+    // Set date to today
+    const todayStr = new Date().toISOString().split('T')[0];
+    DOM.inFecha.value = todayStr;
+    DOM.inFechaReferencia.value = todayStr.substring(0, 7);
+    
+    // Reset type to default GASTO
+    DOM.inTipo.value = 'GASTO';
+    DOM.formTabBtns.forEach(b => {
+        if (b.getAttribute('data-type') === 'GASTO') b.classList.add('active');
+        else b.classList.remove('active');
+    });
+    DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
+    DOM.condGasto.forEach(el => el.classList.remove('hidden'));
+    DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
+
+    const modalTitle = document.getElementById('modal-transaction-title');
+    if (modalTitle) modalTitle.textContent = 'Añadir Transacción';
+    
+    if (DOM.modalTransaction) DOM.modalTransaction.classList.remove('hidden');
+}
+
+function closeTransactionModal() {
+    if (DOM.modalTransaction) DOM.modalTransaction.classList.add('hidden');
+    if (state.editingMovimientoId) {
+        cancelEditMovimiento(false);
+    }
+}
+
 /* ==========================================================================
    Form Handling & API POST Submission
    ========================================================================== */
@@ -2116,6 +2161,18 @@ function initFormHandlers() {
     });
 
     DOM.btnCancelEdit.addEventListener('click', () => cancelEditMovimiento(true));
+
+    if (DOM.btnAddMovimientoTrigger) {
+        DOM.btnAddMovimientoTrigger.addEventListener('click', () => {
+            openNewTransactionModal();
+        });
+    }
+
+    if (DOM.btnCloseTransactionModal) {
+        DOM.btnCloseTransactionModal.addEventListener('click', () => {
+            closeTransactionModal();
+        });
+    }
 
     DOM.inFecha.addEventListener('change', () => {
         if (DOM.inFecha.value) {

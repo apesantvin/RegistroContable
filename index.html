@@ -183,10 +183,7 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     <span>Movimientos</span>
                 </a>
-                <a href="#nueva-transaccion" class="nav-item" id="nav-transaccion">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    <span>Nueva Transacción</span>
-                </a>
+
                 <a href="#configuracion" class="nav-item" id="nav-configuracion">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     <span>Configuración</span>
@@ -215,6 +212,7 @@
                         <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
                     <h1 class="page-title" id="bar-title">Dashboard</h1>
+                    <button class="btn-add-inline hidden" id="btn-add-movimiento-trigger" title="Añadir Transacción">+</button>
                 </div>
                 
                 <div class="right-section">
@@ -509,94 +507,7 @@
                     </div>
                 </section>
 
-                <!-- 3. NUEVA TRANSACCION SCREEN -->
-                <section class="app-screen" id="screen-nueva-transaccion">
-                    <div class="card form-card">
-                        <!-- Edit Indicator -->
-                        <h3 class="card-subtitle hidden" id="edit-movimiento-indicator" style="margin-top: 0; margin-bottom: 20px; color: var(--color-indigo); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
-                            <span>✏️ Editando Transacción</span> <span id="edit-movimiento-id-badge" class="val-badge transfer" style="font-size: 0.8rem;">#0</span>
-                        </h3>
 
-                        <!-- Form Tabs -->
-                        <div class="form-tabs">
-                            <button class="form-tab-btn active" id="tab-btn-gasto" data-type="GASTO">Gastos</button>
-                            <button class="form-tab-btn" id="tab-btn-ingreso" data-type="INGRESO">Ingresos</button>
-                            <button class="form-tab-btn" id="tab-btn-transferencia" data-type="TRANSFERENCIA">Transferencias</button>
-                        </div>
-
-                        <!-- Main Form -->
-                        <form id="form-movimiento" class="modern-form">
-                            <!-- Hidden input for type -->
-                            <input type="hidden" id="in-tipo" value="GASTO">
-
-                            <div class="form-grid">
-                                
-                                <!-- Importe -->
-                                <div class="form-group large">
-                                    <label for="in-importe">Importe (€) <span class="required">*</span></label>
-                                    <div class="input-currency-wrapper">
-                                        <input type="number" id="in-importe" step="0.01" min="0.01" class="form-input currency-input" placeholder="0.00" required>
-                                        <span class="input-currency-symbol">€</span>
-                                    </div>
-                                </div>
-
-                                <!-- Concepto -->
-                                <div class="form-group large">
-                                    <label for="in-concepto">Concepto / Descripción <span class="required">*</span></label>
-                                    <input type="text" id="in-concepto" class="form-input" placeholder="Ej: Compra semanal mercadona" required>
-                                </div>
-
-                                <!-- Fecha -->
-                                <div class="form-group">
-                                    <label for="in-fecha">Fecha de Registro <span class="required">*</span></label>
-                                    <input type="date" id="in-fecha" class="form-input" required>
-                                </div>
-
-                                <!-- Mes de Referencia (Presupuesto) -->
-                                <div class="form-group">
-                                    <label for="in-fecha-referencia">Mes/Año de Referencia <span class="required">*</span></label>
-                                    <input type="month" id="in-fecha-referencia" class="form-input" required>
-                                </div>
-
-                                <!-- CONDITIONAL FIELDS: GASTO / INGRESO -->
-                                <div class="form-group cond-gasto-ingreso">
-                                    <label for="in-categoria">Categoría <span class="required">*</span></label>
-                                    <select id="in-categoria" class="form-select">
-                                        <!-- JS populated -->
-                                    </select>
-                                </div>
-
-                                <div class="form-group cond-gasto">
-                                    <label for="in-subcategoria">Subcategoría</label>
-                                    <select id="in-subcategoria" class="form-select">
-                                        <!-- JS populated -->
-                                    </select>
-                                </div>
-
-                                <!-- CONDITIONAL FIELDS: TRANSFERENCIA -->
-                                <div class="form-group cond-transferencia hidden">
-                                    <label for="in-categoria-origen">Categoría Origen <span class="required">*</span></label>
-                                    <select id="in-categoria-origen" class="form-select">
-                                        <!-- JS populated -->
-                                    </select>
-                                </div>
-
-                                <div class="form-group cond-transferencia hidden">
-                                    <label for="in-categoria-destino">Categoría Destino <span class="required">*</span></label>
-                                    <select id="in-categoria-destino" class="form-select">
-                                        <!-- JS populated -->
-                                    </select>
-                                </div>
-
-                            </div>
-
-                            <div class="form-actions" style="display: flex; gap: 12px;">
-                                <button type="submit" id="btn-submit-movimiento" class="btn btn-primary btn-large" style="flex: 2;">Registrar Transacción</button>
-                                <button type="button" id="btn-cancel-edit-movimiento" class="btn btn-secondary hidden" style="flex: 1; padding: 14px 20px;">Cancelar</button>
-                            </div>
-                        </form>
-                    </div>
-                </section>
 
                 <!-- 4. CONFIGURACION SCREEN -->
                 <section class="app-screen" id="screen-configuracion">
@@ -805,6 +716,100 @@
 
             </div>
         </main>
+    </div>
+
+    <!-- Modal para Añadir/Editar Transacción -->
+    <div class="modal-backdrop hidden" id="modal-transaction">
+        <div class="modal-card" style="max-width: 600px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-top: -10px;">
+                <h2 style="font-size: 1.3rem; font-weight: 700; margin: 0;" id="modal-transaction-title">Añadir Transacción</h2>
+                <button type="button" class="btn-close-modal" id="btn-close-transaction-modal" style="background: none; border: none; font-size: 28px; color: var(--text-muted); cursor: pointer; line-height: 1; padding: 0 4px;">&times;</button>
+            </div>
+            
+            <!-- Edit Indicator -->
+            <h3 class="card-subtitle hidden" id="edit-movimiento-indicator" style="margin-top: 0; margin-bottom: 20px; color: var(--color-indigo); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+                <span>✏️ Editando Transacción</span> <span id="edit-movimiento-id-badge" class="val-badge transfer" style="font-size: 0.8rem;">#0</span>
+            </h3>
+
+            <!-- Form Tabs -->
+            <div class="form-tabs" style="margin-bottom: 20px;">
+                <button class="form-tab-btn active" id="tab-btn-gasto" data-type="GASTO">Gastos</button>
+                <button class="form-tab-btn" id="tab-btn-ingreso" data-type="INGRESO">Ingresos</button>
+                <button class="form-tab-btn" id="tab-btn-transferencia" data-type="TRANSFERENCIA">Transferencias</button>
+            </div>
+
+            <!-- Main Form -->
+            <form id="form-movimiento" class="modern-form">
+                <!-- Hidden input for type -->
+                <input type="hidden" id="in-tipo" value="GASTO">
+
+                <div class="form-grid">
+                    
+                    <!-- Importe -->
+                    <div class="form-group large">
+                        <label for="in-importe">Importe (€) <span class="required">*</span></label>
+                        <div class="input-currency-wrapper">
+                            <input type="number" id="in-importe" step="0.01" min="0.01" class="form-input currency-input" placeholder="0.00" required>
+                            <span class="input-currency-symbol">€</span>
+                        </div>
+                    </div>
+
+                    <!-- Concepto -->
+                    <div class="form-group large">
+                        <label for="in-concepto">Concepto / Descripción <span class="required">*</span></label>
+                        <input type="text" id="in-concepto" class="form-input" placeholder="Ej: Compra semanal mercadona" required>
+                    </div>
+
+                    <!-- Fecha -->
+                    <div class="form-group">
+                        <label for="in-fecha">Fecha de Registro <span class="required">*</span></label>
+                        <input type="date" id="in-fecha" class="form-input" required>
+                    </div>
+
+                    <!-- Mes de Referencia (Presupuesto) -->
+                    <div class="form-group">
+                        <label for="in-fecha-referencia">Mes/Año de Referencia <span class="required">*</span></label>
+                        <input type="month" id="in-fecha-referencia" class="form-input" required>
+                    </div>
+
+                    <!-- CONDITIONAL FIELDS: GASTO / INGRESO -->
+                    <div class="form-group cond-gasto-ingreso">
+                        <label for="in-categoria">Categoría <span class="required">*</span></label>
+                        <select id="in-categoria" class="form-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+
+                    <div class="form-group cond-gasto">
+                        <label for="in-subcategoria">Subcategoría</label>
+                        <select id="in-subcategoria" class="form-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+
+                    <!-- CONDITIONAL FIELDS: TRANSFERENCIA -->
+                    <div class="form-group cond-transferencia hidden">
+                        <label for="in-categoria-origen">Categoría Origen <span class="required">*</span></label>
+                        <select id="in-categoria-origen" class="form-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+
+                    <div class="form-group cond-transferencia hidden">
+                        <label for="in-categoria-destino">Categoría Destino <span class="required">*</span></label>
+                        <select id="in-categoria-destino" class="form-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="form-actions" style="display: flex; gap: 12px; margin-top: 20px;">
+                    <button type="submit" id="btn-submit-movimiento" class="btn btn-primary btn-large" style="flex: 2;">Registrar Transacción</button>
+                    <button type="button" id="btn-cancel-edit-movimiento" class="btn btn-secondary" style="flex: 1; padding: 14px 20px;">Cancelar</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- API URL Setup Modal (Shows if no API URL configured) -->
