@@ -495,12 +495,14 @@ async function syncData(isBackground = false) {
     }
     
     try {
-        const catsData = await apiRequest('categorias', 'GET', null, isBackground);
-        const subcatsData = await apiRequest('subcategorias', 'GET', null, isBackground);
-        const presData = await apiRequest('presupuestos', 'GET', null, isBackground);
-        const movsData = await apiRequest('movimientos', 'GET', null, isBackground);
+        const allData = await apiRequest('todo', 'GET', null, isBackground);
         
-        if (catsData && subcatsData && presData && movsData) {
+        if (allData && allData.categorias && allData.subcategorias && allData.presupuestos && allData.movimientos) {
+            const catsData = allData.categorias;
+            const subcatsData = allData.subcategorias;
+            const presData = allData.presupuestos;
+            const movsData = allData.movimientos;
+            
             const currentDataStr = JSON.stringify({
                 categorias: state.categorias,
                 subcategorias: state.subcategorias,
