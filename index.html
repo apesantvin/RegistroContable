@@ -339,7 +339,29 @@
 
                         <!-- Row 3: Budget vs Real (full width) -->
                         <div class="chart-card large">
-                            <h4 class="chart-title">🎯 Presupuesto vs Gasto Real por Categoría</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">🎯 Presupuesto vs Gasto Real por Categoría</h4>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="chart-presupuesto-month-select" style="font-size: 0.85rem; color: var(--text-secondary);">Mes:</label>
+                                    <select id="chart-presupuesto-month-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <option value="1">Enero</option>
+                                        <option value="2">Febrero</option>
+                                        <option value="3">Marzo</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Mayo</option>
+                                        <option value="6">Junio</option>
+                                        <option value="7">Julio</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Septiembre</option>
+                                        <option value="10">Octubre</option>
+                                        <option value="11">Noviembre</option>
+                                        <option value="12">Diciembre</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="chart-presupuesto-summary" style="font-size: 0.9rem; margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.03); display: flex; gap: 16px; flex-wrap: wrap;">
+                                <!-- Filled dynamically: Presupuestado Total, Gastado Total, Sobrante/Faltante -->
+                            </div>
                             <div class="chart-wrapper">
                                 <canvas id="chart-presupuesto-vs-real"></canvas>
                             </div>
@@ -526,8 +548,14 @@
 
                                 <!-- Fecha -->
                                 <div class="form-group">
-                                    <label for="in-fecha">Fecha <span class="required">*</span></label>
+                                    <label for="in-fecha">Fecha de Registro <span class="required">*</span></label>
                                     <input type="date" id="in-fecha" class="form-input" required>
+                                </div>
+
+                                <!-- Mes de Referencia (Presupuesto) -->
+                                <div class="form-group">
+                                    <label for="in-fecha-referencia">Mes/Año de Referencia <span class="required">*</span></label>
+                                    <input type="month" id="in-fecha-referencia" class="form-input" required>
                                 </div>
 
                                 <!-- CONDITIONAL FIELDS: GASTO / INGRESO -->
@@ -607,8 +635,8 @@
 
                         <!-- Budget Editor -->
                         <div class="card">
-                            <h3 class="card-subtitle">Modificar Presupuestos Mensuales</h3>
-                            <p class="card-description">Establece el límite de presupuesto para tus categorías principales para un mes y año específicos.</p>
+                            <h3 class="card-subtitle">Modificar Presupuestos por Períodos</h3>
+                            <p class="card-description">Establece el límite de presupuesto para tus categorías principales definiendo un rango de meses (período de vigencia).</p>
                             
                             <form id="form-presupuesto" class="modern-form">
                                 <div class="form-grid">
@@ -619,30 +647,15 @@
                                         </select>
                                     </div>
                                     <div class="form-group">
-                                        <label for="in-presupuesto-mes">Mes</label>
-                                        <select id="in-presupuesto-mes" class="form-select">
-                                            <option value="1">Enero</option>
-                                            <option value="2">Febrero</option>
-                                            <option value="3">Marzo</option>
-                                            <option value="4">Abril</option>
-                                            <option value="5">Mayo</option>
-                                            <option value="6">Junio</option>
-                                            <option value="7">Julio</option>
-                                            <option value="8">Agosto</option>
-                                            <option value="9">Septiembre</option>
-                                            <option value="10">Octubre</option>
-                                            <option value="11">Noviembre</option>
-                                            <option value="12">Diciembre</option>
-                                        </select>
+                                        <label for="in-presupuesto-inicio">Mes Inicio</label>
+                                        <input type="month" id="in-presupuesto-inicio" class="form-input" required>
                                     </div>
                                     <div class="form-group">
-                                        <label for="in-presupuesto-ano">Año</label>
-                                        <select id="in-presupuesto-ano" class="form-select">
-                                            <!-- JS populated -->
-                                        </select>
+                                        <label for="in-presupuesto-fin">Mes Fin (Opcional)</label>
+                                        <input type="month" id="in-presupuesto-fin" class="form-input" placeholder="Indefinido">
                                     </div>
                                     <div class="form-group">
-                                        <label for="in-presupuesto-importe">Nuevo Límite Presupuestario (€)</label>
+                                        <label for="in-presupuesto-importe">Límite Presupuestario (€)</label>
                                         <input type="number" id="in-presupuesto-importe" step="0.01" min="0" class="form-input" placeholder="0.00" required>
                                     </div>
                                 </div>
@@ -697,6 +710,24 @@
                                     <button type="submit" class="btn btn-primary">Crear Subcategoría</button>
                                 </div>
                             </form>
+                        </div>
+
+                        <!-- Gestión de Categorías y Subcategorías -->
+                        <div class="card" style="grid-column: span 2;">
+                            <h3 class="card-subtitle">Gestión de Categorías y Subcategorías</h3>
+                            <p class="card-description">Edita el nombre y el emoji de las categorías y subcategorías, o actívalas/desactívalas según tus necesidades.</p>
+                            <div id="container-categorias-gestion">
+                                <!-- Poblado por JS -->
+                            </div>
+                        </div>
+
+                        <!-- Historial y Gestión de Presupuestos -->
+                        <div class="card" style="grid-column: span 2;">
+                            <h3 class="card-subtitle">Historial y Gestión de Presupuestos</h3>
+                            <p class="card-description">Consulta, edita y gestiona las versiones de tus presupuestos para el mes y año seleccionados. Puedes desactivar un presupuesto o ver su historial de cambios.</p>
+                            <div id="container-presupuestos-gestion">
+                                <!-- Poblado por JS -->
+                            </div>
                         </div>
 
                         <!-- Automations Card -->

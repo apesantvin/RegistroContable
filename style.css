@@ -1994,3 +1994,271 @@ body:not(.dark-mode) .local-setup-box:hover {
     line-height: 1.5;
 }
 
+/* Management Dashboard Styles */
+.mgmt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.mgmt-item {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all var(--transition-normal);
+}
+
+body:not(.dark-mode) .mgmt-item {
+    background: rgba(0, 0, 0, 0.005);
+}
+
+.mgmt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.mgmt-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.mgmt-info .mgmt-emoji {
+    font-size: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+}
+
+body:not(.dark-mode) .mgmt-info .mgmt-emoji {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.mgmt-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mgmt-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+}
+
+.mgmt-badge.active {
+    background-color: var(--success-light);
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.mgmt-badge.inactive {
+    background-color: var(--danger-light);
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.mgmt-badge:hover {
+    transform: scale(1.05);
+}
+
+.mgmt-btn-edit {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    color: var(--text-secondary);
+}
+
+.mgmt-btn-edit:hover {
+    background-color: rgba(99, 102, 241, 0.15);
+    color: var(--primary);
+    transform: scale(1.15);
+}
+
+.mgmt-sub-list {
+    margin-left: 20px;
+    padding-left: 16px;
+    border-left: 2px dashed var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mgmt-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.mgmt-sub-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.mgmt-sub-info .mgmt-emoji {
+    font-size: 16px;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Budget management specifics */
+.budget-mgmt-item {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all var(--transition-normal);
+}
+
+body:not(.dark-mode) .budget-mgmt-item {
+    background: rgba(0, 0, 0, 0.005);
+}
+
+.budget-mgmt-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.budget-mgmt-cat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.budget-mgmt-value-box {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.budget-mgmt-amount {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.budget-mgmt-amount.inactive {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.budget-mgmt-btn-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.budget-mgmt-btn-toggle:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.versions-history-box {
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.version-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.version-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+body:not(.dark-mode) .version-item {
+    background: rgba(0, 0, 0, 0.01);
+}
+
+.version-item-num {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.version-item-date {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.version-item-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.version-item-badge.active {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.version-item-badge.inactive {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+

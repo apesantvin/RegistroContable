@@ -107,6 +107,7 @@ const DOM = {
     inImporte: document.getElementById('in-importe'),
     inConcepto: document.getElementById('in-concepto'),
     inFecha: document.getElementById('in-fecha'),
+    inFechaReferencia: document.getElementById('in-fecha-referencia'),
     inCategoria: document.getElementById('in-categoria'),
     inSubcategoria: document.getElementById('in-subcategoria'),
     inCatOrigen: document.getElementById('in-categoria-origen'),
@@ -130,8 +131,8 @@ const DOM = {
     
     formPresupuesto: document.getElementById('form-presupuesto'),
     inPresupuestoCat: document.getElementById('in-presupuesto-cat'),
-    inPresupuestoMes: document.getElementById('in-presupuesto-mes'),
-    inPresupuestoAno: document.getElementById('in-presupuesto-ano'),
+    inPresupuestoInicio: document.getElementById('in-presupuesto-inicio'),
+    inPresupuestoFin: document.getElementById('in-presupuesto-fin'),
     inPresupuestoImporte: document.getElementById('in-presupuesto-importe'),
     
     formCrearCategoria: document.getElementById('form-crear-categoria'),
@@ -143,7 +144,12 @@ const DOM = {
     inNewSubNombre: document.getElementById('in-new-sub-nombre'),
     inNewSubIcono: document.getElementById('in-new-sub-icono'),
     
+    containerCategoriasGestion: document.getElementById('container-categorias-gestion'),
+    containerPresupuestosGestion: document.getElementById('container-presupuestos-gestion'),
+    
     btnTransferirSobrantes: document.getElementById('btn-transferir-sobrantes'),
+    chartPresupuestoMonthSelect: document.getElementById('chart-presupuesto-month-select'),
+    chartPresupuestoSummary: document.getElementById('chart-presupuesto-summary'),
     
     // Modals
     modalApiSetup: document.getElementById('api-modal-setup'),
@@ -206,8 +212,20 @@ function initYearSelector() {
     DOM.yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
     DOM.yearSelect.value = state.selectedYear;
     
-    DOM.inPresupuestoAno.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    // Set default selected month for budget form to current date
+    const today = new Date();
+    const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    DOM.inPresupuestoInicio.value = currentMonthStr;
+    DOM.inPresupuestoFin.value = '';
     
+    // Set default month select value for budget chart to current month
+    if (DOM.chartPresupuestoMonthSelect) {
+        DOM.chartPresupuestoMonthSelect.value = (today.getMonth() + 1).toString();
+        DOM.chartPresupuestoMonthSelect.addEventListener('change', () => {
+            recreateCharts();
+        });
+    }
+
     DOM.yearSelect.addEventListener('change', (e) => {
         state.selectedYear = parseInt(e.target.value);
         updateDashboardMetrics();
@@ -431,8 +449,12 @@ function handleRoute() {
         applyMovementsFilters();
     } else if (hash === '#nueva-transaccion') {
         if (!state.editingMovimientoId) {
-            DOM.inFecha.value = new Date().toISOString().split('T')[0];
+            const todayStr = new Date().toISOString().split('T')[0];
+            DOM.inFecha.value = todayStr;
+            DOM.inFechaReferencia.value = todayStr.substring(0, 7);
         }
+    } else if (hash === '#configuracion') {
+        renderConfigManagement();
     }
 }
 
@@ -490,6 +512,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 options.headers['Prefer'] = 'return=representation';
                 options.body = JSON.stringify({
                     fecha: data.fecha,
+                    fecha_referencia: data.fecha_referencia,
                     tipo: data.tipo,
                     categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
                     subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
@@ -502,6 +525,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 options.headers['Prefer'] = 'return=representation';
                 options.body = JSON.stringify({
                     fecha: data.fecha,
+                    fecha_referencia: data.fecha_referencia,
                     tipo: 'TRANSFERENCIA',
                     categoriaOrigenId: data.categoriaOrigenId ? Number(data.categoriaOrigenId) : null,
                     categoriaDestinoId: data.categoriaDestinoId ? Number(data.categoriaDestinoId) : null,
@@ -513,6 +537,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 url += `/rest/v1/movimientos?id=eq.${data.id}`;
                 options.body = JSON.stringify({
                     fecha: data.fecha,
+                    fecha_referencia: data.fecha_referencia,
                     tipo: data.tipo,
                     categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
                     subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
@@ -524,6 +549,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 url += `/rest/v1/movimientos?id=eq.${data.id}`;
                 options.body = JSON.stringify({
                     fecha: data.fecha,
+                    fecha_referencia: data.fecha_referencia,
                     tipo: 'TRANSFERENCIA',
                     categoriaOrigenId: data.categoriaOrigenId ? Number(data.categoriaOrigenId) : null,
                     categoriaDestinoId: data.categoriaDestinoId ? Number(data.categoriaDestinoId) : null,
@@ -536,13 +562,47 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
             } else if (actionName === 'presupuesto') {
                 options.method = 'POST';
                 url += '/rest/v1/presupuestos';
-                options.headers['Prefer'] = 'resolution=merge-duplicates';
+                let version = data.version;
+                if (version === undefined || isNaN(Number(version))) {
+                    const versions = state.presupuestos.filter(pr => pr.categoriaId === Number(data.categoriaId) && pr.fecha_inicio === data.fecha_inicio && pr.fecha_fin === data.fecha_fin);
+                    const maxVer = versions.length > 0 ? Math.max(...versions.map(v => v.version || 1)) : 0;
+                    version = maxVer + 1;
+                }
                 options.body = JSON.stringify({
                     categoriaId: Number(data.categoriaId),
-                    mes: Number(data.mes),
-                    año: Number(data.año),
-                    presupuesto: Number(data.presupuesto)
+                    fecha_inicio: data.fecha_inicio,
+                    fecha_fin: data.fecha_fin || null,
+                    presupuesto: Number(data.presupuesto),
+                    version: Number(version),
+                    fecha_version: data.fecha_version || new Date().toISOString(),
+                    activa: data.activa !== undefined ? (data.activa === true || data.activa === 'true') : true
                 });
+            } else if (actionName === 'editar_presupuesto_periodo') {
+                options.method = 'PATCH';
+                url += `/rest/v1/presupuestos?id=eq.${data.id}`;
+                const bodyObj = {};
+                if (data.fecha_inicio !== undefined) bodyObj.fecha_inicio = data.fecha_inicio;
+                if (data.fecha_fin !== undefined) bodyObj.fecha_fin = data.fecha_fin;
+                if (data.presupuesto !== undefined) bodyObj.presupuesto = Number(data.presupuesto);
+                if (data.activa !== undefined) bodyObj.activa = (data.activa === true || data.activa === 'true');
+                options.body = JSON.stringify(bodyObj);
+            } else if (actionName === 'editar_categoria') {
+                options.method = 'PATCH';
+                url += `/rest/v1/categorias?id=eq.${data.id}`;
+                const bodyObj = {};
+                if (data.nombre !== undefined) bodyObj.nombre = data.nombre;
+                if (data.icono !== undefined) bodyObj.icono = data.icono;
+                if (data.activa !== undefined) bodyObj.activa = (data.activa === true || data.activa === 'true');
+                options.body = JSON.stringify(bodyObj);
+            } else if (actionName === 'editar_subcategoria') {
+                options.method = 'PATCH';
+                url += `/rest/v1/subcategorias?id=eq.${data.id}`;
+                const bodyObj = {};
+                if (data.categoriaId !== undefined) bodyObj.categoriaId = Number(data.categoriaId);
+                if (data.nombre !== undefined) bodyObj.nombre = data.nombre;
+                if (data.icono !== undefined) bodyObj.icono = data.icono;
+                if (data.activa !== undefined) bodyObj.activa = (data.activa === true || data.activa === 'true');
+                options.body = JSON.stringify(bodyObj);
             } else if (actionName === 'categoria') {
                 options.method = 'POST';
                 url += '/rest/v1/categorias';
@@ -603,6 +663,9 @@ async function syncData(isBackground = false) {
         updateDashboardMetrics();
         recreateCharts();
         applyMovementsFilters();
+        if (window.location.hash === '#configuracion') {
+            renderConfigManagement();
+        }
         saveLocalCache();
         return;
     }
@@ -659,6 +722,9 @@ async function syncData(isBackground = false) {
                 updateDashboardMetrics();
                 recreateCharts();
                 applyMovementsFilters();
+                if (window.location.hash === '#configuracion') {
+                    renderConfigManagement();
+                }
                 
                 if (isBackground && hasChanges) {
                     showToast('Datos actualizados desde la nube', 'info');
@@ -840,7 +906,8 @@ function rebuildIndex() {
     state.movimientos.forEach(m => {
         try {
             const val = parseFloat(m.importe) || 0;
-            const parts = m.fecha.split('-');
+            const refDate = m.fecha_referencia || m.fecha;
+            const parts = refDate.split('-');
             const yMov = parseInt(parts[0]);
             const mMov = parseInt(parts[1]);
 
@@ -922,6 +989,70 @@ function getAhorroAcumuladoForYear(year) {
         }
     }
     return new Array(12).fill(baseVal);
+}
+
+function getEffectiveBudget(categoriaId, mes, año) {
+    const targetStart = `${año}-${String(mes).padStart(2, '0')}-01`;
+    const lastDayOfM = new Date(año, mes, 0, 23, 59, 59, 999);
+    const now = new Date();
+
+    // Find all budget records for this category
+    const catBudgets = state.presupuestos.filter(p => p.categoriaId === categoriaId);
+    if (catBudgets.length === 0) return null;
+
+    // Filter versions based on timeframe (frozen for past months)
+    let versions = catBudgets;
+    if (now > lastDayOfM) {
+        // Option B: For past months, only consider versions created on or before the end of that month
+        const preEndVersions = catBudgets.filter(p => {
+            const dateVer = p.fecha_version ? new Date(p.fecha_version) : new Date(0);
+            return dateVer <= lastDayOfM;
+        });
+        // If there are versions created during/before the month, use them. Otherwise fallback to all.
+        if (preEndVersions.length > 0) {
+            versions = preEndVersions;
+        }
+    }
+
+    // Group the versions by their period key: `${fecha_inicio}_${fecha_fin || 'indefinido'}`
+    const periodsMap = {};
+    versions.forEach(p => {
+        const key = `${p.fecha_inicio}_${p.fecha_fin || 'indefinido'}`;
+        if (!periodsMap[key]) periodsMap[key] = [];
+        periodsMap[key].push(p);
+    });
+
+    const candidates = [];
+    Object.keys(periodsMap).forEach(key => {
+        const periodVersions = periodsMap[key];
+        // Find latest version for this period
+        const latest = periodVersions.reduce((latest, current) => 
+            (!latest || (current.version || 1) > (latest.version || 1)) ? current : latest, null
+        );
+        // If the latest version is active, and it covers the target month, add to candidates
+        if (latest && (latest.activa === true || latest.activa === 'true' || latest.activa === 1)) {
+            if (latest.fecha_inicio <= targetStart && (!latest.fecha_fin || targetStart <= latest.fecha_fin)) {
+                candidates.push(latest);
+            }
+        }
+    });
+
+    if (candidates.length === 0) return null;
+
+    // If there are multiple candidate periods covering the target month,
+    // sort them to pick the most specific/recent one.
+    // 1. Sort by fecha_inicio descending (most recent period starts first)
+    // 2. Sort by fecha_version descending
+    candidates.sort((a, b) => {
+        if (a.fecha_inicio !== b.fecha_inicio) {
+            return b.fecha_inicio.localeCompare(a.fecha_inicio);
+        }
+        const dateA = a.fecha_version ? new Date(a.fecha_version).getTime() : 0;
+        const dateB = b.fecha_version ? new Date(b.fecha_version).getTime() : 0;
+        return dateB - dateA;
+    });
+
+    return candidates[0];
 }
 
 let syncIntervalId = null;
@@ -1257,17 +1388,39 @@ function buildChartSubcategorias(year, theme) {
 
 // 5. Presupuesto vs Real
 function buildChartPresupuestoVsReal(year, theme) {
-    const currentMonth = new Date().getMonth() + 1;
+    const monthSelect = document.getElementById('chart-presupuesto-month-select');
+    const targetMonth = monthSelect ? parseInt(monthSelect.value) : (new Date().getMonth() + 1);
     const activeCats = state.categorias.filter(c => c.activa && c.id !== 9);
     
     const labels = activeCats.map(c => `${c.icono} ${c.nombre}`);
     const presupuestado = activeCats.map(c => {
-        const p = state.presupuestos.find(pr => pr.categoriaId === c.id && pr.mes === currentMonth && pr.año === year);
+        const p = getEffectiveBudget(c.id, targetMonth, year);
         return p ? parseFloat(p.presupuesto) : 0;
     });
     const gastado = activeCats.map(c => {
-        return state.index.byYear[year]?.byMonth[currentMonth]?.byCategoryExpenses[c.id] || 0;
+        return state.index.byYear[year]?.byMonth[targetMonth]?.byCategoryExpenses[c.id] || 0;
     });
+
+    // Update Summary Element
+    const summaryEl = document.getElementById('chart-presupuesto-summary');
+    if (summaryEl) {
+        const totalPresupuesto = presupuestado.reduce((a, b) => a + b, 0);
+        const totalGasto = gastado.reduce((a, b) => a + b, 0);
+        const diferencia = totalPresupuesto - totalGasto;
+        
+        let diffHtml = '';
+        if (diferencia >= 0) {
+            diffHtml = `<span style="color: var(--success); font-weight: 700;">💰 Sobrante: +${formatCurrency(diferencia)}</span>`;
+        } else {
+            diffHtml = `<span style="color: var(--danger); font-weight: 700;">⚠️ Faltante: ${formatCurrency(diferencia)}</span>`;
+        }
+
+        summaryEl.innerHTML = `
+            <div><strong>Presupuestado Total:</strong> ${formatCurrency(totalPresupuesto)}</div>
+            <div><strong>Gastado Total:</strong> ${formatCurrency(totalGasto)}</div>
+            <div>${diffHtml}</div>
+        `;
+    }
 
     const ctx = document.getElementById('chart-presupuesto-vs-real').getContext('2d');
     state.charts.presupuestoVsReal = new Chart(ctx, {
@@ -1323,7 +1476,7 @@ function buildChartPresupuestoVsReal(year, theme) {
                         updateFilterSubcategoryOptions();
                         DOM.filterSubcategory.value = 'Todas';
                         DOM.filterType.value = 'GASTO';
-                        DOM.filterMonth.value = currentMonth.toString();
+                        DOM.filterMonth.value = targetMonth.toString();
                         
                         window.location.hash = '#movimientos';
                     }
@@ -1802,6 +1955,8 @@ function startEditMovimiento(id) {
     DOM.inImporte.value = m.importe;
     DOM.inConcepto.value = m.concepto;
     DOM.inFecha.value = normalizeDateString(m.fecha);
+    const refDate = m.fecha_referencia || m.fecha;
+    DOM.inFechaReferencia.value = refDate ? refDate.substring(0, 7) : '';
 
     // Show/hide fields based on type and populate category/subcategory
     if (m.tipo === 'GASTO') {
@@ -1840,7 +1995,9 @@ function cancelEditMovimiento(shouldRedirect = true) {
     DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
     
     DOM.formMovimiento.reset();
-    DOM.inFecha.value = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    DOM.inFecha.value = todayStr;
+    DOM.inFechaReferencia.value = todayStr.substring(0, 7);
     
     // Set type back to default GASTO
     DOM.inTipo.value = 'GASTO';
@@ -1924,6 +2081,12 @@ function initFormHandlers() {
 
     DOM.btnCancelEdit.addEventListener('click', () => cancelEditMovimiento(true));
 
+    DOM.inFecha.addEventListener('change', () => {
+        if (DOM.inFecha.value) {
+            DOM.inFechaReferencia.value = DOM.inFecha.value.substring(0, 7);
+        }
+    });
+
     DOM.formMovimiento.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -1931,13 +2094,15 @@ function initFormHandlers() {
         const importe = parseFloat(DOM.inImporte.value);
         const concepto = DOM.inConcepto.value.trim();
         const fecha = DOM.inFecha.value;
+        const refMonthVal = DOM.inFechaReferencia.value;
+        const fecha_referencia = refMonthVal ? `${refMonthVal}-01` : `${fecha.substring(0, 7)}-01`;
 
         if (isNaN(importe) || importe <= 0) {
             showToast('Por favor introduce un importe válido', 'error');
             return;
         }
 
-        let payload = { tipo, importe, concepto, fecha };
+        let payload = { tipo, importe, concepto, fecha, fecha_referencia };
         let action = 'movimiento';
 
         if (state.editingMovimientoId) {
@@ -2059,10 +2224,28 @@ function initFormHandlers() {
 
     DOM.formPresupuesto.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const startVal = DOM.inPresupuestoInicio.value;
+        const endVal = DOM.inPresupuestoFin.value;
+
+        if (!startVal) {
+            showToast('El mes de inicio es obligatorio', 'error');
+            return;
+        }
+
+        const fecha_inicio = `${startVal}-01`;
+        let fecha_fin = null;
+        if (endVal) {
+            const parts = endVal.split('-');
+            const y = parseInt(parts[0]);
+            const m = parseInt(parts[1]);
+            const lastDay = new Date(y, m, 0).getDate();
+            fecha_fin = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        }
+
         const payload = {
             categoriaId: parseInt(DOM.inPresupuestoCat.value),
-            mes: parseInt(DOM.inPresupuestoMes.value),
-            año: parseInt(DOM.inPresupuestoAno.value),
+            fecha_inicio,
+            fecha_fin,
             presupuesto: parseFloat(DOM.inPresupuestoImporte.value)
         };
 
@@ -2092,7 +2275,12 @@ function initFormHandlers() {
             showToast('Categoría creada con éxito', 'success');
             DOM.inNewCatNombre.value = '';
             DOM.inNewCatIcono.value = '';
-            populateSelectors();
+            if (!state.isDemoMode && !state.isLocalMode) {
+                await syncData();
+            } else {
+                populateSelectors();
+                renderConfigManagement();
+            }
         }
     });
 
@@ -2108,7 +2296,12 @@ function initFormHandlers() {
             showToast('Subcategoría creada con éxito', 'success');
             DOM.inNewSubNombre.value = '';
             DOM.inNewSubIcono.value = '';
-            populateSelectors();
+            if (!state.isDemoMode && !state.isLocalMode) {
+                await syncData();
+            } else {
+                populateSelectors();
+                renderConfigManagement();
+            }
         }
     });
 
@@ -2127,7 +2320,7 @@ function initFormHandlers() {
 
         setLoading(true);
         for (const catId of activeCatIds) {
-            const budgetObj = state.presupuestos.find(p => p.categoriaId === catId && p.mes === currentMonth && p.año === currentYear);
+            const budgetObj = getEffectiveBudget(catId, currentMonth, currentYear);
             const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
             
             const expenseVal = state.index.byYear[currentYear]?.byMonth[currentMonth]?.byCategoryExpenses[catId] || 0.0;
@@ -2190,20 +2383,17 @@ function loadDemoData() {
         { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true }
     ];
 
-    state.presupuestos = [];
     const currentYear = state.selectedYear;
-    for (let mes = 1; mes <= 12; mes++) {
-        state.presupuestos.push(
-            { id: mes*10+1, categoriaId: 1, mes, año: currentYear, presupuesto: 35 },
-            { id: mes*10+2, categoriaId: 2, mes, año: currentYear, presupuesto: 15 },
-            { id: mes*10+3, categoriaId: 3, mes, año: currentYear, presupuesto: 40 },
-            { id: mes*10+4, categoriaId: 4, mes, año: currentYear, presupuesto: 50 },
-            { id: mes*10+5, categoriaId: 5, mes, año: currentYear, presupuesto: 75 },
-            { id: mes*10+6, categoriaId: 6, mes, año: currentYear, presupuesto: 250 },
-            { id: mes*10+7, categoriaId: 7, mes, año: currentYear, presupuesto: 100 },
-            { id: mes*10+8, categoriaId: 8, mes, año: currentYear, presupuesto: 80 }
-        );
-    }
+    state.presupuestos = [
+        { id: 101, categoriaId: 1, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 35, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 102, categoriaId: 2, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 15, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 103, categoriaId: 3, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 40, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 104, categoriaId: 4, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 50, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 105, categoriaId: 5, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 75, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 106, categoriaId: 6, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 250, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 107, categoriaId: 7, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 100, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true },
+        { id: 108, categoriaId: 8, fecha_inicio: `${currentYear}-01-01`, fecha_fin: `${currentYear}-12-31`, presupuesto: 80, version: 1, fecha_version: `${currentYear}-01-01T00:00:00.000Z`, activa: true }
+    ];
 
     state.movimientos = [];
     let mId = 1;
@@ -2248,23 +2438,23 @@ function loadDemoData() {
 function handleDemoWriteAction(action, data) {
     if (action === 'movimiento') {
         const id = state.movimientos.length + 1;
-        state.movimientos.push({ id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
+        state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
         return { success: true, id, message: "Movimiento insertado (Demo)" };
     } else if (action === 'transferencia') {
         const id = state.movimientos.length + 1;
-        state.movimientos.push({ id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
+        state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
         return { success: true, id, message: "Transferencia insertada (Demo)" };
     } else if (action === 'editar_movimiento') {
         const idx = state.movimientos.findIndex(m => m.id == data.id);
         if (idx !== -1) {
-            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe };
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe };
             return { success: true, message: "Movimiento editado (Demo)" };
         }
         return { success: false, error: 'Movimiento no encontrado' };
     } else if (action === 'editar_transferencia') {
         const idx = state.movimientos.findIndex(m => m.id == data.id);
         if (idx !== -1) {
-            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe };
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe };
             return { success: true, message: "Transferencia editada (Demo)" };
         }
         return { success: false, error: 'Transferencia no encontrada' };
@@ -2272,10 +2462,50 @@ function handleDemoWriteAction(action, data) {
         state.movimientos = state.movimientos.filter(m => m.id != data.id);
         return { success: true, message: "Movimiento eliminado (Demo)" };
     } else if (action === 'presupuesto') {
-        const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
-        if (p) { p.presupuesto = data.presupuesto; }
-        else { state.presupuestos.push({ id: state.presupuestos.length + 1, ...data }); }
+        const versions = state.presupuestos.filter(pr => pr.categoriaId === data.categoriaId && pr.fecha_inicio === data.fecha_inicio && pr.fecha_fin === data.fecha_fin);
+        const maxVer = versions.length > 0 ? Math.max(...versions.map(v => v.version || 1)) : 0;
+        const nextVer = maxVer + 1;
+        const id = state.presupuestos.length > 0 ? Math.max(...state.presupuestos.map(pr => pr.id)) + 1 : 1;
+        state.presupuestos.push({ 
+            id, 
+            categoriaId: data.categoriaId, 
+            fecha_inicio: data.fecha_inicio, 
+            fecha_fin: data.fecha_fin || null, 
+            presupuesto: data.presupuesto,
+            version: nextVer,
+            fecha_version: new Date().toISOString(),
+            activa: data.activa !== undefined ? (data.activa === true || data.activa === 'true') : true
+        });
         return { success: true, message: "Presupuesto guardado (Demo)" };
+    } else if (action === 'editar_presupuesto_periodo') {
+        const idx = state.presupuestos.findIndex(p => p.id == data.id);
+        if (idx !== -1) {
+            if (data.fecha_inicio !== undefined) state.presupuestos[idx].fecha_inicio = data.fecha_inicio;
+            if (data.fecha_fin !== undefined) state.presupuestos[idx].fecha_fin = data.fecha_fin;
+            if (data.presupuesto !== undefined) state.presupuestos[idx].presupuesto = data.presupuesto;
+            if (data.activa !== undefined) state.presupuestos[idx].activa = (data.activa === true || data.activa === 'true');
+            return { success: true, message: "Presupuesto editado (Demo)" };
+        }
+        return { success: false, error: 'Presupuesto no encontrado' };
+    } else if (action === 'editar_categoria') {
+        const idx = state.categorias.findIndex(c => c.id == data.id);
+        if (idx !== -1) {
+            if (data.nombre !== undefined) state.categorias[idx].nombre = data.nombre;
+            if (data.icono !== undefined) state.categorias[idx].icono = data.icono;
+            if (data.activa !== undefined) state.categorias[idx].activa = (data.activa === true || data.activa === 'true');
+            return { success: true, message: "Categoria editada (Demo)" };
+        }
+        return { success: false, error: 'Categoria no encontrada' };
+    } else if (action === 'editar_subcategoria') {
+        const idx = state.subcategorias.findIndex(s => s.id == data.id);
+        if (idx !== -1) {
+            if (data.categoriaId !== undefined) state.subcategorias[idx].categoriaId = Number(data.categoriaId);
+            if (data.nombre !== undefined) state.subcategorias[idx].nombre = data.nombre;
+            if (data.icono !== undefined) state.subcategorias[idx].icono = data.icono;
+            if (data.activa !== undefined) state.subcategorias[idx].activa = (data.activa === true || data.activa === 'true');
+            return { success: true, message: "Subcategoria editada (Demo)" };
+        }
+        return { success: false, error: 'Subcategoria no encontrada' };
     } else if (action === 'categoria') {
         const id = state.categorias.length + 1;
         state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true });
@@ -2614,21 +2844,378 @@ function downloadLocalDB() {
     showToast('Copia de seguridad descargada con exito', 'success');
 }
 
+async function renderConfigManagement() {
+    if (!DOM.containerCategoriasGestion || !DOM.containerPresupuestosGestion) return;
+
+    // 1. Render Categories & Subcategories
+    let catsHtml = '<div class="mgmt-list">';
+    state.categorias.forEach(cat => {
+        const isActive = cat.activa === true || cat.activa === 'true' || cat.activa === 1;
+        const subcategories = state.subcategorias.filter(sc => sc.categoriaId === cat.id);
+
+        catsHtml += `
+            <div class="mgmt-item" data-cat-id="${cat.id}">
+                <div class="mgmt-row">
+                    <div class="mgmt-info">
+                        <span class="mgmt-emoji">${cat.icono || '📁'}</span>
+                        <span class="mgmt-name">${cat.nombre}</span>
+                    </div>
+                    <div class="mgmt-actions">
+                        <button class="mgmt-btn-edit btn-edit-cat" title="Editar Nombre/Emoji">✏️</button>
+                        <span class="mgmt-badge ${isActive ? 'active' : 'inactive'} toggle-status-cat" title="Haga clic para alternar estado">
+                            ${isActive ? 'Activa' : 'Inactiva'}
+                        </span>
+                    </div>
+                </div>
+        `;
+
+        if (subcategories.length > 0) {
+            catsHtml += '<div class="mgmt-sub-list">';
+            subcategories.forEach(sub => {
+                const subActive = sub.activa === true || sub.activa === 'true' || sub.activa === 1;
+                catsHtml += `
+                    <div class="mgmt-sub-row" data-sub-id="${sub.id}">
+                        <div class="mgmt-sub-info">
+                            <span class="mgmt-emoji">${sub.icono || '📄'}</span>
+                            <span class="mgmt-name">${sub.nombre}</span>
+                        </div>
+                        <div class="mgmt-actions">
+                            <button class="mgmt-btn-edit btn-edit-sub" title="Editar Nombre/Emoji">✏️</button>
+                            <span class="mgmt-badge ${subActive ? 'active' : 'inactive'} toggle-status-sub" title="Haga clic para alternar estado">
+                                ${subActive ? 'Activa' : 'Inactiva'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            catsHtml += '</div>';
+        } else {
+            catsHtml += '<div class="mgmt-sub-list"><div class="card-description" style="margin: 0; padding-left: 8px; font-style: italic;">Sin subcategorías</div></div>';
+        }
+
+        catsHtml += `</div>`;
+    });
+    catsHtml += '</div>';
+    DOM.containerCategoriasGestion.innerHTML = catsHtml;
+
+    // 2. Render Budgets by Period
+    const formatPeriod = (start, end) => {
+        const formatMonth = (dateStr) => {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            const y = parts[0];
+            const mIndex = parseInt(parts[1]) - 1;
+            const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            return `${monthNames[mIndex]} ${y}`;
+        };
+        const startStr = formatMonth(start);
+        const endStr = end ? formatMonth(end) : 'Indefinido';
+        return `${startStr} ➔ ${endStr}`;
+    };
+
+    const activeCats = state.categorias.filter(c => c.activa === true || c.activa === 'true' || c.activa === 1);
+    
+    let budgetsHtml = `<div class="mgmt-list">`;
+    if (activeCats.length === 0) {
+        budgetsHtml += `<div class="card-description" style="text-align: center;">No hay categorías principales activas.</div>`;
+    } else {
+        activeCats.forEach(cat => {
+            const catBudgets = state.presupuestos.filter(p => p.categoriaId === cat.id);
+            
+            // Group by period key: `${fecha_inicio}_${fecha_fin || 'indefinido'}`
+            const periodsMap = {};
+            catBudgets.forEach(p => {
+                const key = `${p.fecha_inicio}_${p.fecha_fin || 'indefinido'}`;
+                if (!periodsMap[key]) periodsMap[key] = [];
+                periodsMap[key].push(p);
+            });
+
+            const periodKeys = Object.keys(periodsMap).sort(); // Sort chronologically
+
+            budgetsHtml += `
+                <div class="budget-mgmt-item" data-cat-id="${cat.id}">
+                    <div class="budget-mgmt-cat" style="font-weight: 700; margin-bottom: 8px;">
+                        <span>${cat.icono || '📁'}</span>
+                        <span>${cat.nombre}</span>
+                    </div>
+            `;
+
+            if (periodKeys.length === 0) {
+                budgetsHtml += `
+                    <div class="card-description" style="margin: 0; padding-left: 8px; font-style: italic;">Sin presupuestos establecidos</div>
+                `;
+            } else {
+                budgetsHtml += `<div class="mgmt-sub-list" style="margin-left: 0; padding-left: 0; border-left: none;">`;
+                periodKeys.forEach(key => {
+                    const versions = periodsMap[key];
+                    // Sort versions descending
+                    versions.sort((a, b) => (b.version || 1) - (a.version || 1));
+                    const latest = versions[0];
+                    const isLatestActive = latest.activa === true || latest.activa === 'true' || latest.activa === 1;
+
+                    budgetsHtml += `
+                        <div class="budget-mgmt-main mgmt-sub-row" data-budget-id="${latest.id}" data-period-key="${key}" style="border-bottom: 1px dashed var(--border-color); padding: 8px 0; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div class="budget-mgmt-cat" style="font-size: 13px; color: var(--text-secondary);">
+                                <span>📅 ${formatPeriod(latest.fecha_inicio, latest.fecha_fin)}</span>
+                            </div>
+                            <div class="budget-mgmt-value-box">
+                                <span class="budget-mgmt-amount ${isLatestActive ? '' : 'inactive'}" style="${isLatestActive ? '' : 'color: var(--text-muted); text-decoration: line-through;'}">
+                                    ${formatCurrency(parseFloat(latest.presupuesto))}
+                                </span>
+                                <div class="mgmt-actions">
+                                    <button class="budget-mgmt-btn-toggle btn-edit-budget" title="Editar este presupuesto">✏️ Editar</button>
+                                    ${isLatestActive ? `
+                                        <button class="budget-mgmt-btn-toggle btn-deactivate-budget" style="border-color: var(--danger); color: var(--danger);" title="Eliminar/Desactivar este presupuesto">🗑️ Quitar</button>
+                                    ` : ''}
+                                    ${versions.length > 1 ? `
+                                        <button class="budget-mgmt-btn-toggle btn-toggle-versions" title="Mostrar historial de versiones">🕒 Versiones (${versions.length})</button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Render version history block (collapsible) for this period
+                    if (versions.length > 1) {
+                        budgetsHtml += `
+                            <div class="versions-history-box hidden" id="versions-history-${latest.id}" style="margin-left: 16px; margin-bottom: 12px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                                <div class="version-title">Historial de Versiones del Período</div>
+                        `;
+                        versions.forEach(v => {
+                            const isVActive = v.activa === true || v.activa === 'true' || v.activa === 1;
+                            const dateFormatted = v.fecha_version ? new Date(v.fecha_version).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                            const isThisEffective = v.id === latest.id;
+
+                            budgetsHtml += `
+                                <div class="version-item" style="${isThisEffective ? 'border-color: var(--primary); background: rgba(99, 102, 241, 0.05);' : ''}">
+                                    <div>
+                                        <span class="version-item-num">V${v.version || 1}</span>
+                                        ${isThisEffective ? '<span class="version-item-badge active" style="margin-left: 6px; background: var(--primary-glow); color: var(--primary);">Actual</span>' : ''}
+                                    </div>
+                                    <div style="font-weight: 600;">${formatCurrency(parseFloat(v.presupuesto))}</div>
+                                    <div class="version-item-date">${dateFormatted}</div>
+                                    <span class="version-item-badge ${isVActive ? 'active' : 'inactive'}">
+                                        ${isVActive ? 'Activa' : 'Inactiva'}
+                                    </span>
+                                </div>
+                            `;
+                        });
+                        budgetsHtml += `</div>`;
+                    }
+                });
+                budgetsHtml += `</div>`;
+            }
+
+            budgetsHtml += `</div>`;
+        });
+    }
+    budgetsHtml += `</div>`;
+    DOM.containerPresupuestosGestion.innerHTML = budgetsHtml;
+
+    // Attach Event Listeners to Category management buttons
+    DOM.containerCategoriasGestion.querySelectorAll('.btn-edit-cat').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const item = e.target.closest('.mgmt-item');
+            const catId = parseInt(item.getAttribute('data-cat-id'));
+            const cat = state.categorias.find(c => c.id === catId);
+            if (!cat) return;
+
+            const newName = prompt('Editar nombre de la categoría:', cat.nombre);
+            if (newName === null) return;
+            const newIcon = prompt('Editar emoji (icono) de la categoría:', cat.icono);
+            if (newIcon === null) return;
+
+            const nameTrim = newName.trim();
+            const iconTrim = newIcon.trim();
+            if (!nameTrim || !iconTrim) {
+                showToast('El nombre y el icono no pueden estar vacíos', 'error');
+                return;
+            }
+
+            const res = await apiRequest('editar_categoria', 'PATCH', { id: catId, nombre: nameTrim, icono: iconTrim });
+            if (res && res.success) {
+                showToast('Categoría actualizada con éxito', 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    await syncData();
+                } else {
+                    populateSelectors();
+                    renderConfigManagement();
+                }
+            }
+        });
+    });
+
+    DOM.containerCategoriasGestion.querySelectorAll('.toggle-status-cat').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const item = e.target.closest('.mgmt-item');
+            const catId = parseInt(item.getAttribute('data-cat-id'));
+            const cat = state.categorias.find(c => c.id === catId);
+            if (!cat) return;
+
+            const newStatus = !(cat.activa === true || cat.activa === 'true' || cat.activa === 1);
+            
+            // Confirm deactivation if they are disabling it
+            if (!newStatus) {
+                if (!confirm(`¿Estás seguro de que deseas desactivar la categoría "${cat.nombre}"? No aparecerá en los nuevos movimientos, pero se mantendrán los históricos.`)) {
+                    return;
+                }
+            }
+
+            const res = await apiRequest('editar_categoria', 'PATCH', { id: catId, activa: newStatus });
+            if (res && res.success) {
+                showToast(`Categoría ${newStatus ? 'activada' : 'desactivada'} con éxito`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    await syncData();
+                } else {
+                    populateSelectors();
+                    renderConfigManagement();
+                }
+            }
+        });
+    });
+
+    // Attach Event Listeners to Subcategory management buttons
+    DOM.containerCategoriasGestion.querySelectorAll('.btn-edit-sub').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const item = e.target.closest('.mgmt-sub-row');
+            const subId = parseInt(item.getAttribute('data-sub-id'));
+            const sub = state.subcategorias.find(s => s.id === subId);
+            if (!sub) return;
+
+            const newName = prompt('Editar nombre de la subcategoría:', sub.nombre);
+            if (newName === null) return;
+            const newIcon = prompt('Editar emoji (icono) de la subcategoría:', sub.icono);
+            if (newIcon === null) return;
+
+            const nameTrim = newName.trim();
+            const iconTrim = newIcon.trim();
+            if (!nameTrim || !iconTrim) {
+                showToast('El nombre y el icono no pueden estar vacíos', 'error');
+                return;
+            }
+
+            const res = await apiRequest('editar_subcategoria', 'PATCH', { id: subId, nombre: nameTrim, icono: iconTrim });
+            if (res && res.success) {
+                showToast('Subcategoría actualizada con éxito', 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    await syncData();
+                } else {
+                    populateSelectors();
+                    renderConfigManagement();
+                }
+            }
+        });
+    });
+
+    DOM.containerCategoriasGestion.querySelectorAll('.toggle-status-sub').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const item = e.target.closest('.mgmt-sub-row');
+            const subId = parseInt(item.getAttribute('data-sub-id'));
+            const sub = state.subcategorias.find(s => s.id === subId);
+            if (!sub) return;
+
+            const newStatus = !(sub.activa === true || sub.activa === 'true' || sub.activa === 1);
+
+            const res = await apiRequest('editar_subcategoria', 'PATCH', { id: subId, activa: newStatus });
+            if (res && res.success) {
+                showToast(`Subcategoría ${newStatus ? 'activada' : 'desactivada'} con éxito`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    await syncData();
+                } else {
+                    populateSelectors();
+                    renderConfigManagement();
+                }
+            }
+        });
+    });
+
+    // Attach Event Listeners to Budget management buttons
+    DOM.containerPresupuestosGestion.querySelectorAll('.btn-edit-budget').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const row = e.target.closest('.budget-mgmt-main');
+            const catId = parseInt(row.closest('.budget-mgmt-item').getAttribute('data-cat-id'));
+            const budgetId = parseInt(row.getAttribute('data-budget-id'));
+            const budget = state.presupuestos.find(p => p.id === budgetId);
+            if (!budget) return;
+            
+            // Auto populate form
+            DOM.inPresupuestoCat.value = catId.toString();
+            DOM.inPresupuestoInicio.value = budget.fecha_inicio.substring(0, 7);
+            DOM.inPresupuestoFin.value = budget.fecha_fin ? budget.fecha_fin.substring(0, 7) : '';
+            DOM.inPresupuestoImporte.value = parseFloat(budget.presupuesto).toFixed(2);
+
+            // Scroll budget form into view and highlight it
+            DOM.formPresupuesto.scrollIntoView({ behavior: 'smooth' });
+            DOM.inPresupuestoImporte.focus();
+            showToast('Modifique los valores en el formulario de arriba.', 'info');
+        });
+    });
+
+    DOM.containerPresupuestosGestion.querySelectorAll('.btn-deactivate-budget').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const row = e.target.closest('.budget-mgmt-main');
+            const budgetId = parseInt(row.getAttribute('data-budget-id'));
+            const budget = state.presupuestos.find(p => p.id === budgetId);
+            if (!budget) return;
+
+            const periodName = formatPeriod(budget.fecha_inicio, budget.fecha_fin);
+            if (!confirm(`¿Estás seguro de que deseas desactivar el presupuesto para el período ${periodName}? Se creará una nueva versión inactiva.`)) {
+                return;
+            }
+
+            // Get previous budget to see what the next version is
+            const versions = state.presupuestos.filter(p => p.categoriaId === budget.categoriaId && p.fecha_inicio === budget.fecha_inicio && p.fecha_fin === budget.fecha_fin);
+            const maxVer = versions.length > 0 ? Math.max(...versions.map(v => v.version || 1)) : 0;
+            const nextVer = maxVer + 1;
+
+            const payload = {
+                categoriaId: budget.categoriaId,
+                fecha_inicio: budget.fecha_inicio,
+                fecha_fin: budget.fecha_fin,
+                presupuesto: 0,
+                version: nextVer,
+                activa: false
+            };
+
+            const res = await apiRequest('presupuesto', 'POST', payload);
+            if (res && res.success) {
+                showToast('Presupuesto desactivado con éxito', 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    await syncData();
+                } else {
+                    renderConfigManagement();
+                }
+            }
+        });
+    });
+
+    DOM.containerPresupuestosGestion.querySelectorAll('.btn-toggle-versions').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const row = e.target.closest('.budget-mgmt-main');
+            const budgetId = row.getAttribute('data-budget-id');
+            const historyBox = document.getElementById(`versions-history-${budgetId}`);
+            if (historyBox) {
+                historyBox.classList.toggle('hidden');
+            }
+        });
+    });
+}
+
 function handleLocalWriteAction(action, data) {
     if (action === 'movimiento') {
         const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
-        state.movimientos.push({ id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
+        state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
         saveLocalCache();
         return { success: true, id, message: "Movimiento guardado localmente" };
     } else if (action === 'transferencia') {
         const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
-        state.movimientos.push({ id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
+        state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
         saveLocalCache();
         return { success: true, id, message: "Transferencia guardada localmente" };
     } else if (action === 'editar_movimiento') {
         const idx = state.movimientos.findIndex(m => m.id == data.id);
         if (idx !== -1) {
-            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe };
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe };
             saveLocalCache();
             return { success: true, message: "Movimiento editado localmente" };
         }
@@ -2636,7 +3223,7 @@ function handleLocalWriteAction(action, data) {
     } else if (action === 'editar_transferencia') {
         const idx = state.movimientos.findIndex(m => m.id == data.id);
         if (idx !== -1) {
-            state.movimientos[idx] = { id: data.id, fecha: data.fecha, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe };
+            state.movimientos[idx] = { id: data.id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe };
             saveLocalCache();
             return { success: true, message: "Transferencia editada localmente" };
         }
@@ -2646,14 +3233,54 @@ function handleLocalWriteAction(action, data) {
         saveLocalCache();
         return { success: true, message: "Movimiento eliminado localmente" };
     } else if (action === 'presupuesto') {
-        const p = state.presupuestos.find(pr => pr.categoriaId === data.categoriaId && pr.mes === data.mes && pr.año === data.año);
-        if (p) { p.presupuesto = data.presupuesto; }
-        else {
-            const id = state.presupuestos.length > 0 ? Math.max(...state.presupuestos.map(pr => pr.id)) + 1 : 1;
-            state.presupuestos.push({ id, categoriaId: data.categoriaId, mes: data.mes, año: data.año, presupuesto: data.presupuesto });
-        }
+        const versions = state.presupuestos.filter(pr => pr.categoriaId === data.categoriaId && pr.fecha_inicio === data.fecha_inicio && pr.fecha_fin === data.fecha_fin);
+        const maxVer = versions.length > 0 ? Math.max(...versions.map(v => v.version || 1)) : 0;
+        const nextVer = maxVer + 1;
+        const id = state.presupuestos.length > 0 ? Math.max(...state.presupuestos.map(pr => pr.id)) + 1 : 1;
+        state.presupuestos.push({ 
+            id, 
+            categoriaId: data.categoriaId, 
+            fecha_inicio: data.fecha_inicio, 
+            fecha_fin: data.fecha_fin || null, 
+            presupuesto: data.presupuesto,
+            version: nextVer,
+            fecha_version: new Date().toISOString(),
+            activa: data.activa !== undefined ? (data.activa === true || data.activa === 'true') : true
+        });
         saveLocalCache();
         return { success: true, message: "Presupuesto guardado localmente" };
+    } else if (action === 'editar_presupuesto_periodo') {
+        const idx = state.presupuestos.findIndex(p => p.id == data.id);
+        if (idx !== -1) {
+            if (data.fecha_inicio !== undefined) state.presupuestos[idx].fecha_inicio = data.fecha_inicio;
+            if (data.fecha_fin !== undefined) state.presupuestos[idx].fecha_fin = data.fecha_fin;
+            if (data.presupuesto !== undefined) state.presupuestos[idx].presupuesto = data.presupuesto;
+            if (data.activa !== undefined) state.presupuestos[idx].activa = (data.activa === true || data.activa === 'true');
+            saveLocalCache();
+            return { success: true, message: "Presupuesto editado localmente" };
+        }
+        return { success: false, error: 'Presupuesto no encontrado' };
+    } else if (action === 'editar_categoria') {
+        const idx = state.categorias.findIndex(c => c.id == data.id);
+        if (idx !== -1) {
+            if (data.nombre !== undefined) state.categorias[idx].nombre = data.nombre;
+            if (data.icono !== undefined) state.categorias[idx].icono = data.icono;
+            if (data.activa !== undefined) state.categorias[idx].activa = (data.activa === true || data.activa === 'true');
+            saveLocalCache();
+            return { success: true, message: "Categoria editada localmente" };
+        }
+        return { success: false, error: 'Categoria no encontrada' };
+    } else if (action === 'editar_subcategoria') {
+        const idx = state.subcategorias.findIndex(s => s.id == data.id);
+        if (idx !== -1) {
+            if (data.categoriaId !== undefined) state.subcategorias[idx].categoriaId = Number(data.categoriaId);
+            if (data.nombre !== undefined) state.subcategorias[idx].nombre = data.nombre;
+            if (data.icono !== undefined) state.subcategorias[idx].icono = data.icono;
+            if (data.activa !== undefined) state.subcategorias[idx].activa = (data.activa === true || data.activa === 'true');
+            saveLocalCache();
+            return { success: true, message: "Subcategoria editada localmente" };
+        }
+        return { success: false, error: 'Subcategoria no encontrada' };
     } else if (action === 'categoria') {
         const id = state.categorias.length > 0 ? Math.max(...state.categorias.map(c => c.id)) + 1 : 1;
         state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true });
