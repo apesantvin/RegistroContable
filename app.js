@@ -513,6 +513,21 @@ async function syncData(isBackground = false) {
         const movsData = await apiRequest('movimientos', 'GET', null, isBackground);
         
         if (catsData && subcatsData && presData && movsData) {
+            const currentDataStr = JSON.stringify({
+                categorias: state.categorias,
+                subcategorias: state.subcategorias,
+                presupuestos: state.presupuestos,
+                movimientos: state.movimientos
+            });
+            const newDataStr = JSON.stringify({
+                categorias: catsData,
+                subcategorias: subcatsData,
+                presupuestos: presData,
+                movimientos: movsData
+            });
+            
+            const hasChanges = currentDataStr !== newDataStr;
+            
             state.categorias = catsData;
             state.subcategorias = subcatsData;
             state.presupuestos = presData;
@@ -521,8 +536,11 @@ async function syncData(isBackground = false) {
             // Recalculate index values in-memory silently
             rebuildIndex();
             
-            // Only update DOM components if NOT running in background
-            if (!isBackground) {
+            // Guardar en la caché de API
+            localStorage.setItem('contable_api_cache', newDataStr);
+            
+            // Only update DOM components if NOT running in background OR if there are actual changes
+            if (!isBackground || hasChanges) {
                 DOM.apiStatus.className = 'api-status-badge connected';
                 DOM.apiStatusText.textContent = 'Sincronizado';
                 
@@ -530,6 +548,13 @@ async function syncData(isBackground = false) {
                 updateDashboardMetrics();
                 recreateCharts();
                 applyMovementsFilters();
+                
+                if (isBackground && hasChanges) {
+                    showToast('Datos actualizados desde la nube', 'info');
+                }
+            } else {
+                DOM.apiStatus.className = 'api-status-badge connected';
+                DOM.apiStatusText.textContent = 'Sincronizado';
             }
         } else {
             if (!isBackground) {
@@ -2015,6 +2040,37 @@ function checkLocalCache() {
     } else if (state.apiUrl) {
         state.isLocalMode = false;
         state.isDemoMode = false;
+        
+        const cachedApi = localStorage.getItem('contable_api_cache');
+        if (cachedApi) {
+            try {
+                const data = JSON.parse(cachedApi);
+                if (validateLocalJSON(data)) {
+                    state.categorias = data.categorias;
+                    state.subcategorias = data.subcategorias || [];
+                    state.presupuestos = data.presupuestos || [];
+                    state.movimientos = data.movimientos || [];
+                    
+                    rebuildIndex();
+                    showAppInterface();
+                    updateLocalModeUI();
+                    populateSelectors();
+                    updateDashboardMetrics();
+                    recreateCharts();
+                    applyMovementsFilters();
+                    
+                    DOM.apiStatus.className = 'api-status-badge connected';
+                    DOM.apiStatusText.textContent = 'Sincronizado (Caché)';
+                    
+                    // Sincronizar de fondo los datos actualizados
+                    syncData(true);
+                    return;
+                }
+            } catch (e) {
+                console.error('Error loading cached API data', e);
+            }
+        }
+        
         showAppInterface();
         updateLocalModeUI();
         syncData();
