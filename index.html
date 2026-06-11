@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro Contable - Gestiona tus Finanzas en Google Sheets</title>
-    <meta name="description" content="Una aplicación web elegante, rápida y privada para controlar tus finanzas personales y presupuestos, conectada directamente a tu Google Sheets.">
+    <title>Registro Contable - Gestiona tus Finanzas en la Nube con Supabase</title>
+    <meta name="description" content="Una aplicación web elegante, rápida y privada para controlar tus finanzas personales y presupuestos, conectada directamente a tu base de datos Supabase.">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <!-- Google Fonts: Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,7 +32,7 @@
                 <a href="#how-it-works" class="landing-nav-link">Cómo Funciona</a>
                 <button class="btn btn-secondary" id="btn-landing-local">Cargar JSON</button>
                 <button class="btn btn-secondary" id="btn-landing-demo">Ver Demo En Vivo</button>
-                <button class="btn btn-primary" id="btn-landing-connect">Conectar Mi Sheets</button>
+                <button class="btn btn-primary" id="btn-landing-connect">Conectar Supabase</button>
             </nav>
         </header>
 
@@ -40,7 +40,7 @@
         <section class="hero-section">
             <div class="hero-content">
                 <span class="hero-badge">🔒 100% Privado y Sin Servidores</span>
-                <h1 class="hero-title">Tus finanzas bajo control, en tu propio <span>Google Sheets</span></h1>
+                <h1 class="hero-title">Tus finanzas bajo control, en tu propio proyecto <span>Supabase</span></h1>
                 <p class="hero-description">Una interfaz web moderna y fluida para registrar tus gastos diarios, gestionar presupuestos por categorías y ver la evolución de tus ahorros en tiempo real.</p>
                 <div class="hero-actions">
                     <button class="btn btn-primary btn-large" id="btn-hero-start">Comenzar Ahora</button>
@@ -92,7 +92,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">🛡️</div>
                     <h3 class="feature-title">Privacidad Absoluta</h3>
-                    <p class="feature-description">Tus datos financieros nunca pasan por servidores de terceros. Todo se almacena de forma segura en tu propia cuenta de Google Drive.</p>
+                    <p class="feature-description">Tus datos financieros nunca pasan por servidores de terceros. Todo se almacena de forma segura en tu propio proyecto de Supabase.</p>
                 </div>
                 
                 <div class="feature-card">
@@ -134,20 +134,20 @@
             <div class="steps-container">
                 <div class="step-card">
                     <div class="step-num">1</div>
-                    <h3 class="step-title">Prepara tu Google Sheet</h3>
-                    <p class="step-description">Crea una hoja de cálculo en tu Google Drive donde se guardarán todos los registros, transacciones y presupuestos.</p>
+                    <h3 class="step-title">Crea tu Base de Datos</h3>
+                    <p class="step-description">Crea un proyecto gratuito en Supabase donde se guardarán todos los registros, transacciones y presupuestos.</p>
                 </div>
                 
                 <div class="step-card">
                     <div class="step-num">2</div>
-                    <h3 class="step-title">Despliega Google Apps Script</h3>
-                    <p class="step-description">Copia el script de sincronización en el editor de código del documento y despliégalo como una "Aplicación Web".</p>
+                    <h3 class="step-title">Obtén tus Credenciales</h3>
+                    <p class="step-description">Copia la URL de la API y la clave pública anónima (Anon Key) desde el panel de control de tu proyecto de Supabase.</p>
                 </div>
 
                 <div class="step-card">
                     <div class="step-num">3</div>
-                    <h3 class="step-title">Conéctate y Disfruta</h3>
-                    <p class="step-description">Pega la URL de tu aplicación desplegada de Apps Script en nuestra aplicación web y comenzará la sincronización.</p>
+                    <h3 class="step-title">Conéctate y Sincroniza</h3>
+                    <p class="step-description">Pega tus credenciales en nuestra aplicación web para iniciar la sincronización de tus datos en tiempo real.</p>
                 </div>
             </div>
         </section>
@@ -252,7 +252,7 @@
             <!-- Loading overlay -->
             <div class="loading-overlay" id="loading-spinner">
                 <div class="spinner"></div>
-                <p>Sincronizando con Google Sheets...</p>
+                <p>Sincronizando con Supabase...</p>
             </div>
 
             <!-- Content Container -->
@@ -587,28 +587,20 @@
                         <!-- API Connection Configuration -->
                         <div class="card">
                             <h3 class="card-subtitle" id="config-api-title">Configuración de Base de Datos Cloud</h3>
-                            <p class="card-description" id="config-api-desc">Elige tu proveedor de base de datos e introduce tus credenciales para sincronizar tus datos en la nube.</p>
+                            <p class="card-description" id="config-api-desc">Introduce tus credenciales de Supabase para sincronizar tus datos en la nube.</p>
                             
                             <form id="form-api-url" class="modern-form">
-                                <div class="form-group">
-                                    <label for="in-api-provider">Proveedor</label>
-                                    <select id="in-api-provider" class="form-select">
-                                        <option value="google">Google Sheets (Apps Script)</option>
-                                        <option value="supabase">Supabase (PostgreSQL)</option>
-                                    </select>
-                                </div>
                                 <div class="form-group large">
-                                    <label id="lbl-api-url" for="in-api-url">URL de Google Apps Script Web App</label>
-                                    <input type="text" id="in-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                                    <label id="lbl-api-url" for="in-api-url">URL de la API de Supabase</label>
+                                    <input type="text" id="in-api-url" class="form-input" placeholder="https://xxxx.supabase.co" required>
                                 </div>
-                                <div class="form-group large hidden" id="group-supabase-key">
+                                <div class="form-group large" id="group-supabase-key">
                                     <label for="in-supabase-key">Clave Pública Anónima (Anon Key)</label>
-                                    <input type="password" id="in-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off">
+                                    <input type="password" id="in-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off" required>
                                 </div>
                                 <div class="form-actions-inline">
                                     <button type="submit" class="btn btn-primary">Guardar Configuración</button>
                                     <button type="button" class="btn btn-secondary" id="btn-test-api">Probar Conexión</button>
-                                    <button type="button" class="btn btn-warning hidden" id="btn-migrar-supabase">Migrar Datos a Supabase</button>
                                 </div>
                             </form>
                         </div>
@@ -730,23 +722,16 @@
                 <h2>Conectar Base de Datos</h2>
             </div>
             <div class="modal-body">
-                <p>Elige tu proveedor de base de datos e introduce tus credenciales para sincronizar tus datos.</p>
+                <p>Introduce tus credenciales de Supabase para sincronizar tus datos.</p>
                 
                 <form id="form-modal-api">
-                    <div class="form-group">
-                        <label for="in-modal-api-provider">Proveedor</label>
-                        <select id="in-modal-api-provider" class="form-select">
-                            <option value="google">Google Sheets (Apps Script)</option>
-                            <option value="supabase">Supabase (PostgreSQL)</option>
-                        </select>
-                    </div>
                     <div class="form-group large">
-                        <label id="lbl-modal-api-url" for="in-modal-api-url">URL de Apps Script Web App</label>
-                        <input type="text" id="in-modal-api-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" required>
+                        <label id="lbl-modal-api-url" for="in-modal-api-url">URL de la API de Supabase</label>
+                        <input type="text" id="in-modal-api-url" class="form-input" placeholder="https://xxxx.supabase.co" required>
                     </div>
-                    <div class="form-group large hidden" id="group-modal-supabase-key">
+                    <div class="form-group large" id="group-modal-supabase-key">
                         <label for="in-modal-supabase-key">Clave Pública Anónima (Anon Key)</label>
-                        <input type="password" id="in-modal-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off">
+                        <input type="password" id="in-modal-supabase-key" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsIn..." autocomplete="off" required>
                     </div>
                     <div class="form-actions-inline">
                         <button type="submit" class="btn btn-primary btn-large w-100">Guardar y Sincronizar</button>

@@ -4,12 +4,10 @@
 
 // App State
 const state = {
-    googleApiUrl: localStorage.getItem('contable_google_api_url') || localStorage.getItem('contable_api_url') || '',
     supabaseApiUrl: localStorage.getItem('contable_supabase_api_url') || '',
-    apiProvider: localStorage.getItem('contable_api_provider') || 'google',
     supabaseKey: localStorage.getItem('contable_supabase_key') || '',
     get apiUrl() {
-        return this.apiProvider === 'supabase' ? this.supabaseApiUrl : this.googleApiUrl;
+        return this.supabaseApiUrl;
     },
     selectedYear: new Date().getFullYear(),
     dashboardRange: 'year', // 'month' | '3months' | '6months' | 'year'
@@ -120,13 +118,11 @@ const DOM = {
     
     // Config screen
     formApiUrl: document.getElementById('form-api-url'),
-    inApiProvider: document.getElementById('in-api-provider'),
     inApiUrl: document.getElementById('in-api-url'),
     lblApiUrl: document.getElementById('lbl-api-url'),
     groupSupabaseKey: document.getElementById('group-supabase-key'),
     inSupabaseKey: document.getElementById('in-supabase-key'),
     btnTestApi: document.getElementById('btn-test-api'),
-    btnMigrarSupabase: document.getElementById('btn-migrar-supabase'),
     
     cardConfigLocal: document.getElementById('card-config-local'),
     btnConfigDownloadLocal: document.getElementById('btn-config-download-local'),
@@ -152,7 +148,6 @@ const DOM = {
     // Modals
     modalApiSetup: document.getElementById('api-modal-setup'),
     formModalApi: document.getElementById('form-modal-api'),
-    inModalApiProvider: document.getElementById('in-modal-api-provider'),
     inModalApiUrl: document.getElementById('in-modal-api-url'),
     lblModalApiUrl: document.getElementById('lbl-modal-api-url'),
     groupModalSupabaseKey: document.getElementById('group-modal-supabase-key'),
@@ -442,7 +437,7 @@ function handleRoute() {
 }
 
 /* ==========================================================================
-   Google Apps Script REST Client
+   Supabase REST Client
    ========================================================================== */
 async function apiRequest(action, method = 'GET', data = null, isBackground = false) {
     if (state.isDemoMode) {
@@ -453,184 +448,147 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
         return handleLocalWriteAction(action, data);
     }
 
-    if (state.apiProvider === 'supabase') {
-        if (!state.apiUrl || !state.supabaseKey) {
-            if (!isBackground) showToast('Debes configurar la URL y la Anon Key de Supabase.', 'error');
-            return null;
-        }
-
-        if (!isBackground) setLoading(true);
-        try {
-            let url = state.apiUrl;
-            if (url.endsWith('/')) {
-                url = url.slice(0, -1);
-            }
-            
-            let options = {
-                mode: 'cors',
-                headers: {
-                    'apikey': state.supabaseKey,
-                    'Authorization': `Bearer ${state.supabaseKey}`,
-                    'Content-Type': 'application/json'
-                }
-            };
-
-            if (method === 'GET') {
-                options.method = 'GET';
-                if (action === 'todo') {
-                    // LLamada a la función RPC obtener_todo() en Supabase
-                    options.method = 'POST';
-                    url += '/rest/v1/rpc/obtener_todo';
-                } else {
-                    url += `/rest/v1/${action}?select=*`;
-                    if (action === 'movimientos') {
-                        url += '&order=id.asc';
-                    }
-                }
-            } else {
-                const actionName = action;
-                
-                if (actionName === 'movimiento') {
-                    options.method = 'POST';
-                    url += '/rest/v1/movimientos';
-                    options.headers['Prefer'] = 'return=representation';
-                    options.body = JSON.stringify({
-                        fecha: data.fecha,
-                        tipo: data.tipo,
-                        categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
-                        subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
-                        concepto: data.concepto,
-                        importe: Number(data.importe)
-                    });
-                } else if (actionName === 'transferencia') {
-                    options.method = 'POST';
-                    url += '/rest/v1/movimientos';
-                    options.headers['Prefer'] = 'return=representation';
-                    options.body = JSON.stringify({
-                        fecha: data.fecha,
-                        tipo: 'TRANSFERENCIA',
-                        categoriaOrigenId: data.categoriaOrigenId ? Number(data.categoriaOrigenId) : null,
-                        categoriaDestinoId: data.categoriaDestinoId ? Number(data.categoriaDestinoId) : null,
-                        concepto: data.concepto,
-                        importe: Number(data.importe)
-                    });
-                } else if (actionName === 'editar_movimiento') {
-                    options.method = 'PATCH';
-                    url += `/rest/v1/movimientos?id=eq.${data.id}`;
-                    options.body = JSON.stringify({
-                        fecha: data.fecha,
-                        tipo: data.tipo,
-                        categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
-                        subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
-                        concepto: data.concepto,
-                        importe: Number(data.importe)
-                    });
-                } else if (actionName === 'editar_transferencia') {
-                    options.method = 'PATCH';
-                    url += `/rest/v1/movimientos?id=eq.${data.id}`;
-                    options.body = JSON.stringify({
-                        fecha: data.fecha,
-                        tipo: 'TRANSFERENCIA',
-                        categoriaOrigenId: data.categoriaOrigenId ? Number(data.categoriaOrigenId) : null,
-                        categoriaDestinoId: data.categoriaDestinoId ? Number(data.categoriaDestinoId) : null,
-                        concepto: data.concepto,
-                        importe: Number(data.importe)
-                    });
-                } else if (actionName === 'eliminar_movimiento') {
-                    options.method = 'DELETE';
-                    url += `/rest/v1/movimientos?id=eq.${data.id}`;
-                } else if (actionName === 'presupuesto') {
-                    options.method = 'POST';
-                    url += '/rest/v1/presupuestos';
-                    options.headers['Prefer'] = 'resolution=merge-duplicates';
-                    options.body = JSON.stringify({
-                        categoriaId: Number(data.categoriaId),
-                        mes: Number(data.mes),
-                        año: Number(data.año),
-                        presupuesto: Number(data.presupuesto)
-                    });
-                } else if (actionName === 'categoria') {
-                    options.method = 'POST';
-                    url += '/rest/v1/categorias';
-                    options.headers['Prefer'] = 'return=representation';
-                    options.body = JSON.stringify({
-                        nombre: data.nombre,
-                        icono: data.icono,
-                        activa: true
-                    });
-                } else if (actionName === 'subcategoria') {
-                    options.method = 'POST';
-                    url += '/rest/v1/subcategorias';
-                    options.headers['Prefer'] = 'return=representation';
-                    options.body = JSON.stringify({
-                        categoriaId: Number(data.categoriaId),
-                        nombre: data.nombre,
-                        icono: data.icono,
-                        activa: true
-                    });
-                } else {
-                    throw new Error(`Acción POST no implementada para Supabase: ${actionName}`);
-                }
-            }
-
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                const errJson = await response.json().catch(() => ({}));
-                throw new Error(errJson.message || `Error del servidor Supabase (${response.status})`);
-            }
-
-            if (response.status === 204) {
-                return { success: true };
-            }
-
-            const json = await response.json();
-            
-            if (method === 'POST' && (action === 'movimiento' || action === 'transferencia' || action === 'categoria' || action === 'subcategoria')) {
-                if (Array.isArray(json) && json.length > 0) {
-                    return { success: true, id: json[0].id };
-                }
-            }
-            
-            return json;
-        } catch (error) {
-            console.error('Supabase API Error:', error);
-            if (!isBackground) showToast('Error de conexión con Supabase: ' + error.message, 'error');
-            return null;
-        } finally {
-            if (!isBackground) setLoading(false);
-        }
-    }
-
-    if (!state.apiUrl) {
-        if (!isBackground) showToast('Debes configurar la URL de la API.', 'error');
+    if (!state.apiUrl || !state.supabaseKey) {
+        if (!isBackground) showToast('Debes configurar la URL y la Anon Key de Supabase.', 'error');
         return null;
     }
 
     if (!isBackground) setLoading(true);
     try {
         let url = state.apiUrl;
-        let options = { mode: 'cors' };
+        if (url.endsWith('/')) {
+            url = url.slice(0, -1);
+        }
+        
+        let options = {
+            mode: 'cors',
+            headers: {
+                'apikey': state.supabaseKey,
+                'Authorization': `Bearer ${state.supabaseKey}`,
+                'Content-Type': 'application/json'
+            }
+        };
 
         if (method === 'GET') {
             options.method = 'GET';
-            url += (url.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action);
+            if (action === 'todo') {
+                // LLamada a la función RPC obtener_todo() en Supabase
+                options.method = 'POST';
+                url += '/rest/v1/rpc/obtener_todo';
+            } else {
+                url += `/rest/v1/${action}?select=*`;
+                if (action === 'movimientos') {
+                    url += '&order=id.asc';
+                }
+            }
         } else {
-            options.method = 'POST';
-            options.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
-            options.body = JSON.stringify({ action: action, ...data });
+            const actionName = action;
+            
+            if (actionName === 'movimiento') {
+                options.method = 'POST';
+                url += '/rest/v1/movimientos';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify({
+                    fecha: data.fecha,
+                    tipo: data.tipo,
+                    categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
+                    subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
+                    concepto: data.concepto,
+                    importe: Number(data.importe)
+                });
+            } else if (actionName === 'transferencia') {
+                options.method = 'POST';
+                url += '/rest/v1/movimientos';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify({
+                    fecha: data.fecha,
+                    tipo: 'TRANSFERENCIA',
+                    categoriaOrigenId: data.categoriaOrigenId ? Number(data.categoriaOrigenId) : null,
+                    categoriaDestinoId: data.categoriaDestinoId ? Number(data.categoriaDestinoId) : null,
+                    concepto: data.concepto,
+                    importe: Number(data.importe)
+                });
+            } else if (actionName === 'editar_movimiento') {
+                options.method = 'PATCH';
+                url += `/rest/v1/movimientos?id=eq.${data.id}`;
+                options.body = JSON.stringify({
+                    fecha: data.fecha,
+                    tipo: data.tipo,
+                    categoriaId: data.categoriaId ? Number(data.categoriaId) : null,
+                    subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
+                    concepto: data.concepto,
+                    importe: Number(data.importe)
+                });
+            } else if (actionName === 'editar_transferencia') {
+                options.method = 'PATCH';
+                url += `/rest/v1/movimientos?id=eq.${data.id}`;
+                options.body = JSON.stringify({
+                    fecha: data.fecha,
+                    tipo: 'TRANSFERENCIA',
+                    categoriaOrigenId: data.categoriaOrigenId ? Number(data.categoriaOrigenId) : null,
+                    categoriaDestinoId: data.categoriaDestinoId ? Number(data.categoriaDestinoId) : null,
+                    concepto: data.concepto,
+                    importe: Number(data.importe)
+                });
+            } else if (actionName === 'eliminar_movimiento') {
+                options.method = 'DELETE';
+                url += `/rest/v1/movimientos?id=eq.${data.id}`;
+            } else if (actionName === 'presupuesto') {
+                options.method = 'POST';
+                url += '/rest/v1/presupuestos';
+                options.headers['Prefer'] = 'resolution=merge-duplicates';
+                options.body = JSON.stringify({
+                    categoriaId: Number(data.categoriaId),
+                    mes: Number(data.mes),
+                    año: Number(data.año),
+                    presupuesto: Number(data.presupuesto)
+                });
+            } else if (actionName === 'categoria') {
+                options.method = 'POST';
+                url += '/rest/v1/categorias';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify({
+                    nombre: data.nombre,
+                    icono: data.icono,
+                    activa: true
+                });
+            } else if (actionName === 'subcategoria') {
+                options.method = 'POST';
+                url += '/rest/v1/subcategorias';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify({
+                    categoriaId: Number(data.categoriaId),
+                    nombre: data.nombre,
+                    icono: data.icono,
+                    activa: true
+                });
+            } else {
+                throw new Error(`Acción POST no implementada para Supabase: ${actionName}`);
+            }
         }
 
         const response = await fetch(url, options);
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.message || `Error del servidor Supabase (${response.status})`);
+        }
+
+        if (response.status === 204) {
+            return { success: true };
+        }
+
         const json = await response.json();
         
-        if (json.success === false) {
-            throw new Error(json.error || 'Error desconocido del servidor');
+        if (method === 'POST' && (action === 'movimiento' || action === 'transferencia' || action === 'categoria' || action === 'subcategoria')) {
+            if (Array.isArray(json) && json.length > 0) {
+                return { success: true, id: json[0].id };
+            }
         }
         
         return json;
     } catch (error) {
-        console.error('API Error:', error);
-        if (!isBackground) showToast('Error de conexión con la hoja de cálculo: ' + error.message, 'error');
+        console.error('Supabase API Error:', error);
+        if (!isBackground) showToast('Error de conexión con Supabase: ' + error.message, 'error');
         return null;
     } finally {
         if (!isBackground) setLoading(false);
@@ -2023,70 +1981,16 @@ function initFormHandlers() {
         }
     });
 
-    const handleProviderChange = (provider, isModal = false) => {
-        const lblUrl = isModal ? DOM.lblModalApiUrl : DOM.lblApiUrl;
-        const inUrl = isModal ? DOM.inModalApiUrl : DOM.inApiUrl;
-        const groupKey = isModal ? DOM.groupModalSupabaseKey : DOM.groupSupabaseKey;
-        const inKey = isModal ? DOM.inModalSupabaseKey : DOM.inSupabaseKey;
-
-        if (!lblUrl || !inUrl || !groupKey || !inKey) return;
-
-        if (provider === 'supabase') {
-            lblUrl.textContent = 'URL de la API de Supabase';
-            inUrl.placeholder = 'https://xxxx.supabase.co';
-            groupKey.classList.remove('hidden');
-            inKey.setAttribute('required', 'true');
-        } else {
-            lblUrl.textContent = 'URL de Google Apps Script Web App';
-            inUrl.placeholder = 'https://script.google.com/macros/s/.../exec';
-            groupKey.classList.add('hidden');
-            inKey.removeAttribute('required');
-        }
-    };
-
-    DOM.inApiProvider.addEventListener('change', (e) => {
-        const provider = e.target.value;
-        handleProviderChange(provider, false);
-        if (DOM.inApiUrl) {
-            DOM.inApiUrl.value = provider === 'supabase' ? state.supabaseApiUrl : state.googleApiUrl;
-        }
-        if (DOM.btnMigrarSupabase) {
-            if (provider === 'supabase' && state.supabaseApiUrl) {
-                DOM.btnMigrarSupabase.classList.remove('hidden');
-            } else {
-                DOM.btnMigrarSupabase.classList.add('hidden');
-            }
-        }
-    });
-
-    if (DOM.inModalApiProvider) {
-        DOM.inModalApiProvider.addEventListener('change', (e) => {
-            const provider = e.target.value;
-            handleProviderChange(provider, true);
-            if (DOM.inModalApiUrl) {
-                DOM.inModalApiUrl.value = provider === 'supabase' ? state.supabaseApiUrl : state.googleApiUrl;
-            }
-        });
-    }
-
     DOM.formApiUrl.addEventListener('submit', (e) => {
         e.preventDefault();
-        const provider = DOM.inApiProvider.value;
         const url = DOM.inApiUrl.value.trim();
         const key = DOM.inSupabaseKey.value.trim();
         
-        if (url) {
-            localStorage.setItem('contable_api_provider', provider);
-            if (provider === 'supabase') {
-                localStorage.setItem('contable_supabase_api_url', url);
-                localStorage.setItem('contable_supabase_key', key);
-                state.supabaseApiUrl = url;
-                state.supabaseKey = key;
-            } else {
-                localStorage.setItem('contable_google_api_url', url);
-                state.googleApiUrl = url;
-            }
-            state.apiProvider = provider;
+        if (url && key) {
+            localStorage.setItem('contable_supabase_api_url', url);
+            localStorage.setItem('contable_supabase_key', key);
+            state.supabaseApiUrl = url;
+            state.supabaseKey = key;
             state.isDemoMode = false;
             state.isLocalMode = false;
             localStorage.setItem('contable_is_local_mode', 'false');
@@ -2101,7 +2005,6 @@ function initFormHandlers() {
     });
 
     DOM.btnTestApi.addEventListener('click', async () => {
-        const provider = DOM.inApiProvider.value;
         const url = DOM.inApiUrl.value.trim();
         const key = DOM.inSupabaseKey.value.trim();
         
@@ -2109,60 +2012,37 @@ function initFormHandlers() {
             showToast('Introduce una URL antes de probar', 'error');
             return;
         }
-        if (provider === 'supabase' && !key) {
+        if (!key) {
             showToast('Introduce la Anon Key antes de probar', 'error');
             return;
         }
 
-        const oldProvider = state.apiProvider;
-        const oldGoogleUrl = state.googleApiUrl;
         const oldSupabaseUrl = state.supabaseApiUrl;
         const oldKey = state.supabaseKey;
         
-        state.apiProvider = provider;
-        if (provider === 'supabase') {
-            state.supabaseApiUrl = url;
-            state.supabaseKey = key;
-        } else {
-            state.googleApiUrl = url;
-        }
+        state.supabaseApiUrl = url;
+        state.supabaseKey = key;
         
         const test = await apiRequest('categorias', 'GET');
         if (test) {
             showToast('Conexión probada con éxito!', 'success');
         } else {
             showToast('Error al probar conexión. Verifica tus credenciales', 'error');
-            state.apiProvider = oldProvider;
-            state.googleApiUrl = oldGoogleUrl;
             state.supabaseApiUrl = oldSupabaseUrl;
             state.supabaseKey = oldKey;
         }
     });
 
-    if (DOM.btnMigrarSupabase) {
-        DOM.btnMigrarSupabase.addEventListener('click', () => {
-            migrarDatosASupabase();
-        });
-    }
-
     DOM.formModalApi.addEventListener('submit', (e) => {
         e.preventDefault();
-        const provider = DOM.inModalApiProvider.value;
         const url = DOM.inModalApiUrl.value.trim();
         const key = DOM.inModalSupabaseKey.value.trim();
         
-        if (url) {
-            localStorage.setItem('contable_api_provider', provider);
-            if (provider === 'supabase') {
-                localStorage.setItem('contable_supabase_api_url', url);
-                localStorage.setItem('contable_supabase_key', key);
-                state.supabaseApiUrl = url;
-                state.supabaseKey = key;
-            } else {
-                localStorage.setItem('contable_google_api_url', url);
-                state.googleApiUrl = url;
-            }
-            state.apiProvider = provider;
+        if (url && key) {
+            localStorage.setItem('contable_supabase_api_url', url);
+            localStorage.setItem('contable_supabase_key', key);
+            state.supabaseApiUrl = url;
+            state.supabaseKey = key;
             state.isDemoMode = false;
             state.isLocalMode = false;
             localStorage.setItem('contable_is_local_mode', 'false');
@@ -2508,46 +2388,10 @@ function showToast(message, type = 'info') {
    Local Offline Mode Helper Functions
    ========================================================================== */
 function updateApiUIFromState() {
-    if (DOM.inApiProvider) DOM.inApiProvider.value = state.apiProvider;
-    if (DOM.inModalApiProvider) DOM.inModalApiProvider.value = state.apiProvider;
-    
-    const currentUrl = state.apiProvider === 'supabase' ? state.supabaseApiUrl : state.googleApiUrl;
-    if (DOM.inApiUrl) DOM.inApiUrl.value = currentUrl;
-    if (DOM.inModalApiUrl) DOM.inModalApiUrl.value = currentUrl;
+    if (DOM.inApiUrl) DOM.inApiUrl.value = state.supabaseApiUrl;
+    if (DOM.inModalApiUrl) DOM.inModalApiUrl.value = state.supabaseApiUrl;
     if (DOM.inSupabaseKey) DOM.inSupabaseKey.value = state.supabaseKey;
     if (DOM.inModalSupabaseKey) DOM.inModalSupabaseKey.value = state.supabaseKey;
-
-    const updateFields = (provider, isModal) => {
-        const lblUrl = isModal ? DOM.lblModalApiUrl : DOM.lblApiUrl;
-        const inUrl = isModal ? DOM.inModalApiUrl : DOM.inApiUrl;
-        const groupKey = isModal ? DOM.groupModalSupabaseKey : DOM.groupSupabaseKey;
-        const inKey = isModal ? DOM.inModalSupabaseKey : DOM.inSupabaseKey;
-
-        if (!lblUrl || !inUrl || !groupKey || !inKey) return;
-
-        if (provider === 'supabase') {
-            lblUrl.textContent = 'URL de la API de Supabase';
-            inUrl.placeholder = 'https://xxxx.supabase.co';
-            groupKey.classList.remove('hidden');
-            inKey.setAttribute('required', 'true');
-        } else {
-            lblUrl.textContent = 'URL de Google Apps Script Web App';
-            inUrl.placeholder = 'https://script.google.com/macros/s/.../exec';
-            groupKey.classList.add('hidden');
-            inKey.removeAttribute('required');
-        }
-    };
-
-    updateFields(state.apiProvider, false);
-    updateFields(state.apiProvider, true);
-
-    if (DOM.btnMigrarSupabase) {
-        if (state.apiProvider === 'supabase' && state.apiUrl) {
-            DOM.btnMigrarSupabase.classList.remove('hidden');
-        } else {
-            DOM.btnMigrarSupabase.classList.add('hidden');
-        }
-    }
 }
 
 function checkLocalCache() {
@@ -2620,242 +2464,7 @@ function checkLocalCache() {
     }
 }
 
-async function migrarDatosASupabase() {
-    if (state.apiProvider !== 'supabase') {
-        showToast('El proveedor activo debe ser Supabase para realizar la migración.', 'error');
-        return;
-    }
-    if (!state.apiUrl || !state.supabaseKey) {
-        showToast('Debes tener configurada y guardada tu URL y Anon Key de Supabase.', 'error');
-        return;
-    }
 
-    let categorias = [];
-    let subcategorias = [];
-    let presupuestos = [];
-    let movimientos = [];
-    let origenName = '';
-
-    const metodos = [];
-    if (state.googleApiUrl) {
-        metodos.push('1. Descargar automáticamente desde tu Google Sheets guardada');
-    }
-    metodos.push('2. Subir un archivo de copia de seguridad (.json)');
-    metodos.push('3. Usar los datos actualmente en memoria (si los hay)');
-
-    const seleccion = prompt(
-        `Elige el origen de los datos para migrar escribiendo el número:\n\n` +
-        metodos.join('\n') + '\n\nIntroduce el número de opción:', 
-        state.googleApiUrl ? '1' : '2'
-    );
-
-    if (!seleccion) return;
-
-    setLoading(true);
-    try {
-        if (seleccion === '1' && state.googleApiUrl) {
-            origenName = 'Google Sheets';
-            showToast('Descargando datos desde Google Sheets...', 'info');
-            
-            let gData = null;
-            try {
-                const url = state.googleApiUrl + (state.googleApiUrl.includes('?') ? '&' : '?') + 'action=todo';
-                const res = await fetch(url);
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json && json.categorias) gData = json;
-                }
-            } catch (e) {
-                console.warn('Fallo al descargar todo consolidado, intentando individualmente...', e);
-            }
-
-            if (gData) {
-                categorias = gData.categorias || [];
-                subcategorias = gData.subcategorias || [];
-                presupuestos = gData.presupuestos || [];
-                movimientos = gData.movimientos || [];
-            } else {
-                const fetchCollection = async (action) => {
-                    const url = state.googleApiUrl + (state.googleApiUrl.includes('?') ? '&' : '?') + 'action=' + action;
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error(`Error descargando ${action}`);
-                    return await res.json();
-                };
-                categorias = await fetchCollection('categorias').catch(() => []);
-                subcategorias = await fetchCollection('subcategorias').catch(() => []);
-                presupuestos = await fetchCollection('presupuestos').catch(() => []);
-                movimientos = await fetchCollection('movimientos').catch(() => []);
-            }
-        } 
-        else if (seleccion === '2') {
-            origenName = 'Archivo de Backup';
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.json';
-            
-            const filePromise = new Promise((resolve, reject) => {
-                fileInput.onchange = e => {
-                    const file = e.target.files[0];
-                    if (!file) {
-                        reject(new Error('No se seleccionó ningún archivo'));
-                        return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = evt => {
-                        try {
-                            const parsed = JSON.parse(evt.target.result);
-                            resolve(parsed);
-                        } catch (err) {
-                            reject(new Error('El archivo no tiene un formato JSON válido'));
-                        }
-                    };
-                    reader.readAsText(file);
-                };
-                fileInput.onerror = () => reject(new Error('Error al leer el archivo'));
-            });
-
-            fileInput.click();
-            
-            showToast('Selecciona tu archivo de backup .json...', 'info');
-            setLoading(false);
-            const backupData = await filePromise;
-            setLoading(true);
-
-            if (!validateLocalJSON(backupData)) {
-                throw new Error('El formato del archivo JSON no es válido.');
-            }
-
-            categorias = backupData.categorias || [];
-            subcategorias = backupData.subcategorias || [];
-            presupuestos = backupData.presupuestos || [];
-            movimientos = backupData.movimientos || [];
-        } 
-        else if (seleccion === '3') {
-            origenName = 'Memoria actual';
-            categorias = state.categorias || [];
-            subcategorias = state.subcategorias || [];
-            presupuestos = state.presupuestos || [];
-            movimientos = state.movimientos || [];
-        } 
-        else {
-            throw new Error('Opción no válida seleccionada');
-        }
-
-        if (categorias.length === 0 && movimientos.length === 0) {
-            throw new Error('No se encontraron datos en el origen seleccionado para poder migrar.');
-        }
-
-        const confirmacion = confirm(`Se han cargado correctamente los datos desde ${origenName}:\n` +
-            `- Categorías: ${categorias.length}\n` +
-            `- Subcategorías: ${subcategorias.length}\n` +
-            `- Presupuestos: ${presupuestos.length}\n` +
-            `- Movimientos: ${movimientos.length}\n\n` +
-            `¿Deseas proceder a insertarlos todos en Supabase?`);
-            
-        if (!confirmacion) {
-            setLoading(false);
-            return;
-        }
-
-        showToast('Insertando datos en Supabase...', 'info');
-        
-        let baseUrl = state.apiUrl;
-        if (baseUrl.endsWith('/')) {
-            baseUrl = baseUrl.slice(0, -1);
-        }
-
-        const headers = {
-            'apikey': state.supabaseKey,
-            'Authorization': `Bearer ${state.supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-        };
-
-        // 1. Migrar Categorías
-        if (categorias.length > 0) {
-            const body = categorias.map(c => ({
-                id: Number(c.id),
-                nombre: c.nombre,
-                icono: c.icono,
-                activa: c.activa !== false
-            }));
-            const res = await fetch(`${baseUrl}/rest/v1/categorias`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body)
-            });
-            if (!res.ok) throw new Error(`Error migrando categorías: ${res.statusText}`);
-        }
-
-        // 2. Migrar Subcategorías
-        if (subcategorias.length > 0) {
-            const body = subcategorias.map(s => ({
-                id: Number(s.id),
-                categoriaId: s.categoriaId ? Number(s.categoriaId) : null,
-                nombre: s.nombre,
-                icono: s.icono,
-                activa: s.activa !== false
-            }));
-            const res = await fetch(`${baseUrl}/rest/v1/subcategorias`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body)
-            });
-            if (!res.ok) throw new Error(`Error migrando subcategorías: ${res.statusText}`);
-        }
-
-        // 3. Migrar Presupuestos
-        if (presupuestos.length > 0) {
-            const body = presupuestos.map(p => ({
-                id: Number(p.id),
-                categoriaId: Number(p.categoriaId),
-                mes: Number(p.mes),
-                año: Number(p.año),
-                presupuesto: Number(p.presupuesto)
-            }));
-            const res = await fetch(`${baseUrl}/rest/v1/presupuestos`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body)
-            });
-            if (!res.ok) throw new Error(`Error migrando presupuestos: ${res.statusText}`);
-        }
-
-        // 4. Migrar Movimientos
-        if (movimientos.length > 0) {
-            const body = movimientos.map(m => ({
-                id: Number(m.id),
-                fecha: m.fecha,
-                tipo: m.tipo,
-                categoriaId: m.categoriaId ? Number(m.categoriaId) : null,
-                subcategoriaId: m.subcategoriaId ? Number(m.subcategoriaId) : null,
-                categoriaOrigenId: m.categoriaOrigenId ? Number(m.categoriaOrigenId) : null,
-                categoriaDestinoId: m.categoriaDestinoId ? Number(m.categoriaDestinoId) : null,
-                concepto: m.concepto || '',
-                importe: Number(m.importe)
-            }));
-            
-            const chunk = 500;
-            for (let i = 0; i < body.length; i += chunk) {
-                const chunkBody = body.slice(i, i + chunk);
-                const res = await fetch(`${baseUrl}/rest/v1/movimientos`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(chunkBody)
-                });
-                if (!res.ok) throw new Error(`Error migrando movimientos (bloque ${i}): ${res.statusText}`);
-            }
-        }
-
-        showToast('¡Migración a Supabase realizada con éxito!', 'success');
-        syncData();
-    } catch (e) {
-        console.error('Error en migración:', e);
-        showToast('Error al migrar los datos: ' + e.message, 'error');
-    } finally {
-        setLoading(false);
-    }
-}
 
 function validateLocalJSON(data) {
     if (!data || typeof data !== 'object') return false;
