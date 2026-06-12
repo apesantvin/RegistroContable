@@ -1421,54 +1421,6 @@ body:not(.dark-mode) .loading-overlay {
     50% { transform: scale(1.08); filter: drop-shadow(0 4px 16px rgba(99, 102, 241, 0.6)); }
 }
 
-/* ==========================================================================
-   Dashboard Range Filter
-   ========================================================================== */
-.dashboard-range-filter {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-
-.range-filter-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-
-.range-btns {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.range-btn {
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-
-.range-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
-.range-btn.active {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: #ffffff;
-    border-color: transparent;
-    box-shadow: 0 4px 12px var(--primary-glow);
-}
 
 /* ==========================================================================
    Pagination Controls
@@ -1704,12 +1656,6 @@ body:not(.dark-mode) .loading-overlay {
         padding: 16px;
     }
 
-    /* Dashboard range filter */
-    .range-btn {
-        padding: 5px 12px;
-        font-size: 12px;
-    }
-    
     /* Forms */
     .form-grid {
         grid-template-columns: 1fr;
@@ -1917,19 +1863,6 @@ body:not(.dark-mode) .loading-overlay {
 
     .hero-actions .btn {
         width: 100%;
-    }
-
-    .dashboard-range-filter {
-        gap: 8px;
-    }
-
-    .range-btns {
-        gap: 4px;
-    }
-
-    .range-btn {
-        padding: 4px 10px;
-        font-size: 11px;
     }
 
     .modal-card {

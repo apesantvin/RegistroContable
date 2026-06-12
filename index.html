@@ -222,7 +222,7 @@
                     </div>
 
                     <!-- Global Year Selector -->
-                    <div class="year-filter-wrapper">
+                    <div class="year-filter-wrapper" style="display: none;">
                         <label for="global-year-select" class="year-label">Año:</label>
                         <select id="global-year-select" class="form-select year-select">
                             <!-- JS populated -->
@@ -294,42 +294,95 @@
                         </div>
                     </div>
 
-                    <!-- Dashboard Range Filter -->
-                    <div class="dashboard-range-filter">
-                        <span class="range-filter-label">Ver:</span>
-                        <div class="range-btns">
-                            <button class="range-btn" data-range="month" id="range-btn-month">Último mes</button>
-                            <button class="range-btn" data-range="3months" id="range-btn-3months">3 meses</button>
-                            <button class="range-btn" data-range="6months" id="range-btn-6months">6 meses</button>
-                            <button class="range-btn active" data-range="year" id="range-btn-year">Este año</button>
-                        </div>
-                    </div>
-
                     <!-- Charts Grid -->
                     <div class="charts-grid">
-                        <!-- Row 1: Full-width line charts -->
+                        <!-- Row 1: Full-width line/bar charts -->
                         <div class="chart-card large">
-                            <h4 class="chart-title">📈 Ingresos vs Gastos Mensual</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">📈 Ingresos, Gastos y Balance Neto Mensual</h4>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="chart-ingresos-gastos-range-select" style="font-size: 0.85rem; color: var(--text-secondary);">Ver:</label>
+                                    <select id="chart-ingresos-gastos-range-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <option value="year" selected>Este año</option>
+                                        <option value="6months">Últimos 6 meses</option>
+                                        <option value="3months">Últimos 3 meses</option>
+                                        <option value="month">Último mes</option>
+                                    </select>
+                                    <div id="chart-ingresos-gastos-year-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                                        <label for="chart-ingresos-gastos-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año:</label>
+                                        <select id="chart-ingresos-gastos-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                            <!-- Dynamically populated in app.js -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="chart-wrapper">
                                 <canvas id="chart-ingresos-gastos"></canvas>
                             </div>
                         </div>
-                        <div class="chart-card large">
-                            <h4 class="chart-title">💹 Balance Neto Mensual</h4>
-                            <div class="chart-wrapper">
-                                <canvas id="chart-balance-neto"></canvas>
-                            </div>
-                        </div>
+
 
                         <!-- Row 2: Half-width donuts -->
                         <div class="chart-card">
-                            <h4 class="chart-title">🍩 Distribución por Categorías</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">🍩 Distribución por Categorías</h4>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <label for="chart-categorias-month-select" style="font-size: 0.85rem; color: var(--text-secondary);">Mes:</label>
+                                    <select id="chart-categorias-month-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <option value="year" selected>Todo el año</option>
+                                        <option value="1">Enero</option>
+                                        <option value="2">Febrero</option>
+                                        <option value="3">Marzo</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Mayo</option>
+                                        <option value="6">Junio</option>
+                                        <option value="7">Julio</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Septiembre</option>
+                                        <option value="10">Octubre</option>
+                                        <option value="11">Noviembre</option>
+                                        <option value="12">Diciembre</option>
+                                    </select>
+                                    <label for="chart-categorias-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año:</label>
+                                    <select id="chart-categorias-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-wrapper donut-wrapper">
                                 <canvas id="chart-categorias"></canvas>
                             </div>
                         </div>
+                        
                         <div class="chart-card">
-                            <h4 class="chart-title">🍩 Distribución por Subcategorías</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">🍩 Distribución por Subcategorías</h4>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <select id="chart-subcategorias-cat-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto; max-width: 120px;">
+                                        <option value="Todas" selected>Categoría: Todas</option>
+                                    </select>
+                                    <label for="chart-subcategorias-month-select" style="font-size: 0.85rem; color: var(--text-secondary);">Mes:</label>
+                                    <select id="chart-subcategorias-month-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <option value="year" selected>Todo el año</option>
+                                        <option value="1">Ene</option>
+                                        <option value="2">Feb</option>
+                                        <option value="3">Mar</option>
+                                        <option value="4">Abr</option>
+                                        <option value="5">May</option>
+                                        <option value="6">Jun</option>
+                                        <option value="7">Jul</option>
+                                        <option value="8">Ago</option>
+                                        <option value="9">Sep</option>
+                                        <option value="10">Oct</option>
+                                        <option value="11">Nov</option>
+                                        <option value="12">Dic</option>
+                                    </select>
+                                    <label for="chart-subcategorias-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año:</label>
+                                    <select id="chart-subcategorias-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <!-- JS populated -->
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-wrapper donut-wrapper">
                                 <canvas id="chart-subcategorias"></canvas>
                             </div>
@@ -339,7 +392,7 @@
                         <div class="chart-card large">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                                 <h4 class="chart-title" style="margin: 0;">🎯 Presupuesto vs Gasto Real por Categoría</h4>
-                                <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <label for="chart-presupuesto-month-select" style="font-size: 0.85rem; color: var(--text-secondary);">Mes:</label>
                                     <select id="chart-presupuesto-month-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
                                         <option value="1">Enero</option>
@@ -355,6 +408,10 @@
                                         <option value="11">Noviembre</option>
                                         <option value="12">Diciembre</option>
                                     </select>
+                                    <label for="chart-presupuesto-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año:</label>
+                                    <select id="chart-presupuesto-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <!-- JS populated -->
+                                    </select>
                                 </div>
                             </div>
                             <div id="chart-presupuesto-summary" style="font-size: 0.9rem; margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.03); display: flex; gap: 16px; flex-wrap: wrap;">
@@ -365,15 +422,43 @@
                             </div>
                         </div>
 
-                        <!-- Row 4: Top categories + Comparative -->
+                        <!-- Row 4: Top categories + Savings -->
                         <div class="chart-card">
-                            <h4 class="chart-title">🏆 Top Categorías de Gasto</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">🏆 Top Categorías de Gasto</h4>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <label for="chart-top-range-select" style="font-size: 0.85rem; color: var(--text-secondary);">Ver:</label>
+                                        <select id="chart-top-range-select" class="form-select" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                            <option value="year" selected>Este año</option>
+                                            <option value="6months">Últimos 6 meses</option>
+                                            <option value="3months">Últimos 3 meses</option>
+                                            <option value="month">Último mes</option>
+                                            <option value="custom">Rango personalizado...</option>
+                                        </select>
+                                    </div>
+                                    <div id="chart-top-custom-range" style="display: none; align-items: center; gap: 4px;">
+                                        <input type="date" id="chart-top-start" class="form-input" style="padding: 2px 6px; font-size: 0.8rem; width: auto; height: auto; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); border-radius: 4px;">
+                                        <span style="font-size: 0.8rem; color: var(--text-secondary);">a</span>
+                                        <input type="date" id="chart-top-end" class="form-input" style="padding: 2px 6px; font-size: 0.8rem; width: auto; height: auto; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); border-radius: 4px;">
+                                    </div>
+                                </div>
+                            </div>
                             <div class="chart-wrapper">
                                 <canvas id="chart-top-categorias"></canvas>
                             </div>
                         </div>
+                        
                         <div class="chart-card">
-                            <h4 class="chart-title">📅 Ahorro Acumulado Mensual</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">📅 Ahorro Acumulado Mensual</h4>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="chart-ahorro-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año:</label>
+                                    <select id="chart-ahorro-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <!-- Dynamically populated in app.js -->
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-wrapper">
                                 <canvas id="chart-ahorro"></canvas>
                             </div>
@@ -381,7 +466,15 @@
 
                         <!-- Row 5: Interannual comparative (full width) -->
                         <div class="chart-card large">
-                            <h4 class="chart-title">📊 Comparativa Interanual de Gastos</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">📊 Comparativa Interanual de Gastos</h4>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="chart-comparativa-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año ref:</label>
+                                    <select id="chart-comparativa-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <!-- Dynamically populated in app.js -->
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-wrapper">
                                 <canvas id="chart-comparativa"></canvas>
                             </div>
@@ -389,7 +482,15 @@
 
                         <!-- Row 6: Monthly expense history -->
                         <div class="chart-card large">
-                            <h4 class="chart-title">📉 Historial de Gasto Mensual</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                                <h4 class="chart-title" style="margin: 0;">📉 Historial de Gasto Mensual</h4>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="chart-gasto-mensual-year-select" style="font-size: 0.85rem; color: var(--text-secondary);">Año:</label>
+                                    <select id="chart-gasto-mensual-year-select" class="form-select chart-year-dropdown" style="width: auto; padding: 4px 10px; font-size: 0.85rem; height: auto;">
+                                        <!-- Dynamically populated in app.js -->
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-wrapper">
                                 <canvas id="chart-gasto-mensual"></canvas>
                             </div>
@@ -453,6 +554,12 @@
                                         <option value="10">Octubre</option>
                                         <option value="11">Noviembre</option>
                                         <option value="12">Diciembre</option>
+                                    </select>
+                                </div>
+                                <div class="filter-col">
+                                    <label for="filter-year">Año</label>
+                                    <select id="filter-year" class="form-select chart-year-dropdown">
+                                        <!-- JS populated -->
                                     </select>
                                 </div>
                                 <div class="filter-col">
@@ -701,6 +808,12 @@
                                             <option value="12">Diciembre</option>
                                         </select>
                                     </div>
+                                    <div class="form-group" style="margin: 0; min-width: 140px;">
+                                        <label for="automation-year-select" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block;">Año a Evaluar</label>
+                                        <select id="automation-year-select" class="form-select chart-year-dropdown" style="width: 100%;">
+                                            <!-- Dynamically populated in app.js -->
+                                        </select>
+                                    </div>
                                     <button type="button" class="btn btn-danger" id="btn-transferir-todos-sobrantes">
                                         ⚡ Transferir todos los sobrantes
                                     </button>
@@ -853,7 +966,17 @@
     <!-- Hidden input for local JSON file loading -->
     <input type="file" id="input-local-file" accept=".json" style="display: none;">
 
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- App JavaScript -->
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/transactions.js"></script>
+    <script src="js/event-handlers.js"></script>
     <script src="app.js"></script>
 
 </body>
