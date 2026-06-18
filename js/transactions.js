@@ -14,17 +14,19 @@ async function applyMovementsFilters(resetPage = true) {
         const typeFilter = DOM.filterType.value;
         const catFilter = DOM.filterCategory.value;
         const subFilter = DOM.filterSubcategory.value;
-        const monthFilter = DOM.filterMonth.value;
-        const yearFilter = DOM.filterYear ? DOM.filterYear.value : 'Todos';
+        const fechaDesde = DOM.filterFechaDesde.value;
+        const fechaHasta = DOM.filterFechaHasta.value;
+        const mesRefFilter = DOM.filterMesRef.value;
 
         let filtered = state.movimientos.filter(m => {
             try {
-                const parts = m.fecha.split('-');
-                const yMov = parseInt(parts[0]);
-                const mMov = parseInt(parts[1]);
-
                 if (query && (!m.concepto || !m.concepto.toLowerCase().includes(query))) return false;
-                if (yearFilter !== 'Todos' && yMov !== parseInt(yearFilter)) return false;
+                if (fechaDesde && m.fecha < fechaDesde) return false;
+                if (fechaHasta && m.fecha > fechaHasta) return false;
+                if (mesRefFilter) {
+                    const refMonth = (m.fecha_referencia || m.fecha || '').substring(0, 7);
+                    if (refMonth !== mesRefFilter) return false;
+                }
                 if (typeFilter !== 'Todos' && m.tipo !== typeFilter) return false;
                 if (catFilter !== 'Todas') {
                     const catId = parseInt(catFilter);
@@ -37,10 +39,6 @@ async function applyMovementsFilters(resetPage = true) {
                 if (subFilter !== 'Todas') {
                     const subId = parseInt(subFilter);
                     if (m.subcategoriaId !== subId) return false;
-                }
-                if (monthFilter !== 'Todos') {
-                    const mes = parseInt(monthFilter);
-                    if (mMov !== mes) return false;
                 }
                 return true;
             } catch (e) { return false; }
@@ -63,23 +61,12 @@ async function applyMovementsFilters(resetPage = true) {
         const offset = (state.currentPage - 1) * state.itemsPerPage;
         actionPath += `&limit=${limit}&offset=${offset}`;
 
-        const yearFilter = DOM.filterYear ? DOM.filterYear.value : 'Todos';
-        const monthFilter = DOM.filterMonth.value;
-        if (yearFilter === 'Todos') {
-            if (monthFilter !== 'Todos') {
-                const month = String(monthFilter).padStart(2, '0');
-                actionPath += `&fecha=like.*-${month}-*`;
-            }
-        } else {
-            const year = parseInt(yearFilter);
-            if (monthFilter === 'Todos') {
-                actionPath += `&fecha=gte.${year}-01-01&fecha=lte.${year}-12-31`;
-            } else {
-                const month = String(monthFilter).padStart(2, '0');
-                const lastDay = new Date(year, parseInt(monthFilter), 0).getDate();
-                actionPath += `&fecha=gte.${year}-${month}-01&fecha=lte.${year}-${month}-${lastDay}`;
-            }
-        }
+        const fechaDesde = DOM.filterFechaDesde.value;
+        const fechaHasta = DOM.filterFechaHasta.value;
+        const mesRefFilter = DOM.filterMesRef.value;
+        if (fechaDesde) actionPath += `&fecha=gte.${fechaDesde}`;
+        if (fechaHasta) actionPath += `&fecha=lte.${fechaHasta}`;
+        if (mesRefFilter) actionPath += `&fecha_referencia=eq.${mesRefFilter}-01`;
 
         const typeFilter = DOM.filterType.value;
         if (typeFilter !== 'Todos') {
@@ -230,6 +217,7 @@ function renderMovementsTable(movs) {
         return `
             <tr class="mov-row">
                 <td data-label="Fecha">${formatDate(m.fecha)}</td>
+                <td data-label="Ref.">${formatMonthYear(m.fecha_referencia)}</td>
                 <td data-label="Tipo">${typeBadge}</td>
                 <td data-label="Categoría">
                     <span class="desktop-cat">${categoryText}</span>
@@ -412,13 +400,9 @@ DOM.filterSearch.addEventListener('input', applyMovementsFilters);
 DOM.filterType.addEventListener('change', applyMovementsFilters);
 DOM.filterCategory.addEventListener('change', applyMovementsFilters);
 DOM.filterSubcategory.addEventListener('change', applyMovementsFilters);
-DOM.filterMonth.addEventListener('change', applyMovementsFilters);
-if (DOM.filterYear) {
-    DOM.filterYear.addEventListener('change', (e) => {
-        state.chartFilters.movementsYear = e.target.value;
-        applyMovementsFilters();
-    });
-}
+DOM.filterFechaDesde.addEventListener('change', applyMovementsFilters);
+DOM.filterFechaHasta.addEventListener('change', applyMovementsFilters);
+DOM.filterMesRef.addEventListener('change', applyMovementsFilters);
 
 DOM.btnClearFilters.addEventListener('click', () => {
     DOM.filterSearch.value = '';
@@ -426,11 +410,9 @@ DOM.btnClearFilters.addEventListener('click', () => {
     DOM.filterCategory.value = 'Todas';
     updateFilterSubcategoryOptions();
     DOM.filterSubcategory.value = 'Todas';
-    DOM.filterMonth.value = 'Todos';
-    if (DOM.filterYear) {
-        DOM.filterYear.value = 'Todos';
-        state.chartFilters.movementsYear = 'Todos';
-    }
+    DOM.filterFechaDesde.value = '';
+    DOM.filterFechaHasta.value = '';
+    DOM.filterMesRef.value = '';
     applyMovementsFilters();
 });
 

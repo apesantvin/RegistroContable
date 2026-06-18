@@ -123,8 +123,9 @@ async function renderConfigManagement() {
                                 <div class="mgmt-actions">
                                     <button class="budget-mgmt-btn-toggle btn-edit-budget" title="Editar este presupuesto">✏️ Editar</button>
                                     ${isLatestActive ? `
-                                        <button class="budget-mgmt-btn-toggle btn-deactivate-budget" style="border-color: var(--danger); color: var(--danger);" title="Eliminar/Desactivar este presupuesto">🗑️ Quitar</button>
+                                        <button class="budget-mgmt-btn-toggle btn-deactivate-budget" style="border-color: var(--warning); color: var(--warning);" title="Desactivar este presupuesto">⏸️ Quitar</button>
                                     ` : ''}
+                                    <button class="budget-mgmt-btn-toggle btn-delete-budget" style="border-color: var(--danger); color: var(--danger);" title="Eliminar definitivamente todas las versiones de este período">🗑️ Eliminar</button>
                                     ${versions.length > 1 ? `
                                         <button class="budget-mgmt-btn-toggle btn-toggle-versions" title="Mostrar historial de versiones">🕒 Versiones (${versions.length})</button>
                                     ` : ''}
@@ -476,6 +477,42 @@ async function renderConfigManagement() {
                 } else {
                     renderConfigManagement();
                 }
+            }
+        });
+    });
+
+    DOM.containerPresupuestosGestion.querySelectorAll('.btn-delete-budget').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const row = e.target.closest('.budget-mgmt-main');
+            const periodKey = row.getAttribute('data-period-key');
+            const budgetId  = parseInt(row.getAttribute('data-budget-id'));
+            const budget    = state.presupuestos.find(p => p.id === budgetId);
+            if (!budget) return;
+
+            const periodName = formatPeriod(budget.fecha_inicio, budget.fecha_fin);
+            if (!confirm(`¿Eliminar definitivamente el presupuesto del período "${periodName}"? Se borrarán todas sus versiones y no podrá recuperarse.`)) return;
+
+            // All versions of this period share the same fecha_inicio + fecha_fin
+            const allVersions = state.presupuestos.filter(p =>
+                p.categoriaId === budget.categoriaId &&
+                p.fecha_inicio === budget.fecha_inicio &&
+                (p.fecha_fin || null) === (budget.fecha_fin || null)
+            );
+
+            const results = await Promise.all(
+                allVersions.map(p => apiRequest('eliminar_presupuesto', 'POST', { id: p.id }))
+            );
+
+            if (results.every(r => r && r.success)) {
+                showToast('Presupuesto eliminado', 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    if (!realtimeChannel) await syncData();
+                } else {
+                    renderConfigManagement();
+                }
+            } else {
+                showToast('Error al eliminar el presupuesto', 'error');
             }
         });
     });

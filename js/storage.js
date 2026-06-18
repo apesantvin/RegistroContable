@@ -304,6 +304,9 @@ function handleDemoWriteAction(action, data) {
     } else if (action === 'eliminar_movimiento') {
         state.movimientos = state.movimientos.filter(m => m.id != data.id);
         return { success: true, message: "Movimiento eliminado (Demo)" };
+    } else if (action === 'eliminar_presupuesto') {
+        state.presupuestos = state.presupuestos.filter(p => p.id != data.id);
+        return { success: true, message: "Presupuesto eliminado (Demo)" };
     } else if (action === 'presupuesto') {
         const versions = state.presupuestos.filter(pr => pr.categoriaId === data.categoriaId && pr.fecha_inicio === data.fecha_inicio && pr.fecha_fin === data.fecha_fin);
         const maxVer = versions.length > 0 ? Math.max(...versions.map(v => v.version || 1)) : 0;
@@ -392,6 +395,10 @@ function handleLocalWriteAction(action, data) {
         state.movimientos = state.movimientos.filter(m => m.id != data.id);
         saveLocalCache();
         return { success: true, message: "Movimiento eliminado localmente" };
+    } else if (action === 'eliminar_presupuesto') {
+        state.presupuestos = state.presupuestos.filter(p => p.id != data.id);
+        saveLocalCache();
+        return { success: true, message: "Presupuesto eliminado localmente" };
     } else if (action === 'presupuesto') {
         const versions = state.presupuestos.filter(pr => pr.categoriaId === data.categoriaId && pr.fecha_inicio === data.fecha_inicio && pr.fecha_fin === data.fecha_fin);
         const maxVer = versions.length > 0 ? Math.max(...versions.map(v => v.version || 1)) : 0;

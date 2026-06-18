@@ -184,6 +184,11 @@
                     <span>Movimientos</span>
                 </a>
 
+                <a href="#cuentas" class="nav-item" id="nav-cuentas">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+                    <span>Cuentas</span>
+                </a>
+
                 <a href="#configuracion" class="nav-item" id="nav-configuracion">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     <span>Configuración</span>
@@ -539,28 +544,16 @@
                                     </select>
                                 </div>
                                 <div class="filter-col">
-                                    <label for="filter-month">Mes</label>
-                                    <select id="filter-month" class="form-select">
-                                        <option value="Todos">Todos</option>
-                                        <option value="1">Enero</option>
-                                        <option value="2">Febrero</option>
-                                        <option value="3">Marzo</option>
-                                        <option value="4">Abril</option>
-                                        <option value="5">Mayo</option>
-                                        <option value="6">Junio</option>
-                                        <option value="7">Julio</option>
-                                        <option value="8">Agosto</option>
-                                        <option value="9">Septiembre</option>
-                                        <option value="10">Octubre</option>
-                                        <option value="11">Noviembre</option>
-                                        <option value="12">Diciembre</option>
-                                    </select>
+                                    <label for="filter-fecha-desde">Fecha desde</label>
+                                    <input type="date" id="filter-fecha-desde" class="form-input">
                                 </div>
                                 <div class="filter-col">
-                                    <label for="filter-year">Año</label>
-                                    <select id="filter-year" class="form-select chart-year-dropdown">
-                                        <!-- JS populated -->
-                                    </select>
+                                    <label for="filter-fecha-hasta">Fecha hasta</label>
+                                    <input type="date" id="filter-fecha-hasta" class="form-input">
+                                </div>
+                                <div class="filter-col">
+                                    <label for="filter-mes-ref">Mes ref.</label>
+                                    <input type="month" id="filter-mes-ref" class="form-input">
                                 </div>
                                 <div class="filter-col">
                                     <button class="btn btn-secondary w-100" id="btn-clear-filters">Limpiar</button>
@@ -581,6 +574,7 @@
                                 <thead>
                                     <tr>
                                         <th>Fecha</th>
+                                        <th>Ref.</th>
                                         <th>Tipo</th>
                                         <th>Categoría</th>
                                         <th>Subcategoría</th>
@@ -592,7 +586,7 @@
                                 <tbody id="list-movimientos-body">
                                     <!-- JS populated -->
                                     <tr>
-                                        <td colspan="7" class="text-center py-4">No se han cargado movimientos.</td>
+                                        <td colspan="8" class="text-center py-4">No se han cargado movimientos.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -615,6 +609,18 @@
                 </section>
 
 
+
+                <!-- 3. CUENTAS SCREEN -->
+                <section class="app-screen" id="screen-cuentas">
+                    <div class="card filter-card cuentas-filter-bar">
+                        <label class="cuentas-filter-label" for="cuentas-mes-filtro">Mes de referencia</label>
+                        <input type="month" id="cuentas-mes-filtro" class="form-input cuentas-filter-input">
+                        <button class="btn btn-secondary" id="btn-cuentas-hoy">Mes actual</button>
+                    </div>
+                    <div id="cuentas-container">
+                        <!-- JS populated -->
+                    </div>
+                </section>
 
                 <!-- 4. CONFIGURACION SCREEN -->
                 <section class="app-screen" id="screen-configuracion">
@@ -976,6 +982,7 @@
     <script src="js/charts.js"></script>
     <script src="js/config.js"></script>
     <script src="js/transactions.js"></script>
+    <script src="js/accounts.js"></script>
     <script src="js/event-handlers.js"></script>
     <script src="app.js"></script>
 

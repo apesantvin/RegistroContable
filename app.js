@@ -76,6 +76,8 @@ function handleRoute() {
             recreateCharts();
         } else if (hash === '#movimientos') {
             applyMovementsFilters();
+        } else if (hash === '#cuentas') {
+            renderCuentas();
         } else if (hash === '#configuracion') {
             renderConfigManagement();
         }

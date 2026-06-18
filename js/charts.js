@@ -216,7 +216,9 @@ function buildChartIngresosGastos(rangeMonths, theme) {
                             DOM.yearSelect.dispatchEvent(new Event('change'));
                         }
                         
-                        DOM.filterMonth.value = clickedPeriod.month.toString();
+                        DOM.filterMesRef.value = `${clickedPeriod.year}-${String(clickedPeriod.month).padStart(2, '0')}`;
+                        DOM.filterFechaDesde.value = '';
+                        DOM.filterFechaHasta.value = '';
                         if (datasetIndex === 1) {
                             DOM.filterType.value = 'INGRESO';
                         } else if (datasetIndex === 2) {
@@ -301,16 +303,10 @@ function buildChartCategorias(year, theme) {
                         updateFilterSubcategoryOptions();
                         DOM.filterSubcategory.value = 'Todas';
                         DOM.filterType.value = 'GASTO';
-                        DOM.filterMonth.value = 'Todos';
-                        
-                        if (state.selectedYear !== targetYear) {
-                            DOM.yearSelect.value = targetYear.toString();
-                            DOM.yearSelect.dispatchEvent(new Event('change'));
-                        } else {
-                            DOM.filterYear.value = targetYear.toString();
-                            state.chartFilters.movementsYear = targetYear.toString();
-                        }
-                        
+                        DOM.filterMesRef.value = '';
+                        DOM.filterFechaDesde.value = '';
+                        DOM.filterFechaHasta.value = '';
+
                         window.location.hash = '#movimientos';
                     }
                 }
@@ -395,16 +391,10 @@ function buildChartSubcategorias(year, theme) {
                         updateFilterSubcategoryOptions();
                         DOM.filterSubcategory.value = sub.id.toString();
                         DOM.filterType.value = 'GASTO';
-                        DOM.filterMonth.value = monthVal === 'year' ? 'Todos' : monthVal;
-                        
-                        if (state.selectedYear !== targetYear) {
-                            DOM.yearSelect.value = targetYear.toString();
-                            DOM.yearSelect.dispatchEvent(new Event('change'));
-                        } else {
-                            DOM.filterYear.value = targetYear.toString();
-                            state.chartFilters.movementsYear = targetYear.toString();
-                        }
-                        
+                        DOM.filterMesRef.value = monthVal !== 'year' ? `${targetYear}-${String(parseInt(monthVal)).padStart(2, '0')}` : '';
+                        DOM.filterFechaDesde.value = '';
+                        DOM.filterFechaHasta.value = '';
+
                         window.location.hash = '#movimientos';
                     }
                 }
@@ -490,16 +480,10 @@ function buildChartPresupuestoVsReal(year, theme) {
                         updateFilterSubcategoryOptions();
                         DOM.filterSubcategory.value = 'Todas';
                         DOM.filterType.value = 'GASTO';
-                        DOM.filterMonth.value = month.toString();
-                        
-                        if (state.selectedYear !== targetYear) {
-                            DOM.yearSelect.value = targetYear.toString();
-                            DOM.yearSelect.dispatchEvent(new Event('change'));
-                        } else {
-                            DOM.filterYear.value = targetYear.toString();
-                            state.chartFilters.movementsYear = targetYear.toString();
-                        }
-                        
+                        DOM.filterMesRef.value = `${targetYear}-${String(month).padStart(2, '0')}`;
+                        DOM.filterFechaDesde.value = '';
+                        DOM.filterFechaHasta.value = '';
+
                         window.location.hash = '#movimientos';
                     }
                 }
@@ -588,8 +572,10 @@ function buildChartTopCategorias(theme) {
                         updateFilterSubcategoryOptions();
                         DOM.filterSubcategory.value = 'Todas';
                         DOM.filterType.value = 'GASTO';
-                        DOM.filterMonth.value = 'Todos';
-                        
+                        DOM.filterMesRef.value = '';
+                        DOM.filterFechaDesde.value = '';
+                        DOM.filterFechaHasta.value = '';
+
                         window.location.hash = '#movimientos';
                     }
                 }
@@ -646,12 +632,14 @@ function buildChartAhorro(year, theme) {
                         DOM.yearSelect.dispatchEvent(new Event('change'));
                     }
                     
-                    DOM.filterMonth.value = month.toString();
+                    DOM.filterMesRef.value = `${targetYear}-${String(month).padStart(2, '0')}`;
+                    DOM.filterFechaDesde.value = '';
+                    DOM.filterFechaHasta.value = '';
                     DOM.filterType.value = 'Todos';
                     DOM.filterCategory.value = '9'; // Categoria Ahorro
                     updateFilterSubcategoryOptions();
                     DOM.filterSubcategory.value = 'Todas';
-                    
+
                     window.location.hash = '#movimientos';
                 }
             }
@@ -735,12 +723,14 @@ function buildChartComparativa(theme) {
                         DOM.yearSelect.dispatchEvent(new Event('change'));
                     }
                     
-                    DOM.filterMonth.value = month.toString();
+                    DOM.filterMesRef.value = `${clickedYear}-${String(month).padStart(2, '0')}`;
+                    DOM.filterFechaDesde.value = '';
+                    DOM.filterFechaHasta.value = '';
                     DOM.filterType.value = 'GASTO';
                     DOM.filterCategory.value = 'Todas';
                     updateFilterSubcategoryOptions();
                     DOM.filterSubcategory.value = 'Todas';
-                    
+
                     window.location.hash = '#movimientos';
                 }
             }
@@ -795,12 +785,14 @@ function buildChartGastoMensual(year, theme) {
                         DOM.yearSelect.dispatchEvent(new Event('change'));
                     }
                     
-                    DOM.filterMonth.value = month.toString();
+                    DOM.filterMesRef.value = `${targetYear}-${String(month).padStart(2, '0')}`;
+                    DOM.filterFechaDesde.value = '';
+                    DOM.filterFechaHasta.value = '';
                     DOM.filterType.value = 'GASTO';
                     DOM.filterCategory.value = 'Todas';
                     updateFilterSubcategoryOptions();
                     DOM.filterSubcategory.value = 'Todas';
-                    
+
                     window.location.hash = '#movimientos';
                 }
             }

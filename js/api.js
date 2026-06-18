@@ -109,6 +109,9 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
             } else if (actionName === 'eliminar_movimiento') {
                 options.method = 'DELETE';
                 url += `/rest/v1/movimientos?id=eq.${data.id}`;
+            } else if (actionName === 'eliminar_presupuesto') {
+                options.method = 'DELETE';
+                url += `/rest/v1/presupuestos?id=eq.${data.id}`;
             } else if (actionName === 'presupuesto') {
                 options.method = 'POST';
                 url += '/rest/v1/presupuestos';
@@ -242,6 +245,8 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             recreateCharts();
         } else if (cleanId === 'movimientos') {
             renderMovementsPage();
+        } else if (cleanId === 'cuentas') {
+            renderCuentas();
         } else if (cleanId === 'configuracion') {
             populateSelectors();
             await renderConfigManagement();
@@ -266,6 +271,18 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
         } else if (cleanId === 'movimientos') {
             await applyMovementsFilters(false);
             state.loadedScreens.movimientos = true;
+        } else if (cleanId === 'cuentas') {
+            if (!state.loadedScreens.dashboard) {
+                const movs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, isBackground);
+                if (movs) {
+                    state.movimientos = movs;
+                    rebuildIndex();
+                    populateSelectors();
+                    state.loadedScreens.dashboard = true;
+                }
+            }
+            renderCuentas();
+            state.loadedScreens.cuentas = true;
         } else if (cleanId === 'configuracion') {
             populateSelectors();
             

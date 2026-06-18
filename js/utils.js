@@ -21,6 +21,13 @@ function formatDate(dateStr) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+function formatMonthYear(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length < 2) return dateStr;
+    return `${parts[1]}/${parts[0]}`;
+}
+
 function showToast(message, type = 'info') {
     // Suppress repeated toasts if they happen within 1 second with same message
     if (window.lastToastMessage === message && Date.now() - (window.lastToastTime || 0) < 1000) {

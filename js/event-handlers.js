@@ -767,7 +767,6 @@ function populateSelectors() {
     const prevFilterType = DOM.filterType.value;
     const prevFilterCategory = DOM.filterCategory.value;
     const prevFilterSubcategory = DOM.filterSubcategory.value;
-    const prevFilterMonth = DOM.filterMonth.value;
 
     const prevInCategoria = DOM.inCategoria.value;
     const prevInSubcategoria = DOM.inSubcategoria.value;
@@ -798,7 +797,6 @@ function populateSelectors() {
     // Restaurar todos los filtros estáticos y valores del formulario
     DOM.filterSearch.value = prevFilterSearch;
     DOM.filterType.value = prevFilterType;
-    DOM.filterMonth.value = prevFilterMonth;
     
     if (prevInCategoria) DOM.inCategoria.value = prevInCategoria;
     if (prevInCatOrigen) DOM.inCatOrigen.value = prevInCatOrigen;
@@ -888,10 +886,7 @@ function populateChartFiltersDropdowns() {
         
         yearSelects.forEach(select => {
             const prevVal = select.value;
-            let optionsHtml = sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
-            if (select.id === 'filter-year') {
-                optionsHtml = '<option value="Todos">Todos</option>' + optionsHtml;
-            }
+            const optionsHtml = sortedYears.map(y => `<option value="${y}">${y}</option>`).join('');
             select.innerHTML = optionsHtml;
             
             if (select.id === 'chart-ahorro-year-select') {
@@ -908,8 +903,6 @@ function populateChartFiltersDropdowns() {
                 select.value = state.chartFilters.subcategorias.year || currentYear.toString();
             } else if (select.id === 'chart-presupuesto-year-select') {
                 select.value = state.chartFilters.presupuestoVsRealYear || currentYear.toString();
-            } else if (select.id === 'filter-year') {
-                select.value = state.chartFilters.movementsYear || 'Todos';
             } else if (select.id === 'automation-year-select') {
                 select.value = state.chartFilters.automationYear || currentYear.toString();
             } else if (sortedYears.includes(parseInt(prevVal))) {

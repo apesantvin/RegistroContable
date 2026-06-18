@@ -35,7 +35,8 @@ const state = {
     loadedScreens: {
         dashboard: false,
         movimientos: false,
-        configuracion: false
+        configuracion: false,
+        cuentas: false
     },
     configMonthMovs: [],
     chartFilters: {
@@ -51,7 +52,6 @@ const state = {
         ahorro: new Date().getFullYear().toString(),
         comparativa: new Date().getFullYear().toString(),
         gastoMensual: new Date().getFullYear().toString(),
-        movementsYear: 'Todos',
         automationYear: new Date().getFullYear().toString()
     }
 };
@@ -104,8 +104,9 @@ const DOM = {
     filterType: document.getElementById('filter-type'),
     filterCategory: document.getElementById('filter-category'),
     filterSubcategory: document.getElementById('filter-subcategory'),
-    filterMonth: document.getElementById('filter-month'),
-    filterYear: document.getElementById('filter-year'),
+    filterFechaDesde: document.getElementById('filter-fecha-desde'),
+    filterFechaHasta: document.getElementById('filter-fecha-hasta'),
+    filterMesRef: document.getElementById('filter-mes-ref'),
     btnClearFilters: document.getElementById('btn-clear-filters'),
     listMovimientosBody: document.getElementById('list-movimientos-body'),
     tableEmpty: document.getElementById('table-empty'),
@@ -232,6 +233,7 @@ function rebuildIndex(allTimeMovs = null) {
                 totalGastos: 0,
                 byMonth: {},
                 byCategoryExpenses: {},
+                byCategoryIncome: {},
                 bySubcategoryExpenses: {}
             };
             for (let m = 1; m <= 12; m++) {
@@ -240,6 +242,7 @@ function rebuildIndex(allTimeMovs = null) {
                     gastos: 0,
                     ahorroDelta: 0,
                     byCategoryExpenses: {},
+                    byCategoryIncome: {},
                     bySubcategoryExpenses: {}
                 };
             }
@@ -296,6 +299,12 @@ function rebuildIndex(allTimeMovs = null) {
             if (m.tipo === 'INGRESO') {
                 yearData.totalIngresos += val;
                 monthData.ingresos += val;
+
+                const catId = parseInt(m.categoriaId);
+                if (!isNaN(catId)) {
+                    yearData.byCategoryIncome[catId] = (yearData.byCategoryIncome[catId] || 0) + val;
+                    monthData.byCategoryIncome[catId] = (monthData.byCategoryIncome[catId] || 0) + val;
+                }
             } else if (m.tipo === 'GASTO') {
                 yearData.totalGastos += val;
                 monthData.gastos += val;
@@ -365,30 +374,14 @@ function getAhorroAcumuladoForYear(year) {
 
 function getEffectiveBudget(categoriaId, mes, año) {
     const targetStart = `${año}-${String(mes).padStart(2, '0')}-01`;
-    const lastDayOfM = new Date(año, mes, 0, 23, 59, 59, 999);
-    const now = new Date();
 
     // Find all budget records for this category
     const catBudgets = state.presupuestos.filter(p => p.categoriaId === categoriaId);
     if (catBudgets.length === 0) return null;
 
-    // Filter versions based on timeframe (frozen for past months)
-    let versions = catBudgets;
-    if (now > lastDayOfM) {
-        // Option B: For past months, only consider versions created on or before the end of that month
-        const preEndVersions = catBudgets.filter(p => {
-            const dateVer = p.fecha_version ? new Date(p.fecha_version) : new Date(0);
-            return dateVer <= lastDayOfM;
-        });
-        // If there are versions created during/before the month, use them. Otherwise fallback to all.
-        if (preEndVersions.length > 0) {
-            versions = preEndVersions;
-        }
-    }
-
     // Group the versions by their period key: `${fecha_inicio}_${fecha_fin || 'indefinido'}`
     const periodsMap = {};
-    versions.forEach(p => {
+    catBudgets.forEach(p => {
         const key = `${p.fecha_inicio}_${p.fecha_fin || 'indefinido'}`;
         if (!periodsMap[key]) periodsMap[key] = [];
         periodsMap[key].push(p);
