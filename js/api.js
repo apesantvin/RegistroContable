@@ -224,7 +224,7 @@ async function syncMetadata(isBackground = false) {
         const budgets = await apiRequest('presupuestos', 'GET', null, isBackground);
         
         if (categories && subcategories && budgets) {
-            state.categorias = categories;
+            state.categorias = sortCategorias(categories);
             state.subcategorias = subcategories;
             state.presupuestos = budgets;
             return true;

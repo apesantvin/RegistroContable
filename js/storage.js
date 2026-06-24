@@ -73,7 +73,7 @@ function createNewLocalDB() {
 }
 
 function loadDefaultLocalStructure() {
-    state.categorias = [
+    state.categorias = sortCategorias([
         { id: 1, nombre: "Agua", icono: "💧", activa: true },
         { id: 2, nombre: "Basuras", icono: "🗑️", activa: true },
         { id: 3, nombre: "Internet", icono: "🛜", activa: true },
@@ -83,7 +83,7 @@ function loadDefaultLocalStructure() {
         { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
         { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
         { id: 9, nombre: "Ahorro", icono: "💰", activa: true }
-    ];
+    ]);
     state.subcategorias = [
         { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },
         { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true },
@@ -201,7 +201,7 @@ function checkLocalCache() {
 }
 
 function loadDemoData() {
-    state.categorias = [
+    state.categorias = sortCategorias([
         { id: 1, nombre: "Agua", icono: "💧", activa: true },
         { id: 2, nombre: "Basuras", icono: "🗑️", activa: true },
         { id: 3, nombre: "Internet", icono: "🛜", activa: true },
@@ -211,7 +211,7 @@ function loadDemoData() {
         { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
         { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
         { id: 9, nombre: "Ahorro", icono: "💰", activa: true }
-    ];
+    ]);
 
     state.subcategorias = [
         { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },

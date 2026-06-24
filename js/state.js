@@ -2,6 +2,20 @@
    Registro Contable - State & Data Indexing Module
    ========================================================================== */
 
+// Orden visual de categorías: [6=Compra, 7=Restaurantes, 3=Internet, 8=Otras Compras, 5=Luz, 4=Gas, 1=Agua, 2=Basuras, 9=Ahorro]
+const CATEGORIAS_ORDER = [6, 7, 3, 8, 5, 4, 1, 2, 9];
+
+function sortCategorias(arr) {
+    return arr.slice().sort((a, b) => {
+        const ia = CATEGORIAS_ORDER.indexOf(a.id);
+        const ib = CATEGORIAS_ORDER.indexOf(b.id);
+        if (ia === -1 && ib === -1) return a.id - b.id;
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+    });
+}
+
 // App State
 const state = {
     supabaseApiUrl: localStorage.getItem('contable_supabase_api_url') || '',
