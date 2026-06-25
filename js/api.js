@@ -285,19 +285,6 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             state.loadedScreens.cuentas = true;
         } else if (cleanId === 'configuracion') {
             populateSelectors();
-            
-            if (DOM.containerSobrantesGestion && DOM.automationMonthSelect) {
-                const autoMonth = parseInt(DOM.automationMonthSelect.value);
-                const autoYear = DOM.automationYearSelect ? (parseInt(DOM.automationYearSelect.value) || state.selectedYear) : state.selectedYear;
-                const monthStr = String(autoMonth).padStart(2, '0');
-                const lastDay = new Date(autoYear, autoMonth, 0).getDate();
-                
-                const monthMovs = await apiRequest(`custom:/rest/v1/movimientos?select=*&fecha=gte.${autoYear}-${monthStr}-01&fecha=lte.${autoYear}-${monthStr}-${lastDay}`, 'GET', null, isBackground);
-                if (monthMovs) {
-                    state.configMonthMovs = monthMovs;
-                    rebuildIndex();
-                }
-            }
             await renderConfigManagement();
             state.loadedScreens.configuracion = true;
         }

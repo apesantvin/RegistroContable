@@ -172,38 +172,41 @@ async function renderConfigManagement() {
     DOM.containerPresupuestosGestion.innerHTML = budgetsHtml;
 
     // 3. Render surplus categories for automations tab
-    if (DOM.containerSobrantesGestion && DOM.automationMonthSelect) {
-        const autoMonth = parseInt(DOM.automationMonthSelect.value);
+    if (DOM.containerSobrantesGestion) {
         const autoYear = DOM.automationYearSelect ? (parseInt(DOM.automationYearSelect.value) || state.selectedYear) : state.selectedYear;
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        const maxMonth = (autoYear === currentYear) ? currentMonth : 12;
         const activeCatsToEvaluate = state.categorias.filter(c => c.activa && c.id !== 9);
 
         let sobrantesHtml = '<div class="mgmt-list">';
         let hasPositiveSurplus = false;
-        
+
         if (activeCatsToEvaluate.length === 0) {
             sobrantesHtml += '<div class="card-description" style="text-align: center;">No hay categorías activas para evaluar.</div>';
         } else {
             activeCatsToEvaluate.forEach(cat => {
-                const budgetObj = getEffectiveBudget(cat.id, autoMonth, autoYear);
-                const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
-                const expenseVal = state.index.byYear[autoYear]?.byMonth?.[autoMonth]?.byCategoryExpenses?.[cat.id] || 0.0;
-                
-                // Calculate already transferred from this category to Ahorro (9) inside target month/year
-                const sourceMovs = (state.isDemoMode || state.isLocalMode) ? state.movimientos : (state.configMonthMovs || []);
-                const transferredVal = sourceMovs.reduce((sum, m) => {
-                    if (m.tipo === 'TRANSFERENCIA' && parseInt(m.categoriaOrigenId) === cat.id && parseInt(m.categoriaDestinoId) === 9) {
-                        const refDate = m.fecha_referencia || m.fecha;
-                        const parts = refDate.split('-');
-                        const yMov = parseInt(parts[0]);
-                        const mMov = parseInt(parts[1]);
-                        if (yMov === autoYear && mMov === autoMonth) {
-                            return sum + (parseFloat(m.importe) || 0);
+                // Accumulate budget and expenses from January to maxMonth
+                let accBudget = 0;
+                let accExpenses = 0;
+                for (let m = 1; m <= maxMonth; m++) {
+                    const budgetObj = getEffectiveBudget(cat.id, m, autoYear);
+                    accBudget += budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
+                    accExpenses += state.index.byYear[autoYear]?.byMonth?.[m]?.byCategoryExpenses?.[cat.id] || 0.0;
+                }
+
+                // All transfers from this category to Ahorro (9) in the target year
+                const transferredVal = state.movimientos.reduce((sum, mov) => {
+                    if (mov.tipo === 'TRANSFERENCIA' && parseInt(mov.categoriaOrigenId) === cat.id && parseInt(mov.categoriaDestinoId) === 9) {
+                        const refDate = mov.fecha_referencia || mov.fecha;
+                        if (parseInt(refDate.split('-')[0]) === autoYear) {
+                            return sum + (parseFloat(mov.importe) || 0);
                         }
                     }
                     return sum;
                 }, 0);
 
-                const surplus = budgetVal - expenseVal - transferredVal;
+                const surplus = accBudget - accExpenses - transferredVal;
                 const isPositive = surplus > 0.01;
                 if (isPositive) hasPositiveSurplus = true;
 
@@ -226,9 +229,9 @@ async function renderConfigManagement() {
                             </div>
                         </div>
                         <div class="automation-details">
-                            <span>📋 Presupuesto: <strong>${formatCurrency(budgetVal)}</strong></span>
-                            <span>📉 Gastado: <strong>${formatCurrency(expenseVal)}</strong></span>
-                            ${transferredVal > 0 ? `<span>💰 Transferido: <strong>${formatCurrency(transferredVal)}</strong></span>` : ''}
+                            <span>📋 Presupuesto acumulado: <strong>${formatCurrency(accBudget)}</strong></span>
+                            <span>📉 Gastado acumulado: <strong>${formatCurrency(accExpenses)}</strong></span>
+                            ${transferredVal > 0 ? `<span>💰 Ya transferido: <strong>${formatCurrency(transferredVal)}</strong></span>` : ''}
                         </div>
                     </div>
                 `;
@@ -261,7 +264,7 @@ async function renderConfigManagement() {
 
                 if (!cat) return;
 
-                if (!confirm(`¿Estás seguro de que deseas transferir el saldo sobrante de ${formatCurrency(surplusVal)} de "${cat.nombre}" a la categoría de Ahorro?`)) {
+                if (!confirm(`¿Estás seguro de que deseas transferir el saldo sobrante acumulado de ${formatCurrency(surplusVal)} de "${cat.nombre}" a la categoría de Ahorro?`)) {
                     return;
                 }
 
@@ -270,9 +273,9 @@ async function renderConfigManagement() {
                     categoriaOrigenId: catId,
                     categoriaDestinoId: 9,
                     importe: surplusVal,
-                    concepto: `Transferencia sobrante ${cat.nombre} (${MESES_ABR[autoMonth-1]} ${autoYear})`,
+                    concepto: `Transferencia sobrante acumulado ${cat.nombre} (${autoYear})`,
                     fecha: new Date().toISOString().split('T')[0],
-                    fecha_referencia: `${autoYear}-${String(autoMonth).padStart(2, '0')}-01`
+                    fecha_referencia: `${autoYear}-${String(maxMonth).padStart(2, '0')}-01`
                 });
 
                 setLoading(false);

@@ -81,18 +81,6 @@ function initConfigTabs() {
     const tabButtons = document.querySelectorAll('.config-nav-btn');
     const tabPanels = document.querySelectorAll('.config-section-panel');
     
-    // Set default month for automations
-    if (DOM.automationMonthSelect) {
-        DOM.automationMonthSelect.value = (new Date().getMonth() + 1).toString();
-        DOM.automationMonthSelect.addEventListener('change', () => {
-            if (!state.isDemoMode && !state.isLocalMode && state.apiUrl) {
-                syncScreenData('#configuracion', false, true);
-            } else {
-                renderConfigManagement();
-            }
-        });
-    }
-
     if (DOM.automationYearSelect) {
         DOM.automationYearSelect.addEventListener('change', (e) => {
             state.chartFilters.automationYear = e.target.value;
@@ -680,52 +668,53 @@ function initFormHandlers() {
 
     if (DOM.btnTransferirTodosSobrantes) {
         DOM.btnTransferirTodosSobrantes.addEventListener('click', async () => {
-            const month = parseInt(DOM.automationMonthSelect.value);
             const year = DOM.automationYearSelect ? (parseInt(DOM.automationYearSelect.value) || state.selectedYear) : state.selectedYear;
-            
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+            const maxMonth = (year === currentYear) ? currentMonth : 12;
+
             const activeCats = state.categorias.filter(c => c.activa && c.id !== 9);
             if (activeCats.length === 0) {
                 showToast('No hay categorías activas', 'error');
                 return;
             }
 
-            // Calculate which categories have positive surplus
+            // Calculate accumulated surplus per category
             const categoriesToTransfer = [];
             let totalSurplus = 0;
 
             activeCats.forEach(cat => {
-                const budgetObj = getEffectiveBudget(cat.id, month, year);
-                const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
-                const expenseVal = state.index.byYear[year]?.byMonth?.[month]?.byCategoryExpenses?.[cat.id] || 0.0;
-                
-                // Calculate already transferred
-                const sourceMovs = (state.isDemoMode || state.isLocalMode) ? state.movimientos : (state.configMonthMovs || []);
-                const transferredVal = sourceMovs.reduce((sum, m) => {
-                    if (m.tipo === 'TRANSFERENCIA' && parseInt(m.categoriaOrigenId) === cat.id && parseInt(m.categoriaDestinoId) === 9) {
-                        const refDate = m.fecha_referencia || m.fecha;
-                        const parts = refDate.split('-');
-                        const yMov = parseInt(parts[0]);
-                        const mMov = parseInt(parts[1]);
-                        if (yMov === year && mMov === month) {
-                            return sum + (parseFloat(m.importe) || 0);
+                let accBudget = 0;
+                let accExpenses = 0;
+                for (let m = 1; m <= maxMonth; m++) {
+                    const budgetObj = getEffectiveBudget(cat.id, m, year);
+                    accBudget += budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
+                    accExpenses += state.index.byYear[year]?.byMonth?.[m]?.byCategoryExpenses?.[cat.id] || 0.0;
+                }
+
+                const transferredVal = state.movimientos.reduce((sum, mov) => {
+                    if (mov.tipo === 'TRANSFERENCIA' && parseInt(mov.categoriaOrigenId) === cat.id && parseInt(mov.categoriaDestinoId) === 9) {
+                        const refDate = mov.fecha_referencia || mov.fecha;
+                        if (parseInt(refDate.split('-')[0]) === year) {
+                            return sum + (parseFloat(mov.importe) || 0);
                         }
                     }
                     return sum;
                 }, 0);
 
-                const surplus = budgetVal - expenseVal - transferredVal;
-                if (surplus > 0.01) { // avoid floating point issues near 0
+                const surplus = accBudget - accExpenses - transferredVal;
+                if (surplus > 0.01) {
                     categoriesToTransfer.push({ cat, surplus });
                     totalSurplus += surplus;
                 }
             });
 
             if (categoriesToTransfer.length === 0) {
-                showToast('No se encontraron saldos sobrantes positivos para transferir en este período.', 'warning');
+                showToast('No se encontraron saldos sobrantes positivos acumulados para transferir.', 'warning');
                 return;
             }
 
-            if (!confirm(`¿Estás seguro de que deseas transferir los saldos sobrantes de ${categoriesToTransfer.length} categorías (Total: ${formatCurrency(totalSurplus)}) del mes de ${MESES_ABR[month-1]} ${year} al Ahorro?`)) return;
+            if (!confirm(`¿Estás seguro de que deseas transferir los saldos sobrantes acumulados de ${categoriesToTransfer.length} categorías (Total: ${formatCurrency(totalSurplus)}) del año ${year} al Ahorro?`)) return;
 
             setLoading(true);
             let transfersCreated = 0;
@@ -735,9 +724,9 @@ function initFormHandlers() {
                     categoriaOrigenId: item.cat.id,
                     categoriaDestinoId: 9,
                     importe: item.surplus,
-                    concepto: `Transferencia sobrante ${item.cat.nombre} (${MESES_ABR[month-1]} ${year})`,
+                    concepto: `Transferencia sobrante acumulado ${item.cat.nombre} (${year})`,
                     fecha: new Date().toISOString().split('T')[0],
-                    fecha_referencia: `${year}-${String(month).padStart(2, '0')}-01`
+                    fecha_referencia: `${year}-${String(maxMonth).padStart(2, '0')}-01`
                 });
                 if (res && res.success) transfersCreated++;
             }
