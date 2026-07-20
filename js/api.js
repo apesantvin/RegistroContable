@@ -322,6 +322,7 @@ async function syncData(isBackground = false) {
         state.loadedScreens.dashboard = false;
         state.loadedScreens.movimientos = false;
         state.loadedScreens.configuracion = false;
+        state.allTimeMovsCache = null;
 
         const metaSuccess = await syncMetadata(isBackground);
         if (metaSuccess) {
@@ -397,7 +398,8 @@ function handleRealtimeChange(payload) {
         state.loadedScreens.dashboard = false;
         state.loadedScreens.movimientos = false;
         state.loadedScreens.configuracion = false;
-        
+        state.allTimeMovsCache = null;
+
         await syncMetadata(true);
         const hash = window.location.hash || '#dashboard';
         await syncScreenData(hash, true, true); // Force active screen to reload

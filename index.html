@@ -590,13 +590,14 @@
                                         <th>Subcategoría</th>
                                         <th>Concepto</th>
                                         <th class="text-right">Importe</th>
+                                        <th class="text-right">Saldo</th>
                                         <th class="text-center" style="width: 100px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="list-movimientos-body">
                                     <!-- JS populated -->
                                     <tr>
-                                        <td colspan="8" class="text-center py-4">No se han cargado movimientos.</td>
+                                        <td colspan="9" class="text-center py-4">No se han cargado movimientos.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -919,6 +920,7 @@
                 <div class="form-actions" style="display: flex; gap: 12px; margin-top: 20px;">
                     <button type="submit" id="btn-submit-movimiento" class="btn btn-primary btn-large" style="flex: 2;">Registrar Transacción</button>
                     <button type="button" id="btn-cancel-edit-movimiento" class="btn btn-secondary" style="flex: 1; padding: 14px 20px;">Cancelar</button>
+                    <button type="button" id="btn-delete-movimiento" class="btn btn-danger hidden" style="flex: 1; padding: 14px 20px;" title="Eliminar transacción">🗑️ Eliminar</button>
                 </div>
             </form>
         </div>

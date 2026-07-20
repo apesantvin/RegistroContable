@@ -970,7 +970,7 @@ body:not(.dark-mode) .top-bar {
     color: var(--text-secondary);
 }
 
-.search-input {
+input.search-input {
     width: 100%;
     padding-left: 48px;
 }
@@ -1129,6 +1129,12 @@ body:not(.dark-mode) .btn-action-delete:hover {
 .val-importe.gasto { color: var(--danger); }
 .val-importe.ingreso { color: var(--success); }
 .val-importe.transfer { color: var(--text-primary); }
+
+.val-saldo {
+    font-weight: 600;
+    font-size: 13px;
+    opacity: 0.65;
+}
 
 .desktop-cat      { display: inline; }
 .mobile-catsubcat { display: none; }
@@ -1669,6 +1675,13 @@ body:not(.dark-mode) .loading-overlay {
         grid-template-columns: 1fr;
     }
 
+    /* Los filtros apilados en una columna superan los 500px pensados para
+       escritorio; sin este ajuste el último elemento (botón Limpiar) queda
+       fuera de la caja y solapado por la tarjeta de la tabla. */
+    .filter-panel:not(.collapsed) {
+        max-height: 2000px;
+    }
+
     .form-actions-inline {
         flex-direction: column;
     }
@@ -1714,11 +1727,13 @@ body:not(.dark-mode) .loading-overlay {
 
 /* Mobile: table becomes card list */
 @media (max-width: 600px) {
+    .table-responsive { overflow-x: hidden; }
+
     .data-table thead { display: none; }
 
     .data-table tbody tr {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         border-bottom: 1px solid var(--border-color);
         padding: 14px 16px;
         gap: 4px 8px;
@@ -1733,12 +1748,24 @@ body:not(.dark-mode) .loading-overlay {
         padding: 2px 0;
         border: none;
         font-size: 13px;
+        min-width: 0;
+        overflow-wrap: break-word;
     }
 
-    /* Fila 1: Fecha arriba del todo */
+    /* Fila 1 izquierda: Fecha */
     .data-table td[data-label="Fecha"] {
-        grid-column: 1 / -1;
+        grid-column: 1;
         grid-row: 1;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    /* Fila 1 derecha: Mes de referencia, junto a la fecha */
+    .data-table td[data-label="Ref."] {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        text-align: right;
         font-size: 11px;
         color: var(--text-muted);
     }
@@ -1776,12 +1803,23 @@ body:not(.dark-mode) .loading-overlay {
         color: var(--text-secondary);
     }
 
-    /* Fila 4 derecha: Acciones */
+    /* Acciones: se editan/eliminan tocando la tarjeta, se ocultan los iconos */
     .data-table td[data-label="Acciones"] {
+        display: none;
+    }
+
+    .mov-row {
+        cursor: pointer;
+    }
+
+    /* Fila 4 derecha: Saldo restante tras el movimiento, junto a Categoría */
+    .data-table td[data-label="Saldo"] {
         grid-column: 2;
         grid-row: 4;
         justify-self: end;
         text-align: right;
+        font-size: 11px;
+        font-weight: 600;
     }
 
     /* Subcategoría oculta en mobile (info incluida en Categoría) */

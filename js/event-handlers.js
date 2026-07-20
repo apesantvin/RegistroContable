@@ -420,6 +420,14 @@ function initFormHandlers() {
 
     DOM.btnCancelEdit.addEventListener('click', () => cancelEditMovimiento(true));
 
+    DOM.btnDeleteMovimiento.addEventListener('click', async () => {
+        if (!state.editingMovimientoId) return;
+        const deleted = await deleteMovimiento(state.editingMovimientoId);
+        if (deleted) {
+            cancelEditMovimiento(false);
+        }
+    });
+
     if (DOM.btnAddMovimientoTrigger) {
         DOM.btnAddMovimientoTrigger.addEventListener('click', () => {
             openNewTransactionModal();

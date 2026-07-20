@@ -136,6 +136,7 @@ const DOM = {
     editIndicator: document.getElementById('edit-movimiento-indicator'),
     editIdBadge: document.getElementById('edit-movimiento-id-badge'),
     btnCancelEdit: document.getElementById('btn-cancel-edit-movimiento'),
+    btnDeleteMovimiento: document.getElementById('btn-delete-movimiento'),
     btnSubmitMovimiento: document.getElementById('btn-submit-movimiento'),
     inTipo: document.getElementById('in-tipo'),
     inImporte: document.getElementById('in-importe'),

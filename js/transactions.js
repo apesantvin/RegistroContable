@@ -90,7 +90,18 @@ async function applyMovementsFilters(resetPage = true) {
             actionPath += `&concepto=ilike.*${encodeURIComponent(query)}*`;
         }
 
-        const pageMovs = await apiRequest(actionPath, 'GET');
+        const needsAllTimeCache = !state.allTimeMovsCache;
+        const [pageMovs, allTimeLightMovs] = await Promise.all([
+            apiRequest(actionPath, 'GET'),
+            needsAllTimeCache
+                ? apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, true)
+                : Promise.resolve(null)
+        ]);
+
+        if (needsAllTimeCache && allTimeLightMovs) {
+            state.allTimeMovsCache = allTimeLightMovs;
+        }
+
         if (pageMovs) {
             state.filteredMovimientos = pageMovs;
             renderMovementsPage();
@@ -172,6 +183,31 @@ function renderPagination(totalPages) {
     });
 }
 
+// Saldo (running total) after each movement, keyed by movement id.
+// Mirrors the "Saldo Disponible" logic in rebuildIndex(): INGRESO suma, GASTO resta,
+// TRANSFERENCIA no afecta al total (mueve dinero entre categorías, no entra ni sale).
+function buildSaldoMap() {
+    const source = (state.isDemoMode || state.isLocalMode)
+        ? state.movimientos
+        : (state.allTimeMovsCache || []);
+
+    const sorted = source.slice().sort((a, b) => {
+        const fa = normalizeDateString(a.fecha);
+        const fb = normalizeDateString(b.fecha);
+        return fa.localeCompare(fb) || a.id - b.id;
+    });
+
+    const map = {};
+    let running = 0;
+    sorted.forEach(m => {
+        const val = parseFloat(m.importe) || 0;
+        if (m.tipo === 'INGRESO') running += val;
+        else if (m.tipo === 'GASTO') running -= val;
+        map[m.id] = running;
+    });
+    return map;
+}
+
 function renderMovementsTable(movs) {
     if (movs.length === 0 && state.filteredMovimientos.length === 0) {
         DOM.listMovimientosBody.innerHTML = '';
@@ -179,6 +215,8 @@ function renderMovementsTable(movs) {
         return;
     }
     DOM.tableEmpty.classList.add('hidden');
+
+    const saldoMap = buildSaldoMap();
 
     DOM.listMovimientosBody.innerHTML = movs.map(m => {
         let typeBadge = '';
@@ -214,8 +252,13 @@ function renderMovementsTable(movs) {
 
         const catSubcatCombined = [categoryText, subcatText].filter(Boolean).join(' / ');
 
+        const saldoAfter = saldoMap[m.id];
+        const hasSaldo = saldoAfter !== undefined;
+        const saldoClass = hasSaldo ? (saldoAfter >= 0 ? 'cnt-success' : 'cnt-danger') : 'text-muted';
+        const saldoText = hasSaldo ? formatCurrency(saldoAfter) : '—';
+
         return `
-            <tr class="mov-row">
+            <tr class="mov-row" data-id="${m.id}">
                 <td data-label="Fecha">${formatDate(m.fecha)}</td>
                 <td data-label="Ref.">${formatMonthYear(m.fecha_referencia)}</td>
                 <td data-label="Tipo">${typeBadge}</td>
@@ -226,6 +269,7 @@ function renderMovementsTable(movs) {
                 <td data-label="Subcategoría">${subcatText}</td>
                 <td data-label="Concepto">${m.concepto}</td>
                 <td data-label="Importe" class="${amountClass} text-right">${amountText}</td>
+                <td data-label="Saldo" class="val-saldo ${saldoClass} text-right">${saldoText}</td>
                 <td data-label="Acciones" class="text-center">
                     <div class="actions-cell">
                         <button class="btn-action-edit" data-id="${m.id}" title="Editar">✏️</button>
@@ -252,6 +296,14 @@ function renderMovementsTable(movs) {
             deleteMovimiento(id);
         });
     });
+
+    // Mobile card view: tapping the row opens it for editing (icons are hidden there)
+    DOM.listMovimientosBody.querySelectorAll('.mov-row').forEach(row => {
+        row.addEventListener('click', () => {
+            if (!window.matchMedia('(max-width: 600px)').matches) return;
+            startEditMovimiento(row.getAttribute('data-id'));
+        });
+    });
 }
 
 function startEditMovimiento(id) {
@@ -264,6 +316,7 @@ function startEditMovimiento(id) {
     DOM.editIndicator.classList.remove('hidden');
     DOM.editIdBadge.textContent = `#${id}`;
     DOM.btnCancelEdit.classList.remove('hidden');
+    DOM.btnDeleteMovimiento.classList.remove('hidden');
     DOM.btnSubmitMovimiento.textContent = 'Guardar Cambios';
 
     // Switch tab active state and form type
@@ -319,6 +372,7 @@ function cancelEditMovimiento(shouldRedirect = true) {
     // Reset indicators and buttons
     DOM.editIndicator.classList.add('hidden');
     DOM.btnCancelEdit.classList.add('hidden');
+    DOM.btnDeleteMovimiento.classList.add('hidden');
     DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
     
     DOM.formMovimiento.reset();
@@ -344,8 +398,8 @@ function cancelEditMovimiento(shouldRedirect = true) {
 }
 
 async function deleteMovimiento(id) {
-    if (!confirm(`¿Estás seguro de que deseas eliminar la transacción #${id}?`)) return;
-    
+    if (!confirm(`¿Estás seguro de que deseas eliminar la transacción #${id}?`)) return false;
+
     const res = await apiRequest('eliminar_movimiento', 'POST', { id });
     if (res && res.success) {
         showToast('Borrado en servidor', 'success');
@@ -358,13 +412,16 @@ async function deleteMovimiento(id) {
             recreateCharts();
             applyMovementsFilters();
         }
+        return true;
     }
+    return false;
 }
 
 function openNewTransactionModal() {
     state.editingMovimientoId = null;
     DOM.editIndicator.classList.add('hidden');
     DOM.btnCancelEdit.classList.add('hidden');
+    DOM.btnDeleteMovimiento.classList.add('hidden');
     DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
     
     // Set date to today
