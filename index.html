@@ -199,6 +199,11 @@
                     <span>Cuentas</span>
                 </a>
 
+                <a href="#facturas" class="nav-item" id="nav-facturas">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2h13l3 3v17H4z"/><path d="M17 2v3h3"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+                    <span>Facturas</span>
+                </a>
+
                 <a href="#configuracion" class="nav-item" id="nav-configuracion">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     <span>Configuración</span>
@@ -633,7 +638,20 @@
                     </div>
                 </section>
 
-                <!-- 4. CONFIGURACION SCREEN -->
+                <!-- 4. FACTURAS SCREEN -->
+                <section class="app-screen" id="screen-facturas">
+                    <div class="card filter-card cuentas-filter-bar">
+                        <label class="cuentas-filter-label" for="facturas-year-select">Año</label>
+                        <select id="facturas-year-select" class="form-select chart-year-dropdown cuentas-filter-input">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+                    <div id="facturas-container">
+                        <!-- JS populated -->
+                    </div>
+                </section>
+
+                <!-- 5. CONFIGURACION SCREEN -->
                 <section class="app-screen" id="screen-configuracion">
                     
                     <!-- Sub-pestañas de navegación para Configuración -->
@@ -978,6 +996,7 @@
     <script src="js/config.js"></script>
     <script src="js/transactions.js"></script>
     <script src="js/accounts.js"></script>
+    <script src="js/facturas.js"></script>
     <script src="js/event-handlers.js"></script>
     <script src="app.js"></script>
 

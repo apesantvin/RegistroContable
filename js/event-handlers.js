@@ -92,6 +92,13 @@ function initConfigTabs() {
         });
     }
 
+    if (DOM.facturasYearSelect) {
+        DOM.facturasYearSelect.addEventListener('change', (e) => {
+            state.chartFilters.facturasYear = e.target.value;
+            renderFacturas();
+        });
+    }
+
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
@@ -902,6 +909,8 @@ function populateChartFiltersDropdowns() {
                 select.value = state.chartFilters.presupuestoVsRealYear || currentYear.toString();
             } else if (select.id === 'automation-year-select') {
                 select.value = state.chartFilters.automationYear || currentYear.toString();
+            } else if (select.id === 'facturas-year-select') {
+                select.value = state.chartFilters.facturasYear || currentYear.toString();
             } else if (sortedYears.includes(parseInt(prevVal))) {
                 select.value = prevVal;
             } else {

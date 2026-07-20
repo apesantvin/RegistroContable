@@ -247,6 +247,8 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             renderMovementsPage();
         } else if (cleanId === 'cuentas') {
             renderCuentas();
+        } else if (cleanId === 'facturas') {
+            renderFacturas();
         } else if (cleanId === 'configuracion') {
             populateSelectors();
             await renderConfigManagement();
@@ -283,6 +285,18 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             }
             renderCuentas();
             state.loadedScreens.cuentas = true;
+        } else if (cleanId === 'facturas') {
+            if (!state.loadedScreens.dashboard) {
+                const movs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, isBackground);
+                if (movs) {
+                    state.movimientos = movs;
+                    rebuildIndex();
+                    populateSelectors();
+                    state.loadedScreens.dashboard = true;
+                }
+            }
+            renderFacturas();
+            state.loadedScreens.facturas = true;
         } else if (cleanId === 'configuracion') {
             populateSelectors();
             await renderConfigManagement();

@@ -5,6 +5,9 @@
 // Orden visual de categorías: [6=Compra, 7=Restaurantes, 3=Internet, 8=Otras Compras, 5=Luz, 4=Gas, 1=Agua, 2=Basuras, 9=Ahorro]
 const CATEGORIAS_ORDER = [6, 7, 3, 8, 5, 4, 1, 2, 9];
 
+// Categorías consideradas "facturas" (Luz, Gas, Agua, Basuras), en el orden en que se muestran en la pestaña Facturas
+const FACTURAS_CATEGORIA_IDS = [5, 4, 1, 2];
+
 function sortCategorias(arr) {
     return arr.slice().sort((a, b) => {
         const ia = CATEGORIAS_ORDER.indexOf(a.id);
@@ -50,7 +53,8 @@ const state = {
         dashboard: false,
         movimientos: false,
         configuracion: false,
-        cuentas: false
+        cuentas: false,
+        facturas: false
     },
     configMonthMovs: [],
     chartFilters: {
@@ -66,7 +70,9 @@ const state = {
         ahorro: new Date().getFullYear().toString(),
         comparativa: new Date().getFullYear().toString(),
         gastoMensual: new Date().getFullYear().toString(),
-        automationYear: new Date().getFullYear().toString()
+        automationYear: new Date().getFullYear().toString(),
+        facturasYear: new Date().getFullYear().toString(),
+        facturasViewMode: {} // { [categoriaId]: 'table' | 'chart' }
     }
 };
 
@@ -185,6 +191,10 @@ const DOM = {
     automationYearSelect: document.getElementById('automation-year-select'),
     containerSobrantesGestion: document.getElementById('container-sobrantes-gestion'),
     chartPresupuestoMonthSelect: document.getElementById('chart-presupuesto-month-select'),
+
+    // Facturas screen
+    facturasYearSelect: document.getElementById('facturas-year-select'),
+    facturasContainer: document.getElementById('facturas-container'),
     
     // Modals
     modalTransaction: document.getElementById('modal-transaction'),

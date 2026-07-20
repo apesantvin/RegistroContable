@@ -78,6 +78,8 @@ function handleRoute() {
             applyMovementsFilters();
         } else if (hash === '#cuentas') {
             renderCuentas();
+        } else if (hash === '#facturas') {
+            renderFacturas();
         } else if (hash === '#configuracion') {
             renderConfigManagement();
         }

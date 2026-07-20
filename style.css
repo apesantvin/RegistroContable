@@ -2862,6 +2862,155 @@ body:not(.dark-mode) .automation-item:hover {
     font-weight: 600;
 }
 
+/* ==========================================================================
+   Facturas screen
+   ========================================================================== */
+.factura-card {
+    cursor: default;
+}
+
+.factura-card:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.factura-month-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.factura-month-header,
+.factura-month-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 110px;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 6px 4px;
+}
+
+.factura-month-header {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.factura-month-header span:nth-child(2),
+.factura-month-amount {
+    text-align: right;
+}
+
+.factura-month-header span:nth-child(3),
+.factura-status-badge {
+    text-align: center;
+}
+
+.factura-month-name {
+    color: var(--text-secondary);
+}
+
+.factura-month-amount {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.factura-month-row {
+    cursor: pointer;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+}
+
+.factura-month-row:hover {
+    background: var(--bg-app);
+}
+
+.factura-status--completo {
+    border-left-color: var(--success);
+}
+
+.factura-status--incompleto {
+    border-left-color: #f59e0b;
+}
+
+.factura-status--sin-registrar {
+    border-left-color: var(--border-color);
+}
+
+.factura-status-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.factura-status-badge--completo {
+    background: var(--success-light, rgba(16,185,129,.15));
+    color: var(--success);
+}
+
+.factura-status-badge--incompleto {
+    background: rgba(245, 158, 11, .15);
+    color: #f59e0b;
+}
+
+.factura-status-badge--sin-registrar {
+    background: var(--border-color);
+    color: var(--text-muted);
+}
+
+.factura-view-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-app);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.factura-view-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 5px 8px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.factura-view-btn:hover {
+    color: var(--text-primary);
+}
+
+.factura-view-btn.active {
+    background: var(--bg-card);
+    color: var(--primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.factura-chart-canvas-wrapper {
+    position: relative;
+    height: 200px;
+    width: 100%;
+}
+
+.factura-chart-note {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .cuentas-summary-metrics {
