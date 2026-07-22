@@ -46,10 +46,25 @@ function getFacturaYearData(categoriaId, year) {
         let status = 'sin-registrar';
         if (count > 0) status = completo ? 'completo' : 'incompleto';
 
-        months.push({ m, total, count, completo, status });
+        const budgetObj = getEffectiveBudget(categoriaId, m, year);
+        const budget = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
+
+        months.push({ m, total, count, completo, status, budget });
     }
 
     return months;
+}
+
+// Devuelve, para un año dado, un array de 12 booleanos: true si TODAS las categorías de
+// factura (Luz, Gas, Agua, Basuras) tienen ese mes marcado como "completo". Se usa para
+// señalar en los gráficos del Dashboard qué meses tienen los gastos ya cerrados.
+function getFacturasCompletenessByYear(year) {
+    const perCategory = FACTURAS_CATEGORIA_IDS.map(catId => getFacturaYearData(catId, year));
+    const flags = [];
+    for (let m = 0; m < 12; m++) {
+        flags.push(perCategory.every(catMonths => catMonths[m] && catMonths[m].status === 'completo'));
+    }
+    return flags;
 }
 
 function facturaStatusLabel(status) {

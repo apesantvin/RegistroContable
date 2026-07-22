@@ -942,6 +942,38 @@ body:not(.dark-mode) .top-bar {
     height: 280px;
 }
 
+.chart-completeness-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.legend-swatch--complete {
+    background: rgba(239, 68, 68, 0.75);
+}
+
+.legend-swatch--pending {
+    background: rgba(245, 158, 11, 0.35);
+    border: 1px dashed #f59e0b;
+}
+
 /* ==========================================================================
    Movements View (Filters & Tables)
    ========================================================================== */

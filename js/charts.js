@@ -151,6 +151,14 @@ function buildChartIngresosGastos(rangeMonths, theme) {
     const netos = ingresos.map((ing, i) => ing - gastos[i]);
     const labels = months.map(m => `${MESES_ABR[m.month - 1]} ${m.year !== state.selectedYear ? m.year : ''}`);
 
+    // Un mes solo tiene los gastos "cerrados" cuando todas sus facturas (Luz, Gas, Agua, Basuras) están completas
+    const yearCompletenessCache = {};
+    const isMonthComplete = (y, m) => {
+        if (!yearCompletenessCache[y]) yearCompletenessCache[y] = getFacturasCompletenessByYear(y);
+        return yearCompletenessCache[y][m - 1];
+    };
+    const completeness = months.map(({ year: y, month: m }) => isMonthComplete(y, m));
+
     const ctx = document.getElementById('chart-ingresos-gastos').getContext('2d');
     state.charts.ingresosGastos = new Chart(ctx, {
         type: 'bar',
@@ -166,12 +174,13 @@ function buildChartIngresosGastos(rangeMonths, theme) {
                     borderWidth: 3,
                     fill: false,
                     tension: 0.35,
-                    pointBackgroundColor: '#3b82f6',
-                    pointBorderColor: theme.border,
+                    pointBackgroundColor: completeness.map(c => c ? '#3b82f6' : theme.border),
+                    pointBorderColor: '#3b82f6',
+                    pointBorderWidth: completeness.map(c => c ? 1 : 2),
                     pointHoverRadius: 7,
                     pointHoverBackgroundColor: '#3b82f6',
                     pointHoverBorderColor: theme.border,
-                    pointRadius: 4,
+                    pointRadius: completeness.map(c => c ? 4 : 5),
                     order: -1
                 },
                 {
@@ -184,8 +193,11 @@ function buildChartIngresosGastos(rangeMonths, theme) {
                 {
                     label: 'Gastos (€)',
                     data: gastos,
-                    backgroundColor: 'rgba(239, 68, 68, 0.75)',
-                    hoverBackgroundColor: '#ef4444',
+                    backgroundColor: completeness.map(c => c ? 'rgba(239, 68, 68, 0.75)' : 'rgba(245, 158, 11, 0.35)'),
+                    borderColor: completeness.map(c => c ? 'rgba(239, 68, 68, 0.75)' : '#f59e0b'),
+                    borderWidth: completeness.map(c => c ? 0 : 2),
+                    borderDash: [4, 3],
+                    hoverBackgroundColor: completeness.map(c => c ? '#ef4444' : 'rgba(245, 158, 11, 0.55)'),
                     borderRadius: 5
                 }
             ]
@@ -665,6 +677,21 @@ function buildChartComparativa(theme) {
         monthlyGastosPrev[m - 1] = state.index.byYear[prevYear]?.byMonth?.[m]?.gastos || 0;
     }
 
+    // Puntos rellenos = mes con todas las facturas completas; puntos huecos = aún pendiente de registrar
+    const completenessCur = getFacturasCompletenessByYear(year);
+    const completenessPrev = getFacturasCompletenessByYear(prevYear);
+
+    // La leyenda debe mostrar siempre el color de cada serie (índigo/ámbar),
+    // no el color del punto en el índice 0 (que varía según si ese mes está completo)
+    const comparativaLegendLabels = (chart) => chart.data.datasets.map((ds, i) => ({
+        text: ds.label,
+        fillStyle: ds.borderColor,
+        strokeStyle: ds.borderColor,
+        lineWidth: 2,
+        hidden: !chart.isDatasetVisible(i),
+        datasetIndex: i
+    }));
+
     const ctx = document.getElementById('chart-comparativa').getContext('2d');
     state.charts.comparativa = new Chart(ctx, {
         type: 'line',
@@ -679,8 +706,10 @@ function buildChartComparativa(theme) {
                     borderWidth: 3,
                     tension: 0.3,
                     fill: false,
-                    pointRadius: 4,
-                    pointBackgroundColor: palette.current
+                    pointRadius: completenessCur.map(c => c ? 4 : 5),
+                    pointBackgroundColor: completenessCur.map(c => c ? palette.current : theme.border),
+                    pointBorderColor: palette.current,
+                    pointBorderWidth: completenessCur.map(c => c ? 1 : 2)
                 },
                 {
                     label: `Gastos ${prevYear}`,
@@ -690,9 +719,11 @@ function buildChartComparativa(theme) {
                     borderWidth: 2,
                     tension: 0.3,
                     fill: false,
-                    pointRadius: 3,
+                    pointRadius: completenessPrev.map(c => c ? 3 : 5),
                     borderDash: [5, 5],
-                    pointBackgroundColor: palette.prev
+                    pointBackgroundColor: completenessPrev.map(c => c ? palette.prev : theme.border),
+                    pointBorderColor: palette.prev,
+                    pointBorderWidth: completenessPrev.map(c => c ? 1 : 2)
                 }
             ]
         },
@@ -700,7 +731,7 @@ function buildChartComparativa(theme) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { color: theme.text, boxWidth: 12 } }
+                legend: { position: 'top', labels: { color: theme.text, boxWidth: 12, generateLabels: comparativaLegendLabels } }
             },
             scales: {
                 x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
@@ -714,7 +745,7 @@ function buildChartComparativa(theme) {
                     const element = elements[0];
                     const dataIndex = element.index;
                     const datasetIndex = element.datasetIndex; // 0 = Actual, 1 = Anterior
-                    
+
                     const clickedYear = datasetIndex === 0 ? year : prevYear;
                     const month = dataIndex + 1;
                     
@@ -749,6 +780,7 @@ function buildChartGastoMensual(year, theme) {
     for (let m = 1; m <= 12; m++) {
         monthlyGastos[m - 1] = state.index.byYear[targetYear]?.byMonth?.[m]?.gastos || 0;
     }
+    const completeness = getFacturasCompletenessByYear(targetYear);
 
     const ctx = document.getElementById('chart-gasto-mensual').getContext('2d');
     state.charts.gastoMensual = new Chart(ctx, {
@@ -758,8 +790,11 @@ function buildChartGastoMensual(year, theme) {
             datasets: [{
                 label: 'Gasto Mensual (€)',
                 data: monthlyGastos,
-                backgroundColor: 'rgba(239, 68, 68, 0.75)',
-                hoverBackgroundColor: '#ef4444',
+                backgroundColor: completeness.map(c => c ? 'rgba(239, 68, 68, 0.75)' : 'rgba(245, 158, 11, 0.35)'),
+                borderColor: completeness.map(c => c ? 'rgba(239, 68, 68, 0.75)' : '#f59e0b'),
+                borderWidth: completeness.map(c => c ? 0 : 2),
+                borderDash: [4, 3],
+                hoverBackgroundColor: completeness.map(c => c ? '#ef4444' : 'rgba(245, 158, 11, 0.55)'),
                 borderRadius: 6
             }]
         },
