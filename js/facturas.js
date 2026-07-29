@@ -93,9 +93,10 @@ function renderFacturas() {
         const months = getFacturaYearData(catId, year);
         const view = state.chartFilters.facturasViewMode[catId] || 'table';
 
-        const rows = months.map(({ m, total, status }) => `
+        const rows = months.map(({ m, total, status, budget }) => `
             <div class="factura-month-row factura-status--${status}" data-cat-id="${catId}" data-year-month="${year}-${String(m).padStart(2, '0')}">
                 <span class="factura-month-name">${FACTURAS_MONTH_NAMES[m - 1]}</span>
+                <span class="factura-month-budget">${budget > 0 ? formatCurrency(budget) : '—'}</span>
                 <span class="factura-month-amount">${total > 0 ? formatCurrency(total) : '—'}</span>
                 <span class="factura-status-badge factura-status-badge--${status}">${facturaStatusLabel(status)}</span>
             </div>
@@ -115,6 +116,7 @@ function renderFacturas() {
                 <div class="factura-month-list ${view === 'chart' ? 'hidden' : ''}">
                     <div class="factura-month-header">
                         <span>Mes</span>
+                        <span>Presupuesto</span>
                         <span>Importe</span>
                         <span>Estado</span>
                     </div>
@@ -175,7 +177,7 @@ function buildFacturaChart(catId, cat, year, theme) {
             plugins: { legend: { display: false } },
             scales: {
                 x: { grid: { display: false }, ticks: { color: theme.text } },
-                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+                y: { beginAtZero: true, min: 0, grid: { color: theme.grid }, ticks: { color: theme.text } }
             },
             onHover: (event, chartElement) => {
                 event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';

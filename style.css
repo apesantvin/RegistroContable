@@ -2915,7 +2915,7 @@ body:not(.dark-mode) .automation-item:hover {
 .factura-month-header,
 .factura-month-row {
     display: grid;
-    grid-template-columns: 1fr 90px 110px;
+    grid-template-columns: 1fr 90px 90px 110px;
     align-items: center;
     gap: 8px;
     font-size: 13px;
@@ -2934,17 +2934,25 @@ body:not(.dark-mode) .automation-item:hover {
 }
 
 .factura-month-header span:nth-child(2),
+.factura-month-header span:nth-child(3),
+.factura-month-budget,
 .factura-month-amount {
     text-align: right;
 }
 
-.factura-month-header span:nth-child(3),
+.factura-month-header span:nth-child(4),
 .factura-status-badge {
     text-align: center;
 }
 
 .factura-month-name {
     color: var(--text-secondary);
+}
+
+.factura-month-budget {
+    font-weight: 500;
+    color: var(--text-muted);
+    opacity: 0.75;
 }
 
 .factura-month-amount {
