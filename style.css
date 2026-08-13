@@ -1110,7 +1110,7 @@ body:not(.dark-mode) .data-table tr:hover {
     gap: 8px;
     align-items: center;
 }
-.btn-action-edit, .btn-action-delete {
+.btn-action-edit, .btn-action-duplicate, .btn-action-delete {
     background: none;
     border: none;
     cursor: pointer;
@@ -1126,12 +1126,19 @@ body:not(.dark-mode) .data-table tr:hover {
     background-color: rgba(99, 102, 241, 0.15);
     transform: scale(1.15);
 }
+.btn-action-duplicate:hover {
+    background-color: rgba(16, 185, 129, 0.15);
+    transform: scale(1.15);
+}
 .btn-action-delete:hover {
     background-color: rgba(239, 68, 68, 0.15);
     transform: scale(1.15);
 }
 body:not(.dark-mode) .btn-action-edit:hover {
     background-color: rgba(99, 102, 241, 0.1);
+}
+body:not(.dark-mode) .btn-action-duplicate:hover {
+    background-color: rgba(16, 185, 129, 0.1);
 }
 body:not(.dark-mode) .btn-action-delete:hover {
     background-color: rgba(239, 68, 68, 0.1);
@@ -1865,6 +1872,7 @@ body:not(.dark-mode) .loading-overlay {
 
     /* Padding reducido en botones de acción */
     .btn-action-edit,
+    .btn-action-duplicate,
     .btn-action-delete {
         padding: 2px;
     }
@@ -2740,6 +2748,8 @@ body:not(.dark-mode) .automation-item:hover {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
+    row-gap: 6px;
 }
 
 .cuenta-card-icon {

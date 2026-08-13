@@ -10,7 +10,7 @@ function updateDashboardMetrics() {
     
     const totalIngresos = yearData ? yearData.totalIngresos : 0;
     const totalGastos = yearData ? yearData.totalGastos : 0;
-    const totalAhorro = state.index.allTime.totalAhorro;
+    const totalAhorro = getAhorroAcumuladoCuentas();
     const totalNeto = state.index.allTime.totalNeto;
 
     DOM.valSaldoDisponible.textContent = formatCurrency(totalNeto);
@@ -430,6 +430,7 @@ function buildChartPresupuestoVsReal(year, theme) {
     const presupuestos = [];
     const reales = [];
     const targetCategories = [];
+    const pending = [];
 
     activeCats.forEach(cat => {
         const budgetObj = getEffectiveBudget(cat.id, month, targetYear);
@@ -441,6 +442,10 @@ function buildChartPresupuestoVsReal(year, theme) {
             presupuestos.push(budgetVal);
             reales.push(realVal);
             targetCategories.push(cat);
+
+            const isFacturaCat = FACTURAS_CATEGORIA_IDS.includes(cat.id);
+            const monthStatus = isFacturaCat ? getFacturaYearData(cat.id, targetYear)[month - 1].status : 'completo';
+            pending.push(isFacturaCat && monthStatus !== 'completo');
         }
     });
 
@@ -462,9 +467,13 @@ function buildChartPresupuestoVsReal(year, theme) {
                     label: 'Gasto Real (€)',
                     data: reales,
                     backgroundColor: reales.map((val, idx) => {
+                        if (pending[idx]) return 'rgba(245, 158, 11, 0.35)';
                         const limit = presupuestos[idx];
                         return (limit > 0 && val > limit) ? 'rgba(239, 68, 68, 0.8)' : 'rgba(16, 185, 129, 0.8)';
                     }),
+                    borderColor: pending.map(p => p ? '#f59e0b' : 'transparent'),
+                    borderWidth: pending.map(p => p ? 2 : 0),
+                    borderDash: [4, 3],
                     borderRadius: 4
                 }
             ]
@@ -628,7 +637,7 @@ function buildChartAhorro(year, theme) {
             plugins: { legend: { display: false } },
             scales: {
                 x: { grid: { color: theme.grid }, ticks: { color: theme.text } },
-                y: { grid: { color: theme.grid }, ticks: { color: theme.text } }
+                y: { beginAtZero: true, grid: { color: theme.grid }, ticks: { color: theme.text } }
             },
             onHover: (event, chartElement) => {
                 event.native.target.style.cursor = chartElement.length ? 'pointer' : 'default';
@@ -638,7 +647,7 @@ function buildChartAhorro(year, theme) {
                     const element = elements[0];
                     const dataIndex = element.index;
                     const month = dataIndex + 1;
-                    
+
                     if (state.selectedYear !== targetYear) {
                         DOM.yearSelect.value = targetYear.toString();
                         DOM.yearSelect.dispatchEvent(new Event('change'));

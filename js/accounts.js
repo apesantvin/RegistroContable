@@ -122,6 +122,10 @@ function renderCuentas() {
         const colorCls = cuentasBarColor(remaining, budget);
         const accSign  = accumulated >= 0 ? '+' : '';
 
+        const isFacturaCat     = FACTURAS_CATEGORIA_IDS.includes(cat.id);
+        const isFacturaPending = isFacturaCat
+            && getFacturaYearData(cat.id, cy)[cm - 1].status !== 'completo';
+
         const breakdownRows = [...monthlyBreakdown].reverse().map(({ y, m, mBudget, mNet, mDelta, running }) => {
             const dSign = mDelta >= 0 ? '+' : '';
             const rSign = running >= 0 ? '+' : '';
@@ -140,6 +144,11 @@ function renderCuentas() {
                 <div class="cuenta-card-header">
                     <span class="cuenta-card-icon">${cat.icono}</span>
                     <span class="cuenta-card-name">${cat.nombre}</span>
+                    ${isFacturaCat
+                        ? (isFacturaPending
+                            ? '<span class="factura-status-badge factura-status-badge--incompleto">Pendiente de pago</span>'
+                            : '<span class="factura-status-badge factura-status-badge--completo">✓ Pagado</span>')
+                        : ''}
                     ${isOver
                         ? '<span class="cuenta-badge-over">Excedido</span>'
                         : budget > 0 ? `<span class="cuenta-badge-ok">${pct.toFixed(0)}% restante</span>` : ''}

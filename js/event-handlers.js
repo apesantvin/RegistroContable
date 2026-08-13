@@ -427,6 +427,11 @@ function initFormHandlers() {
 
     DOM.btnCancelEdit.addEventListener('click', () => cancelEditMovimiento(true));
 
+    DOM.btnDuplicateMovimiento.addEventListener('click', () => {
+        if (!state.editingMovimientoId) return;
+        startDuplicateMovimiento(state.editingMovimientoId);
+    });
+
     DOM.btnDeleteMovimiento.addEventListener('click', async () => {
         if (!state.editingMovimientoId) return;
         const deleted = await deleteMovimiento(state.editingMovimientoId);

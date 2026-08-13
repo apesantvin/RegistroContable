@@ -143,6 +143,7 @@ const DOM = {
     editIdBadge: document.getElementById('edit-movimiento-id-badge'),
     btnCancelEdit: document.getElementById('btn-cancel-edit-movimiento'),
     btnDeleteMovimiento: document.getElementById('btn-delete-movimiento'),
+    btnDuplicateMovimiento: document.getElementById('btn-duplicate-movimiento'),
     btnSubmitMovimiento: document.getElementById('btn-submit-movimiento'),
     inTipo: document.getElementById('in-tipo'),
     inImporte: document.getElementById('in-importe'),
@@ -366,14 +367,15 @@ function rebuildIndex(allTimeMovs = null) {
         }
     });
 
-    // Precompute cumulative savings per year and month
+    // Ahorro por mes: delta real (ingresos/gastos/transferencias) + presupuesto de ese mes,
+    // cada mes de forma independiente (no es una suma corriendo con los demás meses).
     const sortedYears = Object.keys(state.index.byYear).map(Number).sort((a, b) => a - b);
-    let runningAhorro = 0;
     sortedYears.forEach(y => {
         state.index.byYear[y].ahorroAcumulado = new Array(12).fill(0);
         for (let m = 1; m <= 12; m++) {
-            runningAhorro += state.index.byYear[y].byMonth[m].ahorroDelta;
-            state.index.byYear[y].ahorroAcumulado[m - 1] = runningAhorro;
+            const budgetObj = getEffectiveBudget(9, m, y);
+            const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
+            state.index.byYear[y].ahorroAcumulado[m - 1] = state.index.byYear[y].byMonth[m].ahorroDelta + budgetVal;
         }
     });
 }
@@ -382,19 +384,36 @@ function getAhorroAcumuladoForYear(year) {
     if (state.index.byYear[year] && state.index.byYear[year].ahorroAcumulado) {
         return state.index.byYear[year].ahorroAcumulado;
     }
-    const priorYears = Object.keys(state.index.byYear)
-        .map(Number)
-        .filter(y => y < year)
-        .sort((a, b) => b - a);
-    
-    let baseVal = 0;
-    if (priorYears.length > 0) {
-        const lastYear = priorYears[0];
-        if (state.index.byYear[lastYear].ahorroAcumulado) {
-            baseVal = state.index.byYear[lastYear].ahorroAcumulado[11];
-        }
-    }
-    return new Array(12).fill(baseVal);
+    return new Array(12).fill(0);
+}
+
+// Mismo cálculo de "Acumulado total" que la pestaña Cuentas, para la categoría Ahorro (id 9),
+// usando el mes actual como mes de referencia.
+function getAhorroAcumuladoCuentas() {
+    const now = new Date();
+    const cm = now.getMonth() + 1;
+    const cy = now.getFullYear();
+    const categoriaAhorroId = 9;
+
+    let accumulated = 0;
+    Object.keys(state.index.byYear).map(Number)
+        .filter(y => y <= cy)
+        .sort()
+        .forEach(y => {
+            const maxM = (y === cy) ? cm : 12;
+            for (let m = 1; m <= maxM; m++) {
+                const budgetObj = getEffectiveBudget(categoriaAhorroId, m, y);
+                const budget    = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
+                const spent     = state.index.byYear[y]?.byMonth[m]?.byCategoryExpenses[categoriaAhorroId] || 0;
+                const income    = state.index.byYear[y]?.byMonth[m]?.byCategoryIncome[categoriaAhorroId] || 0;
+                const net       = spent - income;
+                const delta     = budget - net;
+                if (budget > 0 || net !== 0) {
+                    accumulated += delta;
+                }
+            }
+        });
+    return accumulated;
 }
 
 function getEffectiveBudget(categoriaId, mes, año) {

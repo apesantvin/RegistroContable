@@ -273,6 +273,7 @@ function renderMovementsTable(movs) {
                 <td data-label="Acciones" class="text-center">
                     <div class="actions-cell">
                         <button class="btn-action-edit" data-id="${m.id}" title="Editar">✏️</button>
+                        <button class="btn-action-duplicate" data-id="${m.id}" title="Duplicar">📋</button>
                         <button class="btn-action-delete" data-id="${m.id}" title="Eliminar">🗑️</button>
                     </div>
                 </td>
@@ -286,6 +287,14 @@ function renderMovementsTable(movs) {
             e.stopPropagation();
             const id = btn.getAttribute('data-id');
             startEditMovimiento(id);
+        });
+    });
+
+    DOM.listMovimientosBody.querySelectorAll('.btn-action-duplicate').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            startDuplicateMovimiento(id);
         });
     });
 
@@ -306,19 +315,7 @@ function renderMovementsTable(movs) {
     });
 }
 
-function startEditMovimiento(id) {
-    const m = state.filteredMovimientos.find(mov => mov.id == id) || state.movimientos.find(mov => mov.id == id);
-    if (!m) return;
-
-    state.editingMovimientoId = id;
-
-    // Show indicator and Cancel button
-    DOM.editIndicator.classList.remove('hidden');
-    DOM.editIdBadge.textContent = `#${id}`;
-    DOM.btnCancelEdit.classList.remove('hidden');
-    DOM.btnDeleteMovimiento.classList.remove('hidden');
-    DOM.btnSubmitMovimiento.textContent = 'Guardar Cambios';
-
+function populateMovimientoForm(m) {
     // Switch tab active state and form type
     DOM.inTipo.value = m.tipo;
     DOM.formTabBtns.forEach(btn => {
@@ -359,10 +356,56 @@ function startEditMovimiento(id) {
         DOM.inCatOrigen.value = m.categoriaOrigenId;
         DOM.inCatDestino.value = m.categoriaDestinoId;
     }
+}
+
+function startEditMovimiento(id) {
+    const m = state.filteredMovimientos.find(mov => mov.id == id) || state.movimientos.find(mov => mov.id == id);
+    if (!m) return;
+
+    state.editingMovimientoId = id;
+
+    // Show indicator and Cancel button
+    DOM.editIndicator.classList.remove('hidden');
+    DOM.editIdBadge.textContent = `#${id}`;
+    DOM.btnCancelEdit.classList.remove('hidden');
+    DOM.btnDeleteMovimiento.classList.remove('hidden');
+    DOM.btnDuplicateMovimiento.classList.remove('hidden');
+    DOM.btnSubmitMovimiento.textContent = 'Guardar Cambios';
+
+    populateMovimientoForm(m);
 
     const modalTitle = document.getElementById('modal-transaction-title');
     if (modalTitle) modalTitle.textContent = 'Editar Transacción';
-    
+
+    if (DOM.modalTransaction) DOM.modalTransaction.classList.remove('hidden');
+}
+
+function startDuplicateMovimiento(id) {
+    const m = state.filteredMovimientos.find(mov => mov.id == id) || state.movimientos.find(mov => mov.id == id);
+    if (!m) return;
+
+    const useToday = confirm(`¿Usar la fecha de hoy en la transacción duplicada?\n\nAceptar = fecha de hoy\nCancelar = mantener la fecha original (${formatDate(m.fecha)})`);
+
+    // Duplicar = alta nueva, no edición del original
+    state.editingMovimientoId = null;
+
+    DOM.editIndicator.classList.add('hidden');
+    DOM.btnCancelEdit.classList.add('hidden');
+    DOM.btnDeleteMovimiento.classList.add('hidden');
+    DOM.btnDuplicateMovimiento.classList.add('hidden');
+    DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
+
+    populateMovimientoForm(m);
+
+    if (useToday) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        DOM.inFecha.value = todayStr;
+        DOM.inFechaReferencia.value = todayStr.substring(0, 7);
+    }
+
+    const modalTitle = document.getElementById('modal-transaction-title');
+    if (modalTitle) modalTitle.textContent = 'Duplicar Transacción';
+
     if (DOM.modalTransaction) DOM.modalTransaction.classList.remove('hidden');
 }
 
@@ -373,8 +416,9 @@ function cancelEditMovimiento(shouldRedirect = true) {
     DOM.editIndicator.classList.add('hidden');
     DOM.btnCancelEdit.classList.add('hidden');
     DOM.btnDeleteMovimiento.classList.add('hidden');
+    DOM.btnDuplicateMovimiento.classList.add('hidden');
     DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
-    
+
     DOM.formMovimiento.reset();
     const todayStr = new Date().toISOString().split('T')[0];
     DOM.inFecha.value = todayStr;
@@ -422,8 +466,9 @@ function openNewTransactionModal() {
     DOM.editIndicator.classList.add('hidden');
     DOM.btnCancelEdit.classList.add('hidden');
     DOM.btnDeleteMovimiento.classList.add('hidden');
+    DOM.btnDuplicateMovimiento.classList.add('hidden');
     DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
-    
+
     // Set date to today
     const todayStr = new Date().toISOString().split('T')[0];
     DOM.inFecha.value = todayStr;

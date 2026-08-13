@@ -444,6 +444,10 @@
                             <div class="chart-wrapper">
                                 <canvas id="chart-presupuesto-vs-real"></canvas>
                             </div>
+                            <div class="chart-completeness-legend">
+                                <span class="legend-item"><span class="legend-swatch legend-swatch--complete"></span> Categoría con facturas completas</span>
+                                <span class="legend-item"><span class="legend-swatch legend-swatch--pending"></span> Factura pendiente de registrar</span>
+                            </div>
                         </div>
 
                         <!-- Row 4: Top categories + Savings -->
@@ -947,10 +951,11 @@
 
                 </div>
 
-                <div class="form-actions" style="display: flex; gap: 12px; margin-top: 20px;">
-                    <button type="submit" id="btn-submit-movimiento" class="btn btn-primary btn-large" style="flex: 2;">Registrar Transacción</button>
-                    <button type="button" id="btn-cancel-edit-movimiento" class="btn btn-secondary" style="flex: 1; padding: 14px 20px;">Cancelar</button>
-                    <button type="button" id="btn-delete-movimiento" class="btn btn-danger hidden" style="flex: 1; padding: 14px 20px;" title="Eliminar transacción">🗑️ Eliminar</button>
+                <div class="form-actions" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px;">
+                    <button type="submit" id="btn-submit-movimiento" class="btn btn-primary btn-large" style="flex: 2 1 200px;">Registrar Transacción</button>
+                    <button type="button" id="btn-cancel-edit-movimiento" class="btn btn-secondary" style="flex: 1 1 100px; padding: 14px 20px;">Cancelar</button>
+                    <button type="button" id="btn-duplicate-movimiento" class="btn btn-secondary hidden" style="flex: 1 1 100px; padding: 14px 20px;" title="Duplicar transacción">📋 Duplicar</button>
+                    <button type="button" id="btn-delete-movimiento" class="btn btn-danger hidden" style="flex: 1 1 100px; padding: 14px 20px;" title="Eliminar transacción">🗑️ Eliminar</button>
                 </div>
             </form>
         </div>
