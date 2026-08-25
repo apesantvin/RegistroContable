@@ -3120,6 +3120,86 @@ body:not(.dark-mode) .automation-item:hover {
     text-align: center;
 }
 
+.factura-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.factura-group-header {
+    display: grid;
+    grid-template-columns: 1fr 90px 90px;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 4px 6px;
+    margin-bottom: 2px;
+}
+
+.factura-group-header span:nth-child(2),
+.factura-group-header span:nth-child(3) {
+    text-align: right;
+}
+
+.factura-group-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 90px;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 6px 4px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.factura-group-row:hover {
+    background: var(--bg-app);
+}
+
+.factura-group-importe,
+.factura-group-count {
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.factura-group-count {
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.factura-group-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 4px 8px;
+    padding: 6px 10px;
+    background: var(--bg-app);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary);
+}
+
+.factura-group-detail-row {
+    display: grid;
+    grid-template-columns: 90px 90px 1fr;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 3px 0;
+}
+
+.factura-group-detail-concepto {
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .cuentas-summary-metrics {

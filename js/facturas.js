@@ -73,6 +73,31 @@ function facturaStatusLabel(status) {
     return 'Sin registrar';
 }
 
+// Agrupa los movimientos GASTO de una categoría por facturaId (facturas dadas de alta
+// como reparto en varios meses). Devuelve un array ordenado por fecha desc: cada entrada
+// es { facturaId, fecha, total, movimientos } con movimientos ordenados por fecha_referencia.
+function getFacturaGroups(categoriaId) {
+    const gastosCat = state.movimientos.filter(mv =>
+        mv.tipo === 'GASTO' && parseInt(mv.categoriaId) === categoriaId && mv.facturaId
+    );
+
+    const groups = {};
+    gastosCat.forEach(mv => {
+        if (!groups[mv.facturaId]) {
+            groups[mv.facturaId] = { facturaId: mv.facturaId, fecha: mv.fecha, movimientos: [] };
+        }
+        groups[mv.facturaId].movimientos.push(mv);
+    });
+
+    return Object.values(groups)
+        .map(g => ({
+            ...g,
+            movimientos: g.movimientos.slice().sort((a, b) => (a.fecha_referencia || '').localeCompare(b.fecha_referencia || '')),
+            total: g.movimientos.reduce((sum, mv) => sum + (parseFloat(mv.importe) || 0), 0)
+        }))
+        .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+}
+
 function renderFacturas() {
     if (!DOM.facturasContainer) return;
 
@@ -110,10 +135,11 @@ function renderFacturas() {
                     <div class="factura-view-toggle" data-cat-id="${catId}">
                         <button type="button" class="factura-view-btn ${view === 'table' ? 'active' : ''}" data-view="table" title="Ver como tabla">📋</button>
                         <button type="button" class="factura-view-btn ${view === 'chart' ? 'active' : ''}" data-view="chart" title="Ver como gráfico">📈</button>
+                        <button type="button" class="factura-view-btn ${view === 'facturas' ? 'active' : ''}" data-view="facturas" title="Ver por factura">🧾</button>
                     </div>
                 </div>
 
-                <div class="factura-month-list ${view === 'chart' ? 'hidden' : ''}">
+                <div class="factura-month-list ${view === 'table' ? '' : 'hidden'}">
                     <div class="factura-month-header">
                         <span>Mes</span>
                         <span>Presupuesto</span>
@@ -123,11 +149,15 @@ function renderFacturas() {
                     ${rows}
                 </div>
 
-                <div class="factura-chart-wrapper ${view === 'table' ? 'hidden' : ''}">
+                <div class="factura-chart-wrapper ${view === 'chart' ? '' : 'hidden'}">
                     <div class="factura-chart-canvas-wrapper">
                         <canvas id="chart-factura-${catId}"></canvas>
                     </div>
                     <p class="factura-chart-note">Solo se muestran los meses ya completados.</p>
+                </div>
+
+                <div class="factura-group-list ${view === 'facturas' ? '' : 'hidden'}">
+                    ${renderFacturaGroupList(catId)}
                 </div>
             </div>`;
     }).join('');
@@ -143,6 +173,47 @@ function renderFacturas() {
         if (!cat) return;
         buildFacturaChart(catId, cat, year, theme);
     });
+}
+
+// Lista "por factura": una fila por facturaId con fecha de alta e importe total,
+// desplegable para ver el desglose de los movimientos (mes + importe) que la componen.
+// No se filtra por año: una factura dividida puede cruzar el límite de año.
+function renderFacturaGroupList(catId) {
+    const groups = getFacturaGroups(catId);
+
+    if (groups.length === 0) {
+        return '<div class="factura-split-preview-empty">No hay facturas divididas en varios meses registradas para esta categoría.</div>';
+    }
+
+    const header = `
+        <div class="factura-group-header">
+            <span>Fecha</span>
+            <span>Importe</span>
+            <span>Meses</span>
+        </div>`;
+
+    const body = groups.map(g => {
+        const detailRows = g.movimientos.map(mv => `
+            <div class="factura-group-detail-row">
+                <span>${formatMonthYear(mv.fecha_referencia)}</span>
+                <span>${formatCurrency(parseFloat(mv.importe) || 0)}</span>
+                <span class="factura-group-detail-concepto">${mv.concepto || ''}</span>
+            </div>`).join('');
+
+        return `
+            <div class="factura-group-item">
+                <div class="factura-group-row" data-factura-id="${g.facturaId}">
+                    <span>${formatDate(g.fecha)}</span>
+                    <span class="factura-group-importe">${formatCurrency(g.total)}</span>
+                    <span class="factura-group-count">${g.movimientos.length} meses</span>
+                </div>
+                <div class="factura-group-detail hidden" data-factura-id="${g.facturaId}">
+                    ${detailRows}
+                </div>
+            </div>`;
+    }).join('');
+
+    return `${header}${body}`;
 }
 
 function buildFacturaChart(catId, cat, year, theme) {
@@ -235,4 +306,15 @@ document.getElementById('screen-facturas')
         DOM.filterFechaHasta.value = '';
 
         window.location.hash = '#movimientos';
+    });
+
+// Expandir/colapsar el desglose de movimientos de una factura, en la vista "por factura"
+document.getElementById('screen-facturas')
+    ?.addEventListener('click', e => {
+        const groupRow = e.target.closest('.factura-group-row');
+        if (!groupRow) return;
+
+        const facturaId = groupRow.getAttribute('data-factura-id');
+        const detail = groupRow.parentElement.querySelector(`.factura-group-detail[data-factura-id="${facturaId}"]`);
+        if (detail) detail.classList.toggle('hidden');
     });

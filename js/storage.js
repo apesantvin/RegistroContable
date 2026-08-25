@@ -287,7 +287,7 @@ function handleDemoWriteAction(action, data) {
         let nextId = state.movimientos.length + 1;
         const ids = data.map(item => {
             const id = nextId++;
-            state.movimientos.push({ id, fecha: item.fecha, fecha_referencia: item.fecha_referencia, tipo: 'GASTO', categoriaId: item.categoriaId || "", subcategoriaId: item.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: item.concepto, importe: item.importe });
+            state.movimientos.push({ id, fecha: item.fecha, fecha_referencia: item.fecha_referencia, tipo: 'GASTO', categoriaId: item.categoriaId || "", subcategoriaId: item.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: item.concepto, importe: item.importe, facturaId: item.facturaId || null });
             return id;
         });
         return { success: true, ids, message: "Movimientos insertados (Demo)" };
@@ -382,7 +382,7 @@ function handleLocalWriteAction(action, data) {
         let nextId = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
         const ids = data.map(item => {
             const id = nextId++;
-            state.movimientos.push({ id, fecha: item.fecha, fecha_referencia: item.fecha_referencia, tipo: 'GASTO', categoriaId: item.categoriaId || "", subcategoriaId: item.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: item.concepto, importe: item.importe });
+            state.movimientos.push({ id, fecha: item.fecha, fecha_referencia: item.fecha_referencia, tipo: 'GASTO', categoriaId: item.categoriaId || "", subcategoriaId: item.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: item.concepto, importe: item.importe, facturaId: item.facturaId || null });
             return id;
         });
         saveLocalCache();

@@ -241,13 +241,15 @@ async function handleFacturaSplitSubmit(e) {
     }
 
     const totalMeses = rows.length;
+    const facturaId = totalMeses > 1 ? crypto.randomUUID() : null;
     const payload = rows.map((r, idx) => ({
         fecha,
         fecha_referencia: r.fecha_referencia,
         categoriaId,
         subcategoriaId,
         concepto: totalMeses > 1 ? `${concepto} (${idx + 1}/${totalMeses})` : concepto,
-        importe: r.importe
+        importe: r.importe,
+        facturaId
     }));
 
     const res = await apiRequest('movimientos_lote', 'POST', payload);

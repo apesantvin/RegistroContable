@@ -80,7 +80,8 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                     categoriaId: item.categoriaId ? Number(item.categoriaId) : null,
                     subcategoriaId: item.subcategoriaId ? Number(item.subcategoriaId) : null,
                     concepto: item.concepto,
-                    importe: Number(item.importe)
+                    importe: Number(item.importe),
+                    facturaId: item.facturaId || null
                 })));
             } else if (actionName === 'transferencia') {
                 options.method = 'POST';
@@ -277,7 +278,7 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
 
     try {
         if (cleanId === 'dashboard') {
-            const allTimeLightMovs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, isBackground);
+            const allTimeLightMovs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId,facturaId', 'GET', null, isBackground);
             
             if (allTimeLightMovs) {
                 state.movimientos = allTimeLightMovs;
@@ -294,7 +295,7 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             state.loadedScreens.movimientos = true;
         } else if (cleanId === 'cuentas') {
             if (!state.loadedScreens.dashboard) {
-                const movs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, isBackground);
+                const movs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId,facturaId', 'GET', null, isBackground);
                 if (movs) {
                     state.movimientos = movs;
                     rebuildIndex();
@@ -306,7 +307,7 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             state.loadedScreens.cuentas = true;
         } else if (cleanId === 'facturas') {
             if (!state.loadedScreens.dashboard) {
-                const movs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, isBackground);
+                const movs = await apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId,facturaId', 'GET', null, isBackground);
                 if (movs) {
                     state.movimientos = movs;
                     rebuildIndex();
