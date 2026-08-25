@@ -5,8 +5,8 @@
 // Orden visual de categorías: [6=Compra, 7=Restaurantes, 3=Internet, 8=Otras Compras, 5=Luz, 4=Gas, 1=Agua, 2=Basuras, 9=Ahorro]
 const CATEGORIAS_ORDER = [6, 7, 3, 8, 5, 4, 1, 2, 9];
 
-// Categorías consideradas "facturas" (Luz, Gas, Agua, Basuras), en el orden en que se muestran en la pestaña Facturas
-const FACTURAS_CATEGORIA_IDS = [5, 4, 1, 2];
+// Categorías consideradas "facturas" (Luz, Gas, Agua, Basuras, Internet), en el orden en que se muestran en la pestaña Facturas
+const FACTURAS_CATEGORIA_IDS = [5, 4, 1, 2, 3];
 
 function sortCategorias(arr) {
     return arr.slice().sort((a, b) => {
@@ -116,6 +116,8 @@ const DOM = {
     valIngresos: document.getElementById('val-ingresos'),
     valGastos: document.getElementById('val-gastos'),
     valAhorro: document.getElementById('val-ahorro'),
+    valAhorroAnual: document.getElementById('val-ahorro-anual'),
+    valAhorroReal: document.getElementById('val-ahorro-real'),
     
     // Movements screen
     filterSearch: document.getElementById('filter-search'),
@@ -403,17 +405,85 @@ function getAhorroAcumuladoCuentas() {
             const maxM = (y === cy) ? cm : 12;
             for (let m = 1; m <= maxM; m++) {
                 const budgetObj = getEffectiveBudget(categoriaAhorroId, m, y);
-                const budget    = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
-                const spent     = state.index.byYear[y]?.byMonth[m]?.byCategoryExpenses[categoriaAhorroId] || 0;
-                const income    = state.index.byYear[y]?.byMonth[m]?.byCategoryIncome[categoriaAhorroId] || 0;
-                const net       = spent - income;
-                const delta     = budget - net;
-                if (budget > 0 || net !== 0) {
+                const budget      = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
+                // ahorroDelta ya incluye GASTO/INGRESO en la categoría Ahorro y las
+                // TRANSFERENCIAs de/hacia ella (p. ej. la automatización de sobrantes)
+                const ahorroDelta = state.index.byYear[y]?.byMonth[m]?.ahorroDelta || 0;
+                const delta       = budget + ahorroDelta;
+                if (budget > 0 || ahorroDelta !== 0) {
                     accumulated += delta;
                 }
             }
         });
     return accumulated;
+}
+
+// Mismo cálculo que getAhorroAcumuladoCuentas(), pero acotado a un único año
+// (sin arrastrar el acumulado de años anteriores). Se usa para mostrar el
+// "ahorro anual" junto al ahorro acumulado total en el Dashboard.
+function getAhorroAcumuladoAnual(year) {
+    const now = new Date();
+    const cm = now.getMonth() + 1;
+    const cy = now.getFullYear();
+    const categoriaAhorroId = 9;
+
+    if (year > cy) return 0;
+    const maxM = (year === cy) ? cm : 12;
+
+    let accumulated = 0;
+    for (let m = 1; m <= maxM; m++) {
+        const budgetObj = getEffectiveBudget(categoriaAhorroId, m, year);
+        const budget      = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
+        const ahorroDelta = state.index.byYear[year]?.byMonth[m]?.ahorroDelta || 0;
+        const delta       = budget + ahorroDelta;
+        if (budget > 0 || ahorroDelta !== 0) {
+            accumulated += delta;
+        }
+    }
+    return accumulated;
+}
+
+// Suma del "acumulado" (presupuesto - neto) de todas las categorías activas EXCEPTO Ahorro,
+// mes a mes, desde el primer dato disponible hasta el mes actual. Se excluye Ahorro porque
+// su acumulado ya son movimientos (INGRESO/GASTO/TRANSFERENCIA) que forman parte del propio
+// Saldo Disponible, y contarlo aquí lo restaría dos veces en getAhorroRealTotal().
+function getGrandAccumuladoTotal() {
+    const now = new Date();
+    const cm = now.getMonth() + 1;
+    const cy = now.getFullYear();
+    const categoriaAhorroId = 9;
+
+    const activeCats = state.categorias.filter(c =>
+        (c.activa === true || c.activa === 'true' || c.activa === 1) && c.id !== categoriaAhorroId
+    );
+
+    let total = 0;
+    activeCats.forEach(cat => {
+        Object.keys(state.index.byYear).map(Number)
+            .filter(y => y <= cy)
+            .sort()
+            .forEach(y => {
+                const maxM = (y === cy) ? cm : 12;
+                for (let m = 1; m <= maxM; m++) {
+                    const budgetObj = getEffectiveBudget(cat.id, m, y);
+                    const budget = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
+                    const net = (state.index.byYear[y]?.byMonth[m]?.byCategoryExpenses[cat.id] || 0) - (state.index.byYear[y]?.byMonth[m]?.byCategoryIncome[cat.id] || 0);
+                    const delta = budget - net;
+                    if (budget > 0 || net !== 0) {
+                        total += delta;
+                    }
+                }
+            });
+    });
+    return total;
+}
+
+// Ahorro real = dinero que realmente hay (todos los Ingresos - todos los Gastos, histórico
+// completo) menos lo que ya está "comprometido" como sobrante acumulado en el presupuesto
+// del resto de categorías (sin contar Ahorro, que ya está implícito en el Saldo Disponible).
+// Es el excedente que no está reflejado como sobrante presupuestario en ninguna categoría.
+function getAhorroRealTotal() {
+    return state.index.allTime.totalNeto - getGrandAccumuladoTotal();
 }
 
 function getEffectiveBudget(categoriaId, mes, año) {

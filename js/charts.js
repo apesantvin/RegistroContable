@@ -11,12 +11,16 @@ function updateDashboardMetrics() {
     const totalIngresos = yearData ? yearData.totalIngresos : 0;
     const totalGastos = yearData ? yearData.totalGastos : 0;
     const totalAhorro = getAhorroAcumuladoCuentas();
+    const totalAhorroAnual = getAhorroAcumuladoAnual(year);
     const totalNeto = state.index.allTime.totalNeto;
+    const totalAhorroReal = getAhorroRealTotal();
 
     DOM.valSaldoDisponible.textContent = formatCurrency(totalNeto);
     DOM.valIngresos.textContent = formatCurrency(totalIngresos);
     DOM.valGastos.textContent = formatCurrency(totalGastos);
     DOM.valAhorro.textContent = formatCurrency(totalAhorro);
+    if (DOM.valAhorroAnual) DOM.valAhorroAnual.textContent = `Ahorro ${year}: ${formatCurrency(totalAhorroAnual)}`;
+    if (DOM.valAhorroReal) DOM.valAhorroReal.textContent = formatCurrency(totalAhorroReal);
 }
 
 function getChartTheme() {

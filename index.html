@@ -310,6 +310,15 @@
                                 <span class="card-label">Ahorro Acumulado</span>
                                 <h3 class="card-value" id="val-ahorro">0.00 €</h3>
                                 <span class="card-meta">Guardado en categoría Ahorro</span>
+                                <span class="card-meta" id="val-ahorro-anual">Ahorro anual: 0.00 €</span>
+                            </div>
+                        </div>
+                        <div class="metric-card ahorro">
+                            <div class="card-icon">🏦</div>
+                            <div class="card-info">
+                                <span class="card-label">Ahorro Real</span>
+                                <h3 class="card-value" id="val-ahorro-real">0.00 €</h3>
+                                <span class="card-meta">Saldo disponible menos lo ya comprometido en presupuestos</span>
                             </div>
                         </div>
                     </div>
@@ -661,6 +670,7 @@
                         <select id="facturas-year-select" class="form-select chart-year-dropdown cuentas-filter-input">
                             <!-- JS populated -->
                         </select>
+                        <button type="button" class="btn btn-primary" id="btn-nueva-factura-dividida" style="margin-left: auto;">+ Nueva factura</button>
                     </div>
                     <div id="facturas-container">
                         <!-- JS populated -->
@@ -961,6 +971,89 @@
         </div>
     </div>
 
+    <!-- Modal para Nueva Factura Dividida -->
+    <div class="modal-backdrop hidden" id="modal-factura-dividida">
+        <div class="modal-card" style="max-width: 640px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-top: -10px;">
+                <h2 style="font-size: 1.3rem; font-weight: 700; margin: 0;">Nueva Factura Dividida</h2>
+                <button type="button" class="btn-close-modal" id="btn-close-factura-dividida-modal" style="background: none; border: none; font-size: 28px; color: var(--text-muted); cursor: pointer; line-height: 1; padding: 0 4px;">&times;</button>
+            </div>
+
+            <form id="form-factura-dividida" class="modern-form">
+                <div class="form-grid">
+
+                    <div class="form-group large">
+                        <label for="in-factura-categoria">Categoría <span class="required">*</span></label>
+                        <select id="in-factura-categoria" class="form-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+
+                    <div class="form-group large">
+                        <label for="in-factura-subcategoria">Subcategoría</label>
+                        <select id="in-factura-subcategoria" class="form-select">
+                            <!-- JS populated -->
+                        </select>
+                    </div>
+
+                    <div class="form-group large">
+                        <label for="in-factura-concepto">Concepto <span class="required">*</span></label>
+                        <input type="text" id="in-factura-concepto" class="form-input" placeholder="Ej: Factura Luz Endesa" required>
+                    </div>
+
+                    <div class="form-group large">
+                        <label for="in-factura-importe">Importe total (€) <span class="required">*</span></label>
+                        <div class="input-currency-wrapper">
+                            <input type="number" id="in-factura-importe" step="0.01" min="0.01" class="form-input currency-input" placeholder="0.00" required>
+                            <span class="input-currency-symbol">€</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="in-factura-fecha">Fecha de registro <span class="required">*</span></label>
+                        <input type="date" id="in-factura-fecha" class="form-input" required>
+                    </div>
+
+                    <div class="form-group large">
+                        <label>Modo de reparto <span class="required">*</span></label>
+                        <div class="form-tabs">
+                            <button type="button" class="form-tab-btn active" id="tab-btn-factura-meses" data-modo="meses">Por nº de meses</button>
+                            <button type="button" class="form-tab-btn" id="tab-btn-factura-rango" data-modo="rango">Por rango de fechas</button>
+                        </div>
+                    </div>
+
+                    <!-- Modo: reparto equitativo por número de meses -->
+                    <div class="form-group cond-factura-meses">
+                        <label for="in-factura-num-meses">Nº de meses</label>
+                        <input type="number" id="in-factura-num-meses" class="form-input" min="1" step="1" value="1">
+                    </div>
+                    <div class="form-group cond-factura-meses">
+                        <label for="in-factura-mes-inicio">Mes de inicio</label>
+                        <input type="month" id="in-factura-mes-inicio" class="form-input">
+                    </div>
+
+                    <!-- Modo: reparto proporcional por días en un rango de fechas -->
+                    <div class="form-group cond-factura-rango hidden">
+                        <label for="in-factura-rango-inicio">Fecha inicio del periodo</label>
+                        <input type="date" id="in-factura-rango-inicio" class="form-input">
+                    </div>
+                    <div class="form-group cond-factura-rango hidden">
+                        <label for="in-factura-rango-fin">Fecha fin del periodo</label>
+                        <input type="date" id="in-factura-rango-fin" class="form-input">
+                    </div>
+
+                </div>
+
+                <div id="factura-split-preview" class="factura-split-preview"></div>
+
+                <div class="form-actions" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary btn-large" style="flex: 2 1 200px;">Crear movimientos</button>
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-factura-dividida" style="flex: 1 1 100px; padding: 14px 20px;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- API URL Setup Modal (Shows if no API URL configured) -->
     <div class="modal-backdrop hidden" id="api-modal-setup">
         <div class="modal-card">
@@ -1014,6 +1107,7 @@
     <script src="js/transactions.js"></script>
     <script src="js/accounts.js"></script>
     <script src="js/facturas.js"></script>
+    <script src="js/facturas-split.js"></script>
     <script src="js/event-handlers.js"></script>
     <script src="app.js"></script>
 

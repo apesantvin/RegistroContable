@@ -36,12 +36,18 @@ function renderCuentas() {
     let totalSpentMonth  = 0;
     let grandAccumulated = 0;
 
+    const categoriaAhorroId = 9;
+
     const catData = activeCats.map(cat => {
         const budgetObj = getEffectiveBudget(cat.id, cm, cy);
         const budget    = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
         const spent     = state.index.byYear[cy]?.byMonth[cm]?.byCategoryExpenses[cat.id] || 0;
         const income    = state.index.byYear[cy]?.byMonth[cm]?.byCategoryIncome[cat.id] || 0;
-        const net       = spent - income;
+        // Para Ahorro, el "neto" también recoge las TRANSFERENCIAs de/hacia ella
+        // (p. ej. la automatización de sobrantes), no solo su GASTO/INGRESO directo.
+        const net       = cat.id === categoriaAhorroId
+            ? -(state.index.byYear[cy]?.byMonth[cm]?.ahorroDelta || 0)
+            : spent - income;
         const remaining = budget - net;
 
         // Accumulated: sum of (budget − net) for every past month up to now
@@ -58,7 +64,9 @@ function renderCuentas() {
                     const mBudget    = mBudgetObj ? parseFloat(mBudgetObj.presupuesto) : 0;
                     const mSpent     = state.index.byYear[y]?.byMonth[m]?.byCategoryExpenses[cat.id] || 0;
                     const mIncome    = state.index.byYear[y]?.byMonth[m]?.byCategoryIncome[cat.id] || 0;
-                    const mNet       = mSpent - mIncome;
+                    const mNet       = cat.id === categoriaAhorroId
+                        ? -(state.index.byYear[y]?.byMonth[m]?.ahorroDelta || 0)
+                        : mSpent - mIncome;
                     const mDelta     = mBudget - mNet;
                     if (mBudget > 0 || mNet !== 0) {
                         running += mDelta;

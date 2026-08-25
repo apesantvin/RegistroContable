@@ -283,6 +283,14 @@ function handleDemoWriteAction(action, data) {
         const id = state.movimientos.length + 1;
         state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
         return { success: true, id, message: "Movimiento insertado (Demo)" };
+    } else if (action === 'movimientos_lote') {
+        let nextId = state.movimientos.length + 1;
+        const ids = data.map(item => {
+            const id = nextId++;
+            state.movimientos.push({ id, fecha: item.fecha, fecha_referencia: item.fecha_referencia, tipo: 'GASTO', categoriaId: item.categoriaId || "", subcategoriaId: item.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: item.concepto, importe: item.importe });
+            return id;
+        });
+        return { success: true, ids, message: "Movimientos insertados (Demo)" };
     } else if (action === 'transferencia') {
         const id = state.movimientos.length + 1;
         state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });
@@ -370,6 +378,15 @@ function handleLocalWriteAction(action, data) {
         state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: data.tipo, categoriaId: data.categoriaId || "", subcategoriaId: data.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: data.concepto, importe: data.importe });
         saveLocalCache();
         return { success: true, id, message: "Movimiento guardado localmente" };
+    } else if (action === 'movimientos_lote') {
+        let nextId = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
+        const ids = data.map(item => {
+            const id = nextId++;
+            state.movimientos.push({ id, fecha: item.fecha, fecha_referencia: item.fecha_referencia, tipo: 'GASTO', categoriaId: item.categoriaId || "", subcategoriaId: item.subcategoriaId || "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: item.concepto, importe: item.importe });
+            return id;
+        });
+        saveLocalCache();
+        return { success: true, ids, message: "Movimientos guardados localmente" };
     } else if (action === 'transferencia') {
         const id = state.movimientos.length > 0 ? Math.max(...state.movimientos.map(m => m.id)) + 1 : 1;
         state.movimientos.push({ id, fecha: data.fecha, fecha_referencia: data.fecha_referencia, tipo: "TRANSFERENCIA", categoriaId: "", subcategoriaId: "", categoriaOrigenId: data.categoriaOrigenId, categoriaDestinoId: data.categoriaDestinoId, concepto: data.concepto, importe: data.importe });

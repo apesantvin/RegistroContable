@@ -69,6 +69,19 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                     concepto: data.concepto,
                     importe: Number(data.importe)
                 });
+            } else if (actionName === 'movimientos_lote') {
+                options.method = 'POST';
+                url += '/rest/v1/movimientos';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify(data.map(item => ({
+                    fecha: item.fecha,
+                    fecha_referencia: item.fecha_referencia,
+                    tipo: 'GASTO',
+                    categoriaId: item.categoriaId ? Number(item.categoriaId) : null,
+                    subcategoriaId: item.subcategoriaId ? Number(item.subcategoriaId) : null,
+                    concepto: item.concepto,
+                    importe: Number(item.importe)
+                })));
             } else if (actionName === 'transferencia') {
                 options.method = 'POST';
                 url += '/rest/v1/movimientos';
@@ -206,7 +219,13 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 return { success: true, id: json[0].id };
             }
         }
-        
+
+        if (method === 'POST' && action === 'movimientos_lote') {
+            if (Array.isArray(json)) {
+                return { success: true, ids: json.map(row => row.id), count: json.length };
+            }
+        }
+
         return json;
     } catch (error) {
         if (!isBackground) showToast('Error de conexión con Supabase: ' + error.message, 'error');
