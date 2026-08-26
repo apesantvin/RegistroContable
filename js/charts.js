@@ -13,14 +13,20 @@ function updateDashboardMetrics() {
     const totalAhorro = getAhorroAcumuladoCuentas();
     const totalAhorroAnual = getAhorroAcumuladoAnual(year);
     const totalNeto = state.index.allTime.totalNeto;
-    const totalAhorroReal = getAhorroRealTotal();
 
     DOM.valSaldoDisponible.textContent = formatCurrency(totalNeto);
     DOM.valIngresos.textContent = formatCurrency(totalIngresos);
     DOM.valGastos.textContent = formatCurrency(totalGastos);
     DOM.valAhorro.textContent = formatCurrency(totalAhorro);
     if (DOM.valAhorroAnual) DOM.valAhorroAnual.textContent = `Ahorro ${year}: ${formatCurrency(totalAhorroAnual)}`;
-    if (DOM.valAhorroReal) DOM.valAhorroReal.textContent = formatCurrency(totalAhorroReal);
+}
+
+// En modo Demo/Local, updateDashboardMetrics()/recreateCharts() no refrescan la pantalla de
+// Cuentas (solo Dashboard/Movimientos): sin esto, un GASTO/TRANSFERENCIA/reparto creado
+// mientras se está viendo Cuentas dejaba el saldo real por categoría desactualizado hasta
+// navegar fuera y volver.
+function refreshCuentasIfActive() {
+    if (window.location.hash === '#cuentas') renderCuentas();
 }
 
 function getChartTheme() {
@@ -429,7 +435,7 @@ function buildChartPresupuestoVsReal(year, theme) {
     const selectMonth = DOM.chartPresupuestoMonthSelect;
     const month = selectMonth ? parseInt(selectMonth.value) : (new Date().getMonth() + 1);
 
-    const activeCats = state.categorias.filter(c => c.activa && c.id !== 9);
+    const activeCats = state.categorias.filter(c => c.activa && !CATEGORIAS_ESPECIALES_IDS.includes(c.id));
     const labels = [];
     const presupuestos = [];
     const reales = [];
@@ -532,7 +538,7 @@ function buildChartTopCategorias(theme) {
         const endStr = state.chartFilters.topCategoriasCustom?.end || `${state.selectedYear}-12-31`;
         
         state.movimientos.forEach(m => {
-            if (m.tipo === 'GASTO' && m.categoriaId && m.categoriaId != 9) {
+            if (m.tipo === 'GASTO' && m.categoriaId && !CATEGORIAS_ESPECIALES_IDS.includes(parseInt(m.categoriaId))) {
                 const mDate = m.fecha_referencia || m.fecha;
                 if (mDate >= startStr && mDate <= endStr) {
                     const catId = parseInt(m.categoriaId);
@@ -552,7 +558,7 @@ function buildChartTopCategorias(theme) {
 
     const sorted = [];
     state.categorias.forEach(cat => {
-        if (cat.id !== 9) {
+        if (!CATEGORIAS_ESPECIALES_IDS.includes(cat.id)) {
             const val = expenses[cat.id] || 0;
             if (val > 0) {
                 sorted.push({ id: cat.id, name: `${cat.icono} ${cat.nombre}`, val });

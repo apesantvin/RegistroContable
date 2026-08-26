@@ -266,6 +266,7 @@ async function handleFacturaSplitSubmit(e) {
             recreateCharts();
             applyMovementsFilters();
             renderFacturas();
+            refreshCuentasIfActive();
         }
     }
 }

@@ -99,6 +99,13 @@ function initConfigTabs() {
         });
     }
 
+    if (DOM.recalcYearSelect) {
+        DOM.recalcYearSelect.addEventListener('change', (e) => {
+            state.chartFilters.recalcYear = e.target.value;
+            renderRecalculoPresupuestos();
+        });
+    }
+
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
@@ -515,6 +522,7 @@ function initFormHandlers() {
                 updateDashboardMetrics();
                 recreateCharts();
                 applyMovementsFilters();
+                refreshCuentasIfActive();
             }
         }
     });
@@ -693,48 +701,41 @@ function initFormHandlers() {
             const currentMonth = new Date().getMonth() + 1;
             const maxMonth = (year === currentYear) ? currentMonth : 12;
 
-            const activeCats = state.categorias.filter(c => c.activa && c.id !== 9);
-            if (activeCats.length === 0) {
-                showToast('No hay categorías activas', 'error');
+            // Los importes a transferir se leen de los inputs editables ya renderizados
+            // (uno por categoría con sobrante positivo), no se recalculan aquí (sección 2 del plan).
+            const inputs = DOM.containerSobrantesGestion
+                ? Array.from(DOM.containerSobrantesGestion.querySelectorAll('.input-transfer-amount'))
+                : [];
+
+            if (inputs.length === 0) {
+                showToast('No hay categorías con sobrante para evaluar', 'error');
                 return;
             }
 
-            // Calculate accumulated surplus per category
             const categoriesToTransfer = [];
             let totalSurplus = 0;
 
-            activeCats.forEach(cat => {
-                let accBudget = 0;
-                let accExpenses = 0;
-                for (let m = 1; m <= maxMonth; m++) {
-                    const budgetObj = getEffectiveBudget(cat.id, m, year);
-                    accBudget += budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
-                    accExpenses += state.index.byYear[year]?.byMonth?.[m]?.byCategoryExpenses?.[cat.id] || 0.0;
-                }
+            inputs.forEach(input => {
+                const item = input.closest('.automation-item');
+                const catId = parseInt(item?.getAttribute('data-cat-id'));
+                const cat = state.categorias.find(c => c.id === catId);
+                if (!cat) return;
 
-                const transferredVal = state.movimientos.reduce((sum, mov) => {
-                    if (mov.tipo === 'TRANSFERENCIA' && parseInt(mov.categoriaOrigenId) === cat.id && parseInt(mov.categoriaDestinoId) === 9) {
-                        const refDate = mov.fecha_referencia || mov.fecha;
-                        if (parseInt(refDate.split('-')[0]) === year) {
-                            return sum + (parseFloat(mov.importe) || 0);
-                        }
-                    }
-                    return sum;
-                }, 0);
+                const maxSurplus = parseFloat(input.getAttribute('data-max-surplus')) || 0;
+                let importe = parseFloat(input.value);
+                if (isNaN(importe) || importe <= 0.01) return;
+                importe = Math.min(importe, maxSurplus); // clamp de seguridad
 
-                const surplus = accBudget - accExpenses - transferredVal;
-                if (surplus > 0.01) {
-                    categoriesToTransfer.push({ cat, surplus });
-                    totalSurplus += surplus;
-                }
+                categoriesToTransfer.push({ cat, surplus: importe });
+                totalSurplus += importe;
             });
 
             if (categoriesToTransfer.length === 0) {
-                showToast('No se encontraron saldos sobrantes positivos acumulados para transferir.', 'warning');
+                showToast('No se encontraron importes válidos para transferir.', 'warning');
                 return;
             }
 
-            if (!confirm(`¿Estás seguro de que deseas transferir los saldos sobrantes acumulados de ${categoriesToTransfer.length} categorías (Total: ${formatCurrency(totalSurplus)}) del año ${year} al Ahorro?`)) return;
+            if (!confirm(`¿Estás seguro de que deseas transferir los importes indicados de ${categoriesToTransfer.length} categorías (Total: ${formatCurrency(totalSurplus)}) del año ${year} al Ahorro?`)) return;
 
             setLoading(true);
             let transfersCreated = 0;
@@ -742,7 +743,7 @@ function initFormHandlers() {
             for (const item of categoriesToTransfer) {
                 const res = await apiRequest('transferencia', 'POST', {
                     categoriaOrigenId: item.cat.id,
-                    categoriaDestinoId: 9,
+                    categoriaDestinoId: CATEGORIA_AHORRO_ID,
                     importe: item.surplus,
                     concepto: `Transferencia sobrante acumulado ${item.cat.nombre} (${year})`,
                     fecha: new Date().toISOString().split('T')[0],
@@ -762,9 +763,140 @@ function initFormHandlers() {
                     updateDashboardMetrics();
                     recreateCharts();
                     renderConfigManagement();
+                    refreshCuentasIfActive();
                 }
             } else {
                 showToast('No se pudieron crear las transferencias.', 'error');
+            }
+        });
+    }
+
+    if (DOM.btnEjecutarReparto) {
+        DOM.btnEjecutarReparto.addEventListener('click', async () => {
+            const filterVal = DOM.repartoMesFiltro?.value || '';
+            if (!filterVal) {
+                showToast('Selecciona un mes', 'error');
+                return;
+            }
+            const [year, month] = filterVal.split('-').map(Number);
+
+            const existentes = getRepartoMensualExistente(CATEGORIA_INGRESOS_ID, month, year);
+            if (existentes.length > 0) {
+                if (!confirm(`Ya existen ${existentes.length} transferencia(s) de reparto para este mes. ¿Ejecutar el reparto de todas formas? (podría duplicar movimientos)`)) return;
+            }
+
+            const { totalIngresos, lineas, remanenteAhorro } = computeRepartoMensual(CATEGORIA_INGRESOS_ID, month, year);
+
+            if (totalIngresos <= 0 || lineas.length === 0) {
+                showToast('No hay ingresos en Inputs este mes, o ninguna categoría tiene presupuesto vigente.', 'warning');
+                return;
+            }
+
+            if (remanenteAhorro < -0.01) {
+                if (!confirm(`Los ingresos (${formatCurrency(totalIngresos)}) no cubren el presupuesto total repartido (${formatCurrency(totalIngresos - remanenteAhorro)}). ¿Continuar de todas formas?`)) return;
+            }
+
+            const numTransfers = lineas.length + (remanenteAhorro > 0.01 ? 1 : 0);
+            if (!confirm(`¿Ejecutar el reparto mensual? Se crearán ${numTransfers} transferencias por un total de ${formatCurrency(totalIngresos)}.`)) return;
+
+            setLoading(true);
+            const fechaHoy = new Date().toISOString().split('T')[0];
+            const fechaRef = `${year}-${String(month).padStart(2, '0')}-01`;
+            let created = 0;
+
+            for (const linea of lineas) {
+                const res = await apiRequest('transferencia', 'POST', {
+                    categoriaOrigenId: CATEGORIA_INGRESOS_ID,
+                    categoriaDestinoId: linea.categoriaId,
+                    importe: linea.presupuesto,
+                    concepto: `Reparto mensual ${linea.nombre} (${MESES_ABR[month - 1]} ${year})`,
+                    fecha: fechaHoy,
+                    fecha_referencia: fechaRef
+                });
+                if (res && res.success) created++;
+            }
+
+            if (remanenteAhorro > 0.01) {
+                const res = await apiRequest('transferencia', 'POST', {
+                    categoriaOrigenId: CATEGORIA_INGRESOS_ID,
+                    categoriaDestinoId: CATEGORIA_AHORRO_ID,
+                    importe: remanenteAhorro,
+                    concepto: `Reparto mensual remanente a Ahorro (${MESES_ABR[month - 1]} ${year})`,
+                    fecha: fechaHoy,
+                    fecha_referencia: fechaRef
+                });
+                if (res && res.success) created++;
+            }
+
+            setLoading(false);
+            if (created > 0) {
+                showToast(`Reparto ejecutado: ${created} transferencia(s) creada(s).`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    if (!realtimeChannel) {
+                        await syncData();
+                    }
+                } else {
+                    updateDashboardMetrics();
+                    recreateCharts();
+                    renderConfigManagement();
+                    refreshCuentasIfActive();
+                }
+            } else {
+                showToast('No se pudo ejecutar el reparto.', 'error');
+            }
+        });
+    }
+
+    if (DOM.btnAplicarRecalculo) {
+        DOM.btnAplicarRecalculo.addEventListener('click', async () => {
+            const year = DOM.recalcYearSelect ? (parseInt(DOM.recalcYearSelect.value) || state.selectedYear) : state.selectedYear;
+
+            const rows = DOM.containerRecalculoPresupuestos
+                ? Array.from(DOM.containerRecalculoPresupuestos.querySelectorAll('.recalc-row'))
+                : [];
+
+            const toApply = [];
+            rows.forEach(row => {
+                const checkbox = row.querySelector('.recalc-apply-checkbox');
+                if (!checkbox || !checkbox.checked) return;
+                const catId = parseInt(row.getAttribute('data-cat-id'));
+                const input = row.querySelector('.recalc-proposal-input');
+                const propuesta = parseFloat(input?.value);
+                if (isNaN(propuesta) || propuesta < 0) return;
+                toApply.push({ catId, propuesta });
+            });
+
+            if (toApply.length === 0) {
+                showToast('No hay ninguna fila marcada para aplicar.', 'warning');
+                return;
+            }
+
+            if (!confirm(`¿Aplicar el nuevo presupuesto propuesto a ${toApply.length} categoría(s) como período ${year + 1}?`)) return;
+
+            setLoading(true);
+            let applied = 0;
+            for (const item of toApply) {
+                const res = await apiRequest('presupuesto', 'POST', {
+                    categoriaId: item.catId,
+                    fecha_inicio: `${year + 1}-01-01`,
+                    fecha_fin: `${year + 1}-12-31`,
+                    presupuesto: item.propuesta
+                });
+                if (res && res.success) applied++;
+            }
+
+            setLoading(false);
+            if (applied > 0) {
+                showToast(`Recálculo aplicado: ${applied} categoría(s) actualizada(s).`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    if (!realtimeChannel) {
+                        await syncData();
+                    }
+                } else {
+                    renderConfigManagement();
+                }
+            } else {
+                showToast('No se pudo aplicar el recálculo.', 'error');
             }
         });
     }
@@ -795,7 +927,7 @@ function populateSelectors() {
         DOM.inCatDestino.selectedIndex = 1;
     }
 
-    const filteredParents = activeCats.filter(c => c.id !== 9);
+    const filteredParents = activeCats.filter(c => !CATEGORIAS_ESPECIALES_IDS.includes(c.id));
     DOM.inNewSubParent.innerHTML = filteredParents.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
 
     DOM.inPresupuestoCat.innerHTML = catOptions;
@@ -916,6 +1048,8 @@ function populateChartFiltersDropdowns() {
                 select.value = state.chartFilters.automationYear || currentYear.toString();
             } else if (select.id === 'facturas-year-select') {
                 select.value = state.chartFilters.facturasYear || currentYear.toString();
+            } else if (select.id === 'recalc-year-select') {
+                select.value = state.chartFilters.recalcYear || currentYear.toString();
             } else if (sortedYears.includes(parseInt(prevVal))) {
                 select.value = prevVal;
             } else {

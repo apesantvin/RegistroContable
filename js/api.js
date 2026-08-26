@@ -250,6 +250,8 @@ async function syncMetadata(isBackground = false) {
             return true;
         }
     } catch (err) {
+        console.error('Error cargando metadatos (categorías/subcategorías/presupuestos):', err);
+        if (!isBackground) showToast('Error al cargar metadatos: ' + err.message, 'error');
     }
     return false;
 }
@@ -264,7 +266,11 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             updateDashboardMetrics();
             recreateCharts();
         } else if (cleanId === 'movimientos') {
-            renderMovementsPage();
+            // No basta con renderMovementsPage(): re-pinta state.filteredMovimientos tal cual
+            // quedó la última vez, ignorando cualquier filtro nuevo (p. ej. categoría/mes fijados
+            // al navegar aquí desde una tarjeta de Cuentas o desde un gráfico). Hay que volver a
+            // consultar al servidor con los filtros actuales.
+            await applyMovementsFilters();
         } else if (cleanId === 'cuentas') {
             renderCuentas();
         } else if (cleanId === 'facturas') {
@@ -323,6 +329,8 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             state.loadedScreens.configuracion = true;
         }
     } catch (err) {
+        console.error(`Error cargando pantalla "${cleanId}":`, err);
+        showToast('Error al cargar la pantalla: ' + err.message, 'error');
     }
 }
 

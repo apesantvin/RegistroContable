@@ -313,14 +313,6 @@
                                 <span class="card-meta" id="val-ahorro-anual">Ahorro anual: 0.00 €</span>
                             </div>
                         </div>
-                        <div class="metric-card ahorro">
-                            <div class="card-icon">🏦</div>
-                            <div class="card-info">
-                                <span class="card-label">Ahorro Real</span>
-                                <h3 class="card-value" id="val-ahorro-real">0.00 €</h3>
-                                <span class="card-meta">Saldo disponible menos lo ya comprometido en presupuestos</span>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Charts Grid -->
@@ -694,6 +686,9 @@
                         <button type="button" class="config-nav-btn" data-tab="config-actions">
                             <span class="tab-icon">⚡</span> Acciones Automatizadas
                         </button>
+                        <button type="button" class="config-nav-btn" data-tab="config-recalc">
+                            <span class="tab-icon">🧮</span> Recálculo Anual
+                        </button>
                     </div>
 
                     <!-- Panel 1: BASE DE DATOS -->
@@ -846,10 +841,30 @@
                     <!-- Panel 4: ACCIONES AUTOMATIZADAS -->
                     <div class="config-section-panel" id="config-actions">
                         <div class="config-grid">
+                            <!-- Reparto Mensual (Inputs -> categorías -> Ahorro) -->
+                            <div class="card" style="grid-column: span 2;">
+                                <h3 class="card-subtitle">Reparto Mensual de Ingresos</h3>
+                                <p class="card-description">Reparte el ingreso registrado en la categoría "Inputs" ese mes entre las demás categorías según su presupuesto vigente, y envía el remanente a Ahorro (💰).</p>
+
+                                <div class="automation-controls" style="display: flex; gap: 16px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
+                                    <div class="form-group" style="margin: 0; min-width: 160px;">
+                                        <label for="reparto-mes-filtro" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block;">Mes a Repartir</label>
+                                        <input type="month" id="reparto-mes-filtro" class="form-input" style="width: 100%;">
+                                    </div>
+                                    <button type="button" class="btn btn-primary" id="btn-ejecutar-reparto">
+                                        💸 Ejecutar reparto
+                                    </button>
+                                </div>
+
+                                <div id="container-reparto-preview">
+                                    <!-- Poblado dinámicamente por JS -->
+                                </div>
+                            </div>
+
                             <!-- Transferencia de Saldos Sobrantes -->
                             <div class="card" style="grid-column: span 2;">
                                 <h3 class="card-subtitle">Transferencia de Saldos Sobrantes</h3>
-                                <p class="card-description">Consulta el sobrante acumulado (Presupuesto - Gastado - Ya Transferido) desde enero hasta el mes actual de cada categoría y transfiérelo a la cuenta de Ahorro (💰) con un solo clic o de manera masiva.</p>
+                                <p class="card-description">Consulta el sobrante acumulado (saldo real: ingresos - gastos + transferencias) desde enero hasta el mes actual de cada categoría y transfiérelo a la cuenta de Ahorro (💰) con un solo clic o de manera masiva. El importe es editable antes de transferir.</p>
 
                                 <div class="automation-controls" style="display: flex; gap: 16px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
                                     <div class="form-group" style="margin: 0; min-width: 140px;">
@@ -864,6 +879,36 @@
                                 </div>
 
                                 <div id="container-sobrantes-gestion">
+                                    <!-- Poblado dinámicamente por JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 5: RECÁLCULO ANUAL -->
+                    <div class="config-section-panel" id="config-recalc">
+                        <div class="config-grid">
+                            <div class="card" style="grid-column: span 2;">
+                                <h3 class="card-subtitle">Recálculo Anual de Presupuestos</h3>
+                                <p class="card-description">Compara el presupuesto mensual actual de cada categoría con el gasto real del año, y propone un nuevo presupuesto mensual (gasto real ÷ 12 + margen de seguridad) como nuevo período para el año siguiente. Las filas con mucha diferencia respecto al presupuesto actual quedan marcadas para revisarlas con más detenimiento.</p>
+
+                                <div class="automation-controls" style="display: flex; gap: 16px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
+                                    <div class="form-group" style="margin: 0; min-width: 140px;">
+                                        <label for="recalc-year-select" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block;">Año a Evaluar</label>
+                                        <select id="recalc-year-select" class="form-select chart-year-dropdown" style="width: 100%;">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0; min-width: 120px;">
+                                        <label for="recalc-margin-input" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block;">Margen de seguridad (%)</label>
+                                        <input type="number" id="recalc-margin-input" class="form-input" value="10" min="0" max="200" step="1" style="width: 100%;">
+                                    </div>
+                                    <button type="button" class="btn btn-primary" id="btn-aplicar-recalculo">
+                                        🧮 Aplicar recálculo seleccionado
+                                    </button>
+                                </div>
+
+                                <div id="container-recalculo-presupuestos">
                                     <!-- Poblado dinámicamente por JS -->
                                 </div>
                             </div>

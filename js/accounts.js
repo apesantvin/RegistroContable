@@ -36,21 +36,23 @@ function renderCuentas() {
     let totalSpentMonth  = 0;
     let grandAccumulated = 0;
 
-    const categoriaAhorroId = 9;
-
     const catData = activeCats.map(cat => {
         const budgetObj = getEffectiveBudget(cat.id, cm, cy);
         const budget    = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
         const spent     = state.index.byYear[cy]?.byMonth[cm]?.byCategoryExpenses[cat.id] || 0;
-        const income    = state.index.byYear[cy]?.byMonth[cm]?.byCategoryIncome[cat.id] || 0;
-        // Para Ahorro, el "neto" también recoge las TRANSFERENCIAs de/hacia ella
-        // (p. ej. la automatización de sobrantes), no solo su GASTO/INGRESO directo.
-        const net       = cat.id === categoriaAhorroId
-            ? -(state.index.byYear[cy]?.byMonth[cm]?.ahorroDelta || 0)
-            : spent - income;
-        const remaining = budget - net;
+        // "Neto" del mes actual = dinero gastado neto de esta categoría (signo invertido del
+        // flujo de caja real, que es positivo cuando entra dinero) — se conserva solo para el
+        // resumen superior (presupuesto/gastado totales), no para la barra de la tarjeta.
+        const net       = -getCategoryNetCashFlow(cat.id, cm, cy);
+        // Recibido este mes = ingresos + transferencias entrantes (cualquier origen). La barra
+        // de la tarjeta compara esto contra lo gastado, en vez de contra el presupuesto.
+        const monthIncome     = state.index.byYear[cy]?.byMonth[cm]?.byCategoryIncome?.[cat.id] || 0;
+        const monthTransferIn = state.index.byYear[cy]?.byMonth[cm]?.byCategoryTransferIn?.[cat.id] || 0;
+        const received  = monthIncome + monthTransferIn;
+        const remaining = received - spent;
 
-        // Accumulated: sum of (budget − net) for every past month up to now
+        // Accumulated: saldo real acumulado (suma corriente del flujo de caja real mes a mes),
+        // ya no una simulación basada en presupuesto (ver plan "0.5. Saldo real por categoría").
         let accumulated = 0;
         const monthlyBreakdown = [];
         let running = 0;
@@ -62,16 +64,12 @@ function renderCuentas() {
                 for (let m = 1; m <= maxM; m++) {
                     const mBudgetObj = getEffectiveBudget(cat.id, m, y);
                     const mBudget    = mBudgetObj ? parseFloat(mBudgetObj.presupuesto) : 0;
-                    const mSpent     = state.index.byYear[y]?.byMonth[m]?.byCategoryExpenses[cat.id] || 0;
-                    const mIncome    = state.index.byYear[y]?.byMonth[m]?.byCategoryIncome[cat.id] || 0;
-                    const mNet       = cat.id === categoriaAhorroId
-                        ? -(state.index.byYear[y]?.byMonth[m]?.ahorroDelta || 0)
-                        : mSpent - mIncome;
-                    const mDelta     = mBudget - mNet;
-                    if (mBudget > 0 || mNet !== 0) {
-                        running += mDelta;
-                        accumulated += mDelta;
-                        monthlyBreakdown.push({ y, m, mBudget, mNet, mDelta, running });
+                    const mIncome    = state.index.byYear[y]?.byMonth?.[m]?.byCategoryTransferFromInputs?.[cat.id] || 0;
+                    const mDelta     = getCategoryNetCashFlow(cat.id, m, y);
+                    running += mDelta;
+                    accumulated += mDelta;
+                    if (mBudget > 0 || mDelta !== 0) {
+                        monthlyBreakdown.push({ y, m, mBudget, mIncome, mDelta, running });
                     }
                 }
             });
@@ -82,7 +80,7 @@ function renderCuentas() {
         }
         grandAccumulated += accumulated;
 
-        return { cat, budget, spent, remaining, accumulated, monthlyBreakdown };
+        return { cat, budget, spent, net, received, remaining, accumulated, monthlyBreakdown };
     }).filter(d => d.budget > 0 || d.spent > 0 || d.accumulated !== 0);
 
     const totalRemaining = totalBudgetMonth - totalSpentMonth;
@@ -124,24 +122,24 @@ function renderCuentas() {
             </div>
         </div>`;
 
-    const cardsHtml = catData.map(({ cat, budget, spent, remaining, accumulated, monthlyBreakdown }) => {
-        const pct      = budget > 0 ? Math.max(0, Math.min(100, (remaining / budget) * 100)) : 0;
+    const cardsHtml = catData.map(({ cat, budget, spent, net, received, remaining, accumulated, monthlyBreakdown }) => {
+        const pct      = received > 0 ? Math.max(0, Math.min(100, (remaining / received) * 100)) : 0;
         const isOver   = remaining < 0;
-        const colorCls = cuentasBarColor(remaining, budget);
+        const colorCls = cuentasBarColor(remaining, received);
         const accSign  = accumulated >= 0 ? '+' : '';
 
         const isFacturaCat     = FACTURAS_CATEGORIA_IDS.includes(cat.id);
         const isFacturaPending = isFacturaCat
             && getFacturaYearData(cat.id, cy)[cm - 1].status !== 'completo';
 
-        const breakdownRows = [...monthlyBreakdown].reverse().map(({ y, m, mBudget, mNet, mDelta, running }) => {
+        const breakdownRows = [...monthlyBreakdown].reverse().map(({ y, m, mBudget, mIncome, mDelta, running }) => {
             const dSign = mDelta >= 0 ? '+' : '';
             const rSign = running >= 0 ? '+' : '';
             return `
                 <div class="acc-breakdown-row">
                     <span class="acc-month">${MONTH_NAMES[m - 1]} ${y}</span>
                     <span class="acc-col text-muted">${formatCurrency(mBudget)}</span>
-                    <span class="acc-col text-muted">${formatCurrency(mNet)}</span>
+                    <span class="acc-col acc-col--faint">${formatCurrency(mIncome)}</span>
                     <span class="acc-col acc-delta ${mDelta >= 0 ? 'cnt-success' : 'cnt-danger'}">${dSign}${formatCurrency(mDelta)}</span>
                     <span class="acc-col acc-running ${running >= 0 ? 'cnt-success' : 'cnt-danger'}">${rSign}${formatCurrency(running)}</span>
                 </div>`;
@@ -167,13 +165,23 @@ function renderCuentas() {
                     <div class="cnt-bar-fill cnt-bar-fill--${colorCls}" style="width:${pct.toFixed(1)}%"></div>
                 </div>
                 <div class="cuenta-bar-row">
+                    <span class="cnt-danger">
+                        ${formatCurrency(spent)}
+                        <small class="text-muted">gastado</small>
+                    </span>
                     <span class="${isOver ? 'cnt-danger' : 'cnt-strong'}">
                         ${isOver ? '−' : ''}${formatCurrency(Math.abs(remaining))}
-                        <small class="text-muted">${isOver ? 'excedido' : 'restantes'}</small>
+                        <small class="text-muted">/ ${formatCurrency(received)} ${isOver ? 'excedido' : 'restante'}</small>
                     </span>
-                    <span class="text-muted">/ ${formatCurrency(budget)}</span>
                 </div>
-                ` : `<p class="cuenta-no-budget">Sin presupuesto este mes</p>`}
+                ` : (Math.abs(net) > 0.01 ? `
+                <div class="cuenta-bar-row">
+                    <span class="${net > 0 ? 'cnt-danger' : 'cnt-success'}">
+                        ${net > 0 ? '−' : '+'}${formatCurrency(Math.abs(net))}
+                        <small class="text-muted">este mes (sin presupuesto)</small>
+                    </span>
+                </div>
+                ` : `<p class="cuenta-no-budget">Sin presupuesto este mes</p>`)}
 
                 <div class="cuenta-acumulado-wrapper" data-acc-id="${cat.id}">
                     <div class="cuenta-acumulado cuenta-acumulado--toggle">
@@ -187,8 +195,8 @@ function renderCuentas() {
                         <div class="acc-breakdown-header">
                             <span>Mes</span>
                             <span>Presup.</span>
-                            <span>Neto</span>
-                            <span>Δ mes</span>
+                            <span>Ingresado</span>
+                            <span>Flujo real</span>
                             <span>Acumulado</span>
                         </div>
                         ${breakdownRows}
@@ -250,7 +258,9 @@ document.getElementById('screen-cuentas')
         DOM.filterCategory.value = catId;
         updateFilterSubcategoryOptions();
         DOM.filterSubcategory.value = 'Todas';
-        DOM.filterType.value = 'GASTO';
+        // 'Todos' y no 'GASTO': el saldo real de la categoría también depende de
+        // INGRESO/TRANSFERENCIA (reparto mensual, cierre de año), no solo de sus GASTOs.
+        DOM.filterType.value = 'Todos';
         DOM.filterMesRef.value = mesVal;
         DOM.filterFechaDesde.value = '';
         DOM.filterFechaHasta.value = '';

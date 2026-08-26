@@ -177,7 +177,7 @@ async function renderConfigManagement() {
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
         const maxMonth = (autoYear === currentYear) ? currentMonth : 12;
-        const activeCatsToEvaluate = state.categorias.filter(c => c.activa && c.id !== 9);
+        const activeCatsToEvaluate = state.categorias.filter(c => c.activa && !CATEGORIAS_ESPECIALES_IDS.includes(c.id));
 
         let sobrantesHtml = '<div class="mgmt-list">';
         let hasPositiveSurplus = false;
@@ -186,27 +186,19 @@ async function renderConfigManagement() {
             sobrantesHtml += '<div class="card-description" style="text-align: center;">No hay categorías activas para evaluar.</div>';
         } else {
             activeCatsToEvaluate.forEach(cat => {
-                // Accumulate budget and expenses from January to maxMonth
+                // Presupuesto acumulado del año (informativo) y saldo real acumulado (sección 0.5):
+                // getCategoryNetCashFlow ya incluye ingresos, gastos y transferencias (salidas
+                // previas ya la reducen, así que no hace falta restar "lo ya transferido" aparte).
                 let accBudget = 0;
                 let accExpenses = 0;
+                let surplus = 0;
                 for (let m = 1; m <= maxMonth; m++) {
                     const budgetObj = getEffectiveBudget(cat.id, m, autoYear);
                     accBudget += budgetObj ? parseFloat(budgetObj.presupuesto) : 0.0;
                     accExpenses += state.index.byYear[autoYear]?.byMonth?.[m]?.byCategoryExpenses?.[cat.id] || 0.0;
+                    surplus += getCategoryNetCashFlow(cat.id, m, autoYear);
                 }
 
-                // All transfers from this category to Ahorro (9) in the target year
-                const transferredVal = state.movimientos.reduce((sum, mov) => {
-                    if (mov.tipo === 'TRANSFERENCIA' && parseInt(mov.categoriaOrigenId) === cat.id && parseInt(mov.categoriaDestinoId) === 9) {
-                        const refDate = mov.fecha_referencia || mov.fecha;
-                        if (parseInt(refDate.split('-')[0]) === autoYear) {
-                            return sum + (parseFloat(mov.importe) || 0);
-                        }
-                    }
-                    return sum;
-                }, 0);
-
-                const surplus = accBudget - accExpenses - transferredVal;
                 const isPositive = surplus > 0.01;
                 if (isPositive) hasPositiveSurplus = true;
 
@@ -222,7 +214,8 @@ async function renderConfigManagement() {
                                     ${isPositive ? '+' : ''}${formatCurrency(surplus)}
                                 </span>
                                 ${isPositive ? `
-                                    <button type="button" class="btn btn-secondary btn-sm btn-transfer-single" data-surplus="${surplus}" style="padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;">💸 Transferir</button>
+                                    <input type="number" step="0.01" min="0" max="${surplus.toFixed(2)}" class="form-input input-transfer-amount" data-cat-id="${cat.id}" data-max-surplus="${surplus}" value="${surplus.toFixed(2)}" style="width: 100px; padding: 6px 8px; font-size: 12px;">
+                                    <button type="button" class="btn btn-secondary btn-sm btn-transfer-single" style="padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;">💸 Transferir</button>
                                 ` : `
                                     <span style="font-size: 11px; color: var(--text-muted); font-style: italic;">Sin sobrante</span>
                                 `}
@@ -231,7 +224,6 @@ async function renderConfigManagement() {
                         <div class="automation-details">
                             <span>📋 Presupuesto acumulado: <strong>${formatCurrency(accBudget)}</strong></span>
                             <span>📉 Gastado acumulado: <strong>${formatCurrency(accExpenses)}</strong></span>
-                            ${transferredVal > 0 ? `<span>💰 Ya transferido: <strong>${formatCurrency(transferredVal)}</strong></span>` : ''}
                         </div>
                     </div>
                 `;
@@ -260,18 +252,24 @@ async function renderConfigManagement() {
                 const item = e.target.closest('.automation-item');
                 const catId = parseInt(item.getAttribute('data-cat-id'));
                 const cat = state.categorias.find(c => c.id === catId);
-                const surplusVal = parseFloat(e.target.getAttribute('data-surplus'));
+                const input = item.querySelector('.input-transfer-amount');
+                const maxSurplus = parseFloat(input?.getAttribute('data-max-surplus')) || 0;
+                const surplusVal = parseFloat(input?.value);
 
                 if (!cat) return;
+                if (isNaN(surplusVal) || surplusVal <= 0 || surplusVal > maxSurplus + 0.01) {
+                    showToast('Introduce un importe válido (mayor que 0 y no superior al sobrante).', 'error');
+                    return;
+                }
 
-                if (!confirm(`¿Estás seguro de que deseas transferir el saldo sobrante acumulado de ${formatCurrency(surplusVal)} de "${cat.nombre}" a la categoría de Ahorro?`)) {
+                if (!confirm(`¿Estás seguro de que deseas transferir ${formatCurrency(surplusVal)} de "${cat.nombre}" a la categoría de Ahorro?`)) {
                     return;
                 }
 
                 setLoading(true);
                 const res = await apiRequest('transferencia', 'POST', {
                     categoriaOrigenId: catId,
-                    categoriaDestinoId: 9,
+                    categoriaDestinoId: CATEGORIA_AHORRO_ID,
                     importe: surplusVal,
                     concepto: `Transferencia sobrante acumulado ${cat.nombre} (${autoYear})`,
                     fecha: new Date().toISOString().split('T')[0],
@@ -289,6 +287,7 @@ async function renderConfigManagement() {
                         updateDashboardMetrics();
                         recreateCharts();
                         renderConfigManagement();
+                        refreshCuentasIfActive();
                     }
                 } else {
                     showToast('Ocurrió un error al realizar la transferencia.', 'error');
@@ -296,6 +295,12 @@ async function renderConfigManagement() {
             });
         });
     }
+
+    // 4. Reparto mensual preview
+    renderRepartoPreview();
+
+    // 5. Recálculo anual de presupuestos
+    renderRecalculoPresupuestos();
 
     // Attach Event Listeners to Category management buttons
     DOM.containerCategoriasGestion.querySelectorAll('.btn-edit-cat').forEach(btn => {
@@ -530,4 +535,121 @@ async function renderConfigManagement() {
             }
         });
     });
+}
+
+// Vista previa del reparto mensual (Inputs -> categorías -> Ahorro) para el mes seleccionado
+// en #reparto-mes-filtro. Solo lectura: la ejecución real la hace el handler de
+// #btn-ejecutar-reparto (js/event-handlers.js), que reutiliza estos mismos cálculos.
+function renderRepartoPreview() {
+    if (!DOM.containerRepartoPreview) return;
+
+    if (DOM.repartoMesFiltro && !DOM.repartoMesFiltro.value) {
+        const now = new Date();
+        DOM.repartoMesFiltro.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    const filterVal = DOM.repartoMesFiltro?.value || '';
+    if (!filterVal) {
+        DOM.containerRepartoPreview.innerHTML = '<div class="card-description">Selecciona un mes para ver la vista previa del reparto.</div>';
+        return;
+    }
+
+    const [year, month] = filterVal.split('-').map(Number);
+    const existentes = getRepartoMensualExistente(CATEGORIA_INGRESOS_ID, month, year);
+    const { totalIngresos, lineas, totalPresupuestado, remanenteAhorro } = computeRepartoMensual(CATEGORIA_INGRESOS_ID, month, year);
+
+    const lineasHtml = lineas.map(l => `
+        <div class="automation-details" style="display: flex; justify-content: space-between;">
+            <span>${l.nombre}</span>
+            <span><strong>${formatCurrency(l.presupuesto)}</strong></span>
+        </div>`).join('');
+
+    DOM.containerRepartoPreview.innerHTML = `
+        ${existentes.length > 0 ? `<div class="card-description" style="color: var(--warning);">⚠️ Ya existe${existentes.length > 1 ? 'n' : ''} ${existentes.length} transferencia(s) de reparto para este mes. Ejecutarlo de nuevo podría duplicarlas.</div>` : ''}
+        <div class="automation-details" style="display: flex; justify-content: space-between; font-weight: 600;">
+            <span>💰 Ingresos en Inputs este mes</span>
+            <span>${formatCurrency(totalIngresos)}</span>
+        </div>
+        ${lineasHtml || '<div class="card-description" style="margin: 4px 0; font-style: italic;">No hay categorías con presupuesto vigente ese mes.</div>'}
+        <div class="automation-details" style="display: flex; justify-content: space-between; font-weight: 600; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 6px;">
+            <span>Total repartido</span>
+            <span>${formatCurrency(totalPresupuestado)}</span>
+        </div>
+        <div class="automation-details" style="display: flex; justify-content: space-between; font-weight: 700;">
+            <span>Remanente a Ahorro</span>
+            <span class="${remanenteAhorro >= 0 ? 'cnt-success' : 'cnt-danger'}">${formatCurrency(remanenteAhorro)}</span>
+        </div>`;
+}
+
+// Escuchar el <input type="month"> del reparto una sola vez (fuera de renderConfigManagement,
+// que se llama en cada refresco de la pestaña Configuración) para no duplicar listeners.
+document.getElementById('reparto-mes-filtro')
+    ?.addEventListener('change', renderRepartoPreview);
+
+// Escuchar el input de margen de seguridad una sola vez, igual que reparto-mes-filtro.
+document.getElementById('recalc-margin-input')
+    ?.addEventListener('input', (e) => {
+        state.chartFilters.recalcMarginPct = e.target.value;
+        renderRecalculoPresupuestos();
+    });
+
+// Tabla de recálculo anual de presupuestos: presupuesto mensual actual vs gasto real del año,
+// con una propuesta editable (gasto real / 12 + margen de seguridad) por categoría, marcando
+// visualmente las filas con mucha diferencia respecto al presupuesto actual, y un checkbox
+// para aplicarla.
+function renderRecalculoPresupuestos() {
+    if (!DOM.containerRecalculoPresupuestos) return;
+
+    const year = DOM.recalcYearSelect ? (parseInt(DOM.recalcYearSelect.value) || state.selectedYear) : state.selectedYear;
+    const activeCats = state.categorias.filter(c => c.activa && !CATEGORIAS_ESPECIALES_IDS.includes(c.id));
+
+    if (activeCats.length === 0) {
+        DOM.containerRecalculoPresupuestos.innerHTML = '<div class="card-description" style="text-align: center;">No hay categorías activas para evaluar.</div>';
+        return;
+    }
+
+    // Diferencia relativa entre la propuesta y el presupuesto mensual actual a partir de la
+    // cual se marca la fila para revisión manual (además de un presupuesto actual en 0 con
+    // gasto real, que siempre se marca por ser una categoría sin presupuestar hasta ahora).
+    const REVIEW_THRESHOLD_PCT = 0.20;
+
+    const marginPct = DOM.recalcMarginInput ? (parseFloat(DOM.recalcMarginInput.value) || 0) : parseFloat(state.chartFilters.recalcMarginPct) || 0;
+
+    const gridCols = '1.5fr 110px 100px 100px 130px 70px';
+    const header = `
+        <div class="factura-month-header" style="grid-template-columns: ${gridCols};">
+            <span>Categoría</span>
+            <span>Presup. mensual actual</span>
+            <span>Gasto real anual</span>
+            <span>Diferencia anual</span>
+            <span>Propuesta/mes (+${marginPct}%)</span>
+            <span>Aplicar</span>
+        </div>`;
+
+    const rows = activeCats.map(cat => {
+        const annualBudget = getAnnualBudgetByCategory(cat.id, year);
+        const annualExpense = getAnnualExpenseByCategory(cat.id, year);
+        const diff = annualExpense - annualBudget;
+        const currentMonthlyBudget = Math.round((annualBudget / 12) * 100) / 100;
+        const baseProposal = annualExpense / 12;
+        const proposal = Math.round((baseProposal * (1 + marginPct / 100)) * 100) / 100;
+
+        const diffRatio = currentMonthlyBudget > 0.01
+            ? Math.abs(proposal - currentMonthlyBudget) / currentMonthlyBudget
+            : (proposal > 0.01 ? 1 : 0);
+        const needsReview = diffRatio > REVIEW_THRESHOLD_PCT;
+        const shouldCheck = Math.abs(proposal - currentMonthlyBudget) > 0.01;
+
+        return `
+            <div class="factura-month-row recalc-row ${needsReview ? 'recalc-row--review' : ''}" data-cat-id="${cat.id}" style="grid-template-columns: ${gridCols}; cursor: default;">
+                <span class="factura-month-name">${cat.icono || ''} ${cat.nombre}${needsReview ? ' <span class="recalc-review-badge" title="Diferencia grande respecto al presupuesto actual: revisar">⚠️ Revisar</span>' : ''}</span>
+                <span class="factura-month-amount">${formatCurrency(currentMonthlyBudget)}</span>
+                <span class="factura-month-amount">${formatCurrency(annualExpense)}</span>
+                <span class="factura-month-amount ${diff >= 0 ? 'cnt-danger' : 'cnt-success'}">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</span>
+                <span><input type="number" step="0.01" min="0" class="form-input recalc-proposal-input" value="${proposal.toFixed(2)}" style="width: 100%; padding: 4px 6px; font-size: 12px;"></span>
+                <span style="text-align: center;"><input type="checkbox" class="recalc-apply-checkbox" ${shouldCheck ? 'checked' : ''}></span>
+            </div>`;
+    }).join('');
+
+    DOM.containerRecalculoPresupuestos.innerHTML = `<div class="factura-month-list">${header}${rows}</div>`;
 }

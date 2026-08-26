@@ -2868,7 +2868,7 @@ body:not(.dark-mode) .automation-item:hover {
 .acc-breakdown-header,
 .acc-breakdown-row {
     display: grid;
-    grid-template-columns: 1fr repeat(4, 72px);
+    grid-template-columns: 1fr repeat(4, 80px);
     align-items: center;
     gap: 4px;
     font-size: 11px;
@@ -2894,6 +2894,11 @@ body:not(.dark-mode) .automation-item:hover {
 .acc-month {
     text-align: left;
     color: var(--text-secondary);
+}
+
+.acc-col--faint {
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 .acc-breakdown-row:hover {
@@ -3073,6 +3078,26 @@ body:not(.dark-mode) .automation-item:hover {
     color: var(--text-muted);
     text-align: center;
     padding: 6px 0;
+}
+
+.recalc-row--review {
+    border-left: 3px solid var(--warning);
+    background: rgba(245, 158, 11, 0.06);
+    border-radius: 4px;
+}
+
+.recalc-review-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+    vertical-align: middle;
 }
 
 .factura-view-toggle {

@@ -455,6 +455,7 @@ async function deleteMovimiento(id) {
             updateDashboardMetrics();
             recreateCharts();
             applyMovementsFilters();
+            refreshCuentasIfActive();
         }
         return true;
     }

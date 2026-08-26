@@ -1,4 +1,3 @@
-
 # Cambios en Supabase — Sobres presupuestarios + facturaId
 
 Extraído de `woolly-foraging-ember.md` (plan guardado en `~/.claude/plans/`). Este documento contiene **únicamente** los cambios a ejecutar manualmente en el proyecto Supabase real — nada de código de la app.

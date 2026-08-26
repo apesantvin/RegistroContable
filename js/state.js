@@ -2,8 +2,12 @@
    Registro Contable - State & Data Indexing Module
    ========================================================================== */
 
-// Orden visual de categorías: [6=Compra, 7=Restaurantes, 3=Internet, 8=Otras Compras, 5=Luz, 4=Gas, 1=Agua, 2=Basuras, 9=Ahorro]
-const CATEGORIAS_ORDER = [6, 7, 3, 8, 5, 4, 1, 2, 9];
+const CATEGORIA_AHORRO_ID = 9;
+const CATEGORIA_INGRESOS_ID = 10; // "Inputs"
+const CATEGORIAS_ESPECIALES_IDS = [CATEGORIA_AHORRO_ID, CATEGORIA_INGRESOS_ID];
+
+// Orden visual de categorías: [6=Compra, 7=Restaurantes, 3=Internet, 8=Otras Compras, 5=Luz, 4=Gas, 1=Agua, 2=Basuras, 10=Inputs, 9=Ahorro]
+const CATEGORIAS_ORDER = [6, 7, 3, 8, 5, 4, 1, 2, 10, 9];
 
 // Categorías consideradas "facturas" (Luz, Gas, Agua, Basuras, Internet), en el orden en que se muestran en la pestaña Facturas
 const FACTURAS_CATEGORIA_IDS = [5, 4, 1, 2, 3];
@@ -72,7 +76,9 @@ const state = {
         gastoMensual: new Date().getFullYear().toString(),
         automationYear: new Date().getFullYear().toString(),
         facturasYear: new Date().getFullYear().toString(),
-        facturasViewMode: {} // { [categoriaId]: 'table' | 'chart' }
+        facturasViewMode: {}, // { [categoriaId]: 'table' | 'chart' }
+        recalcYear: new Date().getFullYear().toString(),
+        recalcMarginPct: '10'
     }
 };
 
@@ -117,8 +123,7 @@ const DOM = {
     valGastos: document.getElementById('val-gastos'),
     valAhorro: document.getElementById('val-ahorro'),
     valAhorroAnual: document.getElementById('val-ahorro-anual'),
-    valAhorroReal: document.getElementById('val-ahorro-real'),
-    
+
     // Movements screen
     filterSearch: document.getElementById('filter-search'),
     btnToggleFilters: document.getElementById('btn-toggle-filters'),
@@ -195,6 +200,17 @@ const DOM = {
     containerSobrantesGestion: document.getElementById('container-sobrantes-gestion'),
     chartPresupuestoMonthSelect: document.getElementById('chart-presupuesto-month-select'),
 
+    // Reparto mensual (Inputs -> categorías -> Ahorro)
+    repartoMesFiltro: document.getElementById('reparto-mes-filtro'),
+    containerRepartoPreview: document.getElementById('container-reparto-preview'),
+    btnEjecutarReparto: document.getElementById('btn-ejecutar-reparto'),
+
+    // Recálculo anual de presupuestos
+    recalcYearSelect: document.getElementById('recalc-year-select'),
+    recalcMarginInput: document.getElementById('recalc-margin-input'),
+    containerRecalculoPresupuestos: document.getElementById('container-recalculo-presupuestos'),
+    btnAplicarRecalculo: document.getElementById('btn-aplicar-recalculo'),
+
     // Facturas screen
     facturasYearSelect: document.getElementById('facturas-year-select'),
     facturasContainer: document.getElementById('facturas-container'),
@@ -262,6 +278,9 @@ function rebuildIndex(allTimeMovs = null) {
                 byMonth: {},
                 byCategoryExpenses: {},
                 byCategoryIncome: {},
+                byCategoryTransferNet: {},
+                byCategoryTransferFromInputs: {},
+                byCategoryTransferIn: {},
                 bySubcategoryExpenses: {}
             };
             for (let m = 1; m <= 12; m++) {
@@ -271,6 +290,9 @@ function rebuildIndex(allTimeMovs = null) {
                     ahorroDelta: 0,
                     byCategoryExpenses: {},
                     byCategoryIncome: {},
+                    byCategoryTransferNet: {},
+                    byCategoryTransferFromInputs: {},
+                    byCategoryTransferIn: {},
                     bySubcategoryExpenses: {}
                 };
             }
@@ -348,6 +370,23 @@ function rebuildIndex(allTimeMovs = null) {
                     yearData.bySubcategoryExpenses[subId] = (yearData.bySubcategoryExpenses[subId] || 0) + val;
                     monthData.bySubcategoryExpenses[subId] = (monthData.bySubcategoryExpenses[subId] || 0) + val;
                 }
+            } else if (m.tipo === 'TRANSFERENCIA') {
+                const origId = parseInt(m.categoriaOrigenId);
+                const destId = parseInt(m.categoriaDestinoId);
+                if (!isNaN(origId)) {
+                    yearData.byCategoryTransferNet[origId] = (yearData.byCategoryTransferNet[origId] || 0) - val;
+                    monthData.byCategoryTransferNet[origId] = (monthData.byCategoryTransferNet[origId] || 0) - val;
+                }
+                if (!isNaN(destId)) {
+                    yearData.byCategoryTransferNet[destId] = (yearData.byCategoryTransferNet[destId] || 0) + val;
+                    monthData.byCategoryTransferNet[destId] = (monthData.byCategoryTransferNet[destId] || 0) + val;
+                    yearData.byCategoryTransferIn[destId] = (yearData.byCategoryTransferIn[destId] || 0) + val;
+                    monthData.byCategoryTransferIn[destId] = (monthData.byCategoryTransferIn[destId] || 0) + val;
+                }
+                if (!isNaN(destId) && origId === CATEGORIA_INGRESOS_ID) {
+                    yearData.byCategoryTransferFromInputs[destId] = (yearData.byCategoryTransferFromInputs[destId] || 0) + val;
+                    monthData.byCategoryTransferFromInputs[destId] = (monthData.byCategoryTransferFromInputs[destId] || 0) + val;
+                }
             }
 
             // Ahorro delta
@@ -369,15 +408,15 @@ function rebuildIndex(allTimeMovs = null) {
         }
     });
 
-    // Ahorro por mes: delta real (ingresos/gastos/transferencias) + presupuesto de ese mes,
-    // cada mes de forma independiente (no es una suma corriendo con los demás meses).
+    // Ahorro por mes: delta real (ingresos/gastos/transferencias hacia/desde Ahorro) de ese mes,
+    // cada mes de forma independiente (no es una suma corriendo con los demás meses). Ya no se
+    // suma el presupuesto como depósito virtual: el ahorro fijo mensual entra como transferencia
+    // real vía el remanente del reparto mensual (ver getRepartoMensualExistente/computeRepartoMensual).
     const sortedYears = Object.keys(state.index.byYear).map(Number).sort((a, b) => a - b);
     sortedYears.forEach(y => {
         state.index.byYear[y].ahorroAcumulado = new Array(12).fill(0);
         for (let m = 1; m <= 12; m++) {
-            const budgetObj = getEffectiveBudget(9, m, y);
-            const budgetVal = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
-            state.index.byYear[y].ahorroAcumulado[m - 1] = state.index.byYear[y].byMonth[m].ahorroDelta + budgetVal;
+            state.index.byYear[y].ahorroAcumulado[m - 1] = state.index.byYear[y].byMonth[m].ahorroDelta;
         }
     });
 }
@@ -389,13 +428,23 @@ function getAhorroAcumuladoForYear(year) {
     return new Array(12).fill(0);
 }
 
-// Mismo cálculo de "Acumulado total" que la pestaña Cuentas, para la categoría Ahorro (id 9),
-// usando el mes actual como mes de referencia.
+// Flujo de caja real de una categoría en un mes: dinero que entra (INGRESO, transferencia
+// recibida) menos dinero que sale (GASTO, transferencia enviada). Base del saldo real por
+// categoría (sustituye el antiguo "Acumulado" simulado a partir del presupuesto).
+function getCategoryNetCashFlow(catId, mes, año) {
+    const income   = state.index.byYear[año]?.byMonth?.[mes]?.byCategoryIncome?.[catId] || 0;
+    const expenses = state.index.byYear[año]?.byMonth?.[mes]?.byCategoryExpenses?.[catId] || 0;
+    const transfer = state.index.byYear[año]?.byMonth?.[mes]?.byCategoryTransferNet?.[catId] || 0;
+    return income - expenses + transfer;
+}
+
+// Mismo cálculo de "Acumulado total" que la pestaña Cuentas, para la categoría Ahorro,
+// usando el mes actual como mes de referencia. Ya no suma el presupuesto como depósito
+// virtual: es literalmente el saldo real acumulado en la categoría Ahorro.
 function getAhorroAcumuladoCuentas() {
     const now = new Date();
     const cm = now.getMonth() + 1;
     const cy = now.getFullYear();
-    const categoriaAhorroId = 9;
 
     let accumulated = 0;
     Object.keys(state.index.byYear).map(Number)
@@ -404,15 +453,7 @@ function getAhorroAcumuladoCuentas() {
         .forEach(y => {
             const maxM = (y === cy) ? cm : 12;
             for (let m = 1; m <= maxM; m++) {
-                const budgetObj = getEffectiveBudget(categoriaAhorroId, m, y);
-                const budget      = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
-                // ahorroDelta ya incluye GASTO/INGRESO en la categoría Ahorro y las
-                // TRANSFERENCIAs de/hacia ella (p. ej. la automatización de sobrantes)
-                const ahorroDelta = state.index.byYear[y]?.byMonth[m]?.ahorroDelta || 0;
-                const delta       = budget + ahorroDelta;
-                if (budget > 0 || ahorroDelta !== 0) {
-                    accumulated += delta;
-                }
+                accumulated += getCategoryNetCashFlow(CATEGORIA_AHORRO_ID, m, y);
             }
         });
     return accumulated;
@@ -425,65 +466,15 @@ function getAhorroAcumuladoAnual(year) {
     const now = new Date();
     const cm = now.getMonth() + 1;
     const cy = now.getFullYear();
-    const categoriaAhorroId = 9;
 
     if (year > cy) return 0;
     const maxM = (year === cy) ? cm : 12;
 
     let accumulated = 0;
     for (let m = 1; m <= maxM; m++) {
-        const budgetObj = getEffectiveBudget(categoriaAhorroId, m, year);
-        const budget      = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
-        const ahorroDelta = state.index.byYear[year]?.byMonth[m]?.ahorroDelta || 0;
-        const delta       = budget + ahorroDelta;
-        if (budget > 0 || ahorroDelta !== 0) {
-            accumulated += delta;
-        }
+        accumulated += getCategoryNetCashFlow(CATEGORIA_AHORRO_ID, m, year);
     }
     return accumulated;
-}
-
-// Suma del "acumulado" (presupuesto - neto) de todas las categorías activas EXCEPTO Ahorro,
-// mes a mes, desde el primer dato disponible hasta el mes actual. Se excluye Ahorro porque
-// su acumulado ya son movimientos (INGRESO/GASTO/TRANSFERENCIA) que forman parte del propio
-// Saldo Disponible, y contarlo aquí lo restaría dos veces en getAhorroRealTotal().
-function getGrandAccumuladoTotal() {
-    const now = new Date();
-    const cm = now.getMonth() + 1;
-    const cy = now.getFullYear();
-    const categoriaAhorroId = 9;
-
-    const activeCats = state.categorias.filter(c =>
-        (c.activa === true || c.activa === 'true' || c.activa === 1) && c.id !== categoriaAhorroId
-    );
-
-    let total = 0;
-    activeCats.forEach(cat => {
-        Object.keys(state.index.byYear).map(Number)
-            .filter(y => y <= cy)
-            .sort()
-            .forEach(y => {
-                const maxM = (y === cy) ? cm : 12;
-                for (let m = 1; m <= maxM; m++) {
-                    const budgetObj = getEffectiveBudget(cat.id, m, y);
-                    const budget = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
-                    const net = (state.index.byYear[y]?.byMonth[m]?.byCategoryExpenses[cat.id] || 0) - (state.index.byYear[y]?.byMonth[m]?.byCategoryIncome[cat.id] || 0);
-                    const delta = budget - net;
-                    if (budget > 0 || net !== 0) {
-                        total += delta;
-                    }
-                }
-            });
-    });
-    return total;
-}
-
-// Ahorro real = dinero que realmente hay (todos los Ingresos - todos los Gastos, histórico
-// completo) menos lo que ya está "comprometido" como sobrante acumulado en el presupuesto
-// del resto de categorías (sin contar Ahorro, que ya está implícito en el Saldo Disponible).
-// Es el excedente que no está reflejado como sobrante presupuestario en ninguna categoría.
-function getAhorroRealTotal() {
-    return state.index.allTime.totalNeto - getGrandAccumuladoTotal();
 }
 
 function getEffectiveBudget(categoriaId, mes, año) {
@@ -532,4 +523,51 @@ function getEffectiveBudget(categoriaId, mes, año) {
     });
 
     return candidates[0];
+}
+
+// Transferencias de reparto ya ejecutadas ese mes (origen = Inputs, fecha_referencia = día 1
+// del mes objetivo). Se usa para avisar de un posible reparto duplicado antes de ejecutar otro.
+function getRepartoMensualExistente(categoriaInputsId, mes, año) {
+    const targetRef = `${año}-${String(mes).padStart(2, '0')}-01`;
+    return state.movimientos.filter(m =>
+        m.tipo === 'TRANSFERENCIA' &&
+        parseInt(m.categoriaOrigenId) === categoriaInputsId &&
+        (m.fecha_referencia || m.fecha) === targetRef
+    );
+}
+
+// Calcula el reparto mensual: ingresos totales en Inputs ese mes, una línea por categoría
+// (no especial) con presupuesto vigente > 0, y el remanente que iría a Ahorro.
+function computeRepartoMensual(categoriaInputsId, mes, año) {
+    const targetRef = `${año}-${String(mes).padStart(2, '0')}-01`;
+    const totalIngresos = state.movimientos.reduce((sum, m) =>
+        (m.tipo === 'INGRESO' && parseInt(m.categoriaId) === categoriaInputsId &&
+         (m.fecha_referencia || m.fecha) === targetRef)
+            ? sum + (parseFloat(m.importe) || 0) : sum, 0);
+
+    const lineas = state.categorias
+        .filter(c => c.activa && !CATEGORIAS_ESPECIALES_IDS.includes(c.id))
+        .map(cat => {
+            const b = getEffectiveBudget(cat.id, mes, año);
+            return { categoriaId: cat.id, nombre: cat.nombre, presupuesto: b ? parseFloat(b.presupuesto) : 0 };
+        })
+        .filter(l => l.presupuesto > 0);
+
+    const totalPresupuestado = lineas.reduce((s, l) => s + l.presupuesto, 0);
+    return { totalIngresos, lineas, totalPresupuestado, remanenteAhorro: totalIngresos - totalPresupuestado };
+}
+
+// Suma del presupuesto vigente de una categoría a lo largo de un año completo.
+function getAnnualBudgetByCategory(categoriaId, año) {
+    let total = 0;
+    for (let m = 1; m <= 12; m++) {
+        const b = getEffectiveBudget(categoriaId, m, año);
+        total += b ? parseFloat(b.presupuesto) : 0;
+    }
+    return total;
+}
+
+// Gasto real de una categoría a lo largo de un año completo (ya agregado por rebuildIndex()).
+function getAnnualExpenseByCategory(categoriaId, año) {
+    return state.index.byYear[año]?.byCategoryExpenses?.[categoriaId] || 0;
 }

@@ -82,7 +82,8 @@ function loadDefaultLocalStructure() {
         { id: 6, nombre: "Compra", icono: "🛒", activa: true },
         { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
         { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
-        { id: 9, nombre: "Ahorro", icono: "💰", activa: true }
+        { id: 9, nombre: "Ahorro", icono: "💰", activa: true },
+        { id: 10, nombre: "Inputs", icono: "📥", activa: true }
     ]);
     state.subcategorias = [
         { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },
@@ -210,7 +211,8 @@ function loadDemoData() {
         { id: 6, nombre: "Compra", icono: "🛒", activa: true },
         { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
         { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
-        { id: 9, nombre: "Ahorro", icono: "💰", activa: true }
+        { id: 9, nombre: "Ahorro", icono: "💰", activa: true },
+        { id: 10, nombre: "Inputs", icono: "📥", activa: true }
     ]);
 
     state.subcategorias = [
@@ -246,7 +248,7 @@ function loadDemoData() {
     for (let mes = 1; mes <= 12; mes++) {
         const mm = mes < 10 ? `0${mes}` : mes;
         state.movimientos.push(
-            { id: mId++, fecha: `${prevYear}-${mm}-01`, tipo: "INGRESO", categoriaId: 9, subcategoriaId: "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: "Nomina Mensual", importe: 1750 },
+            { id: mId++, fecha: `${prevYear}-${mm}-01`, tipo: "INGRESO", categoriaId: 10, subcategoriaId: "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: "Nomina Mensual", importe: 1750 },
             { id: mId++, fecha: `${prevYear}-${mm}-05`, tipo: "GASTO", categoriaId: 5, subcategoriaId: "", concepto: "Recibo Luz", importe: 68 },
             { id: mId++, fecha: `${prevYear}-${mm}-08`, tipo: "GASTO", categoriaId: 6, subcategoriaId: 1, concepto: "Supermercado", importe: 70 },
             { id: mId++, fecha: `${prevYear}-${mm}-15`, tipo: "GASTO", categoriaId: 7, subcategoriaId: "", concepto: "Restaurante", importe: 40 }
@@ -257,7 +259,7 @@ function loadDemoData() {
     for (let mes = 1; mes <= 12; mes++) {
         const mm = mes < 10 ? `0${mes}` : mes;
         state.movimientos.push(
-            { id: mId++, fecha: `${currentYear}-${mm}-01`, tipo: "INGRESO", categoriaId: 9, subcategoriaId: "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: "Nomina Mensual Trabajo", importe: 1850 },
+            { id: mId++, fecha: `${currentYear}-${mm}-01`, tipo: "INGRESO", categoriaId: 10, subcategoriaId: "", categoriaOrigenId: "", categoriaDestinoId: "", concepto: "Nomina Mensual Trabajo", importe: 1850 },
             { id: mId++, fecha: `${currentYear}-${mm}-05`, tipo: "GASTO", categoriaId: 5, subcategoriaId: "", concepto: "Recibo de la Luz", importe: 62.45 },
             { id: mId++, fecha: `${currentYear}-${mm}-06`, tipo: "GASTO", categoriaId: 1, subcategoriaId: "", concepto: "Consumo de Agua", importe: 24.10 },
             { id: mId++, fecha: `${currentYear}-${mm}-10`, tipo: "GASTO", categoriaId: 3, subcategoriaId: "", concepto: "Fibra + Movil", importe: 38.90 },
