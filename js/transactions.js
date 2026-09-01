@@ -27,7 +27,9 @@ async function applyMovementsFilters(resetPage = true) {
                     const refMonth = (m.fecha_referencia || m.fecha || '').substring(0, 7);
                     if (refMonth !== mesRefFilter) return false;
                 }
-                if (typeFilter !== 'Todos' && m.tipo !== typeFilter) return false;
+                if (typeFilter === 'SIN_TRANSFERENCIAS') {
+                    if (m.tipo === 'TRANSFERENCIA') return false;
+                } else if (typeFilter !== 'Todos' && m.tipo !== typeFilter) return false;
                 if (catFilter !== 'Todas') {
                     const catId = parseInt(catFilter);
                     if (m.tipo === 'TRANSFERENCIA') {
@@ -69,7 +71,9 @@ async function applyMovementsFilters(resetPage = true) {
         if (mesRefFilter) actionPath += `&fecha_referencia=eq.${mesRefFilter}-01`;
 
         const typeFilter = DOM.filterType.value;
-        if (typeFilter !== 'Todos') {
+        if (typeFilter === 'SIN_TRANSFERENCIAS') {
+            actionPath += '&tipo=neq.TRANSFERENCIA';
+        } else if (typeFilter !== 'Todos') {
             actionPath += `&tipo=eq.${typeFilter}`;
         }
 
@@ -517,7 +521,7 @@ DOM.filterMesRef.addEventListener('change', applyMovementsFilters);
 
 DOM.btnClearFilters.addEventListener('click', () => {
     DOM.filterSearch.value = '';
-    DOM.filterType.value = 'Todos';
+    DOM.filterType.value = 'SIN_TRANSFERENCIAS';
     DOM.filterCategory.value = 'Todas';
     updateFilterSubcategoryOptions();
     DOM.filterSubcategory.value = 'Todas';
