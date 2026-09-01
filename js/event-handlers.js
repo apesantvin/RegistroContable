@@ -14,7 +14,9 @@ function initVisibilityHandler() {
                 state.loadedScreens.dashboard = false;
                 state.loadedScreens.movimientos = false;
                 state.loadedScreens.configuracion = false;
-                
+                state.loadedScreens.cuentas = false;
+                state.loadedScreens.facturas = false;
+
                 // Sync current screen and metadata in the background
                 syncData(true);
             }
@@ -68,6 +70,8 @@ function initYearSelector() {
             state.loadedScreens.dashboard = false;
             state.loadedScreens.movimientos = false;
             state.loadedScreens.configuracion = false;
+            state.loadedScreens.cuentas = false;
+            state.loadedScreens.facturas = false;
             syncScreenData(window.location.hash || '#dashboard', false, true);
         } else {
             updateDashboardMetrics();
@@ -523,6 +527,7 @@ function initFormHandlers() {
                 recreateCharts();
                 applyMovementsFilters();
                 refreshCuentasIfActive();
+                refreshFacturasIfActive();
             }
         }
     });

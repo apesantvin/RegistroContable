@@ -29,6 +29,12 @@ function refreshCuentasIfActive() {
     if (window.location.hash === '#cuentas') renderCuentas();
 }
 
+// Mismo motivo que refreshCuentasIfActive(): en modo Demo/Local, updateDashboardMetrics()/
+// recreateCharts() tampoco refrescan la pantalla de Facturas.
+function refreshFacturasIfActive() {
+    if (window.location.hash === '#facturas') renderFacturas();
+}
+
 function getChartTheme() {
     const isDark = document.body.classList.contains('dark-mode');
     return {

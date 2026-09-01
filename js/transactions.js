@@ -456,6 +456,7 @@ async function deleteMovimiento(id) {
             recreateCharts();
             applyMovementsFilters();
             refreshCuentasIfActive();
+            refreshFacturasIfActive();
         }
         return true;
     }
@@ -470,11 +471,13 @@ function openNewTransactionModal() {
     DOM.btnDuplicateMovimiento.classList.add('hidden');
     DOM.btnSubmitMovimiento.textContent = 'Registrar Transacción';
 
+    DOM.formMovimiento.reset();
+
     // Set date to today
     const todayStr = new Date().toISOString().split('T')[0];
     DOM.inFecha.value = todayStr;
     DOM.inFechaReferencia.value = todayStr.substring(0, 7);
-    
+
     // Reset type to default GASTO
     DOM.inTipo.value = 'GASTO';
     DOM.formTabBtns.forEach(b => {
@@ -485,9 +488,14 @@ function openNewTransactionModal() {
     DOM.condGasto.forEach(el => el.classList.remove('hidden'));
     DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
 
+    // Reset category to the default (first option) and reload its subcategories
+    DOM.inCategoria.selectedIndex = 0;
+    updateSubcategoryOptions();
+    DOM.inSubcategoria.value = '';
+
     const modalTitle = document.getElementById('modal-transaction-title');
     if (modalTitle) modalTitle.textContent = 'Añadir Transacción';
-    
+
     if (DOM.modalTransaction) DOM.modalTransaction.classList.remove('hidden');
 }
 

@@ -364,6 +364,8 @@ async function syncData(isBackground = false) {
         state.loadedScreens.dashboard = false;
         state.loadedScreens.movimientos = false;
         state.loadedScreens.configuracion = false;
+        state.loadedScreens.cuentas = false;
+        state.loadedScreens.facturas = false;
         state.allTimeMovsCache = null;
 
         const metaSuccess = await syncMetadata(isBackground);
@@ -440,6 +442,8 @@ function handleRealtimeChange(payload) {
         state.loadedScreens.dashboard = false;
         state.loadedScreens.movimientos = false;
         state.loadedScreens.configuracion = false;
+        state.loadedScreens.cuentas = false;
+        state.loadedScreens.facturas = false;
         state.allTimeMovsCache = null;
 
         await syncMetadata(true);
