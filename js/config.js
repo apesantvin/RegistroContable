@@ -9,6 +9,7 @@ async function renderConfigManagement() {
     let catsHtml = '<div class="mgmt-list">';
     state.categorias.forEach(cat => {
         const isActive = cat.activa === true || cat.activa === 'true' || cat.activa === 1;
+        const isExcludedDashboard = cat.excluida_dashboard === true || cat.excluida_dashboard === 'true' || cat.excluida_dashboard === 1;
         const subcategories = state.subcategorias.filter(sc => sc.categoriaId === cat.id);
 
         catsHtml += `
@@ -20,6 +21,9 @@ async function renderConfigManagement() {
                     </div>
                     <div class="mgmt-actions">
                         <button class="mgmt-btn-edit btn-edit-cat" title="Editar Nombre/Emoji">✏️</button>
+                        <span class="mgmt-badge ${isExcludedDashboard ? 'dashboard-hidden' : 'dashboard-visible'} toggle-dashboard-cat" title="Haga clic para alternar visibilidad en el Dashboard general">
+                            ${isExcludedDashboard ? '🚫 Dashboard' : '📊 Dashboard'}
+                        </span>
                         <span class="mgmt-badge ${isActive ? 'active' : 'inactive'} toggle-status-cat" title="Haga clic para alternar estado">
                             ${isActive ? 'Activa' : 'Inactiva'}
                         </span>
@@ -31,6 +35,7 @@ async function renderConfigManagement() {
             catsHtml += '<div class="mgmt-sub-list">';
             subcategories.forEach(sub => {
                 const subActive = sub.activa === true || sub.activa === 'true' || sub.activa === 1;
+                const subExcludedDashboard = sub.excluida_dashboard === true || sub.excluida_dashboard === 'true' || sub.excluida_dashboard === 1;
                 catsHtml += `
                     <div class="mgmt-sub-row" data-sub-id="${sub.id}">
                         <div class="mgmt-sub-info">
@@ -39,6 +44,9 @@ async function renderConfigManagement() {
                         </div>
                         <div class="mgmt-actions">
                             <button class="mgmt-btn-edit btn-edit-sub" title="Editar Nombre/Emoji">✏️</button>
+                            <span class="mgmt-badge ${subExcludedDashboard ? 'dashboard-hidden' : 'dashboard-visible'} toggle-dashboard-sub" title="Haga clic para alternar visibilidad en el Dashboard general">
+                                ${subExcludedDashboard ? '🚫 Dashboard' : '📊 Dashboard'}
+                            </span>
                             <span class="mgmt-badge ${subActive ? 'active' : 'inactive'} toggle-status-sub" title="Haga clic para alternar estado">
                                 ${subActive ? 'Activa' : 'Inactiva'}
                             </span>
@@ -337,6 +345,32 @@ async function renderConfigManagement() {
         });
     });
 
+    DOM.containerCategoriasGestion.querySelectorAll('.toggle-dashboard-cat').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const item = e.target.closest('.mgmt-item');
+            const catId = parseInt(item.getAttribute('data-cat-id'));
+            const cat = state.categorias.find(c => c.id === catId);
+            if (!cat) return;
+
+            const newValue = !(cat.excluida_dashboard === true || cat.excluida_dashboard === 'true' || cat.excluida_dashboard === 1);
+
+            const res = await apiRequest('editar_categoria', 'PATCH', { id: catId, excluida_dashboard: newValue });
+            if (res && res.success) {
+                showToast(`Modificado en servidor`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    if (!realtimeChannel) {
+                        await syncData();
+                    }
+                } else {
+                    populateSelectors();
+                    renderConfigManagement();
+                    updateDashboardMetrics();
+                    recreateCharts();
+                }
+            }
+        });
+    });
+
     DOM.containerCategoriasGestion.querySelectorAll('.toggle-status-cat').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const item = e.target.closest('.mgmt-item');
@@ -422,6 +456,32 @@ async function renderConfigManagement() {
                 } else {
                     populateSelectors();
                     renderConfigManagement();
+                }
+            }
+        });
+    });
+
+    DOM.containerCategoriasGestion.querySelectorAll('.toggle-dashboard-sub').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const item = e.target.closest('.mgmt-sub-row');
+            const subId = parseInt(item.getAttribute('data-sub-id'));
+            const sub = state.subcategorias.find(s => s.id === subId);
+            if (!sub) return;
+
+            const newValue = !(sub.excluida_dashboard === true || sub.excluida_dashboard === 'true' || sub.excluida_dashboard === 1);
+
+            const res = await apiRequest('editar_subcategoria', 'PATCH', { id: subId, excluida_dashboard: newValue });
+            if (res && res.success) {
+                showToast(`Modificado en servidor`, 'success');
+                if (!state.isDemoMode && !state.isLocalMode) {
+                    if (!realtimeChannel) {
+                        await syncData();
+                    }
+                } else {
+                    populateSelectors();
+                    renderConfigManagement();
+                    updateDashboardMetrics();
+                    recreateCharts();
                 }
             }
         });

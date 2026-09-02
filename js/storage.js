@@ -74,28 +74,28 @@ function createNewLocalDB() {
 
 function loadDefaultLocalStructure() {
     state.categorias = sortCategorias([
-        { id: 1, nombre: "Agua", icono: "💧", activa: true },
-        { id: 2, nombre: "Basuras", icono: "🗑️", activa: true },
-        { id: 3, nombre: "Internet", icono: "🛜", activa: true },
-        { id: 4, nombre: "Gas", icono: "💨", activa: true },
-        { id: 5, nombre: "Luz", icono: "💡", activa: true },
-        { id: 6, nombre: "Compra", icono: "🛒", activa: true },
-        { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
-        { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
-        { id: 9, nombre: "Ahorro", icono: "💰", activa: true },
-        { id: 10, nombre: "Inputs", icono: "📥", activa: true }
+        { id: 1, nombre: "Agua", icono: "💧", activa: true, excluida_dashboard: false },
+        { id: 2, nombre: "Basuras", icono: "🗑️", activa: true, excluida_dashboard: false },
+        { id: 3, nombre: "Internet", icono: "🛜", activa: true, excluida_dashboard: false },
+        { id: 4, nombre: "Gas", icono: "💨", activa: true, excluida_dashboard: false },
+        { id: 5, nombre: "Luz", icono: "💡", activa: true, excluida_dashboard: false },
+        { id: 6, nombre: "Compra", icono: "🛒", activa: true, excluida_dashboard: false },
+        { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true, excluida_dashboard: false },
+        { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true, excluida_dashboard: false },
+        { id: 9, nombre: "Ahorro", icono: "💰", activa: true, excluida_dashboard: false },
+        { id: 10, nombre: "Inputs", icono: "📥", activa: true, excluida_dashboard: false }
     ]);
     state.subcategorias = [
-        { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },
-        { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true },
-        { id: 3, categoriaId: 6, nombre: "Compra Limpieza", icono: "🧹", activa: true },
-        { id: 4, categoriaId: 6, nombre: "Compra Baño", icono: "🛁", activa: true },
-        { id: 5, categoriaId: 6, nombre: "Compra Medicina", icono: "💊", activa: true },
-        { id: 6, categoriaId: 8, nombre: "Electrodomesticos", icono: "📺", activa: true },
-        { id: 7, categoriaId: 8, nombre: "Bricolaje", icono: "🪛", activa: true },
-        { id: 8, categoriaId: 8, nombre: "Evento", icono: "🥳", activa: true },
-        { id: 9, categoriaId: 8, fontStyle: "Ocio", icono: "🎉", activa: true },
-        { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true }
+        { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true, excluida_dashboard: false },
+        { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true, excluida_dashboard: false },
+        { id: 3, categoriaId: 6, nombre: "Compra Limpieza", icono: "🧹", activa: true, excluida_dashboard: false },
+        { id: 4, categoriaId: 6, nombre: "Compra Baño", icono: "🛁", activa: true, excluida_dashboard: false },
+        { id: 5, categoriaId: 6, nombre: "Compra Medicina", icono: "💊", activa: true, excluida_dashboard: false },
+        { id: 6, categoriaId: 8, nombre: "Electrodomesticos", icono: "📺", activa: true, excluida_dashboard: false },
+        { id: 7, categoriaId: 8, nombre: "Bricolaje", icono: "🪛", activa: true, excluida_dashboard: false },
+        { id: 8, categoriaId: 8, nombre: "Evento", icono: "🥳", activa: true, excluida_dashboard: false },
+        { id: 9, categoriaId: 8, fontStyle: "Ocio", icono: "🎉", activa: true, excluida_dashboard: false },
+        { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true, excluida_dashboard: false }
     ];
     state.presupuestos = [];
     state.movimientos = [];
@@ -203,29 +203,29 @@ function checkLocalCache() {
 
 function loadDemoData() {
     state.categorias = sortCategorias([
-        { id: 1, nombre: "Agua", icono: "💧", activa: true },
-        { id: 2, nombre: "Basuras", icono: "🗑️", activa: true },
-        { id: 3, nombre: "Internet", icono: "🛜", activa: true },
-        { id: 4, nombre: "Gas", icono: "💨", activa: true },
-        { id: 5, nombre: "Luz", icono: "💡", activa: true },
-        { id: 6, nombre: "Compra", icono: "🛒", activa: true },
-        { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true },
-        { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true },
-        { id: 9, nombre: "Ahorro", icono: "💰", activa: true },
-        { id: 10, nombre: "Inputs", icono: "📥", activa: true }
+        { id: 1, nombre: "Agua", icono: "💧", activa: true, excluida_dashboard: false },
+        { id: 2, nombre: "Basuras", icono: "🗑️", activa: true, excluida_dashboard: false },
+        { id: 3, nombre: "Internet", icono: "🛜", activa: true, excluida_dashboard: false },
+        { id: 4, nombre: "Gas", icono: "💨", activa: true, excluida_dashboard: false },
+        { id: 5, nombre: "Luz", icono: "💡", activa: true, excluida_dashboard: false },
+        { id: 6, nombre: "Compra", icono: "🛒", activa: true, excluida_dashboard: false },
+        { id: 7, nombre: "Restaurantes", icono: "🍽️", activa: true, excluida_dashboard: false },
+        { id: 8, nombre: "Otras Compras", icono: "🛍️", activa: true, excluida_dashboard: false },
+        { id: 9, nombre: "Ahorro", icono: "💰", activa: true, excluida_dashboard: false },
+        { id: 10, nombre: "Inputs", icono: "📥", activa: true, excluida_dashboard: false }
     ]);
 
     state.subcategorias = [
-        { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true },
-        { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true },
-        { id: 3, categoriaId: 6, nombre: "Compra Limpieza", icono: "🧹", activa: true },
-        { id: 4, categoriaId: 6, nombre: "Compra Baño", icono: "🛁", activa: true },
-        { id: 5, categoriaId: 6, nombre: "Compra Medicina", icono: "💊", activa: true },
-        { id: 6, categoriaId: 8, nombre: "Electrodomésticos", icono: "📺", activa: true },
-        { id: 7, categoriaId: 8, nombre: "Bricolaje", icono: "🪛", activa: true },
-        { id: 8, categoriaId: 8, nombre: "Evento", icono: "🥳", activa: true },
-        { id: 9, categoriaId: 8, nombre: "Ocio", icono: "🎉", activa: true },
-        { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true }
+        { id: 1, categoriaId: 6, nombre: "Compra Comida", icono: "🛒", activa: true, excluida_dashboard: false },
+        { id: 2, categoriaId: 6, nombre: "Compra Cocina", icono: "🍳", activa: true, excluida_dashboard: false },
+        { id: 3, categoriaId: 6, nombre: "Compra Limpieza", icono: "🧹", activa: true, excluida_dashboard: false },
+        { id: 4, categoriaId: 6, nombre: "Compra Baño", icono: "🛁", activa: true, excluida_dashboard: false },
+        { id: 5, categoriaId: 6, nombre: "Compra Medicina", icono: "💊", activa: true, excluida_dashboard: false },
+        { id: 6, categoriaId: 8, nombre: "Electrodomésticos", icono: "📺", activa: true, excluida_dashboard: false },
+        { id: 7, categoriaId: 8, nombre: "Bricolaje", icono: "🪛", activa: true, excluida_dashboard: false },
+        { id: 8, categoriaId: 8, nombre: "Evento", icono: "🥳", activa: true, excluida_dashboard: false },
+        { id: 9, categoriaId: 8, nombre: "Ocio", icono: "🎉", activa: true, excluida_dashboard: false },
+        { id: 10, categoriaId: 8, nombre: "Otro", icono: "💵", activa: true, excluida_dashboard: false }
     ];
 
     const currentYear = state.selectedYear;
@@ -349,6 +349,7 @@ function handleDemoWriteAction(action, data) {
             if (data.nombre !== undefined) state.categorias[idx].nombre = data.nombre;
             if (data.icono !== undefined) state.categorias[idx].icono = data.icono;
             if (data.activa !== undefined) state.categorias[idx].activa = (data.activa === true || data.activa === 'true');
+            if (data.excluida_dashboard !== undefined) state.categorias[idx].excluida_dashboard = (data.excluida_dashboard === true || data.excluida_dashboard === 'true');
             return { success: true, message: "Categoria editada (Demo)" };
         }
         return { success: false, error: 'Categoria no encontrada' };
@@ -359,16 +360,17 @@ function handleDemoWriteAction(action, data) {
             if (data.nombre !== undefined) state.subcategorias[idx].nombre = data.nombre;
             if (data.icono !== undefined) state.subcategorias[idx].icono = data.icono;
             if (data.activa !== undefined) state.subcategorias[idx].activa = (data.activa === true || data.activa === 'true');
+            if (data.excluida_dashboard !== undefined) state.subcategorias[idx].excluida_dashboard = (data.excluida_dashboard === true || data.excluida_dashboard === 'true');
             return { success: true, message: "Subcategoria editada (Demo)" };
         }
         return { success: false, error: 'Subcategoria no encontrada' };
     } else if (action === 'categoria') {
         const id = state.categorias.length + 1;
-        state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true });
+        state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true, excluida_dashboard: false });
         return { success: true, id, message: "Categoria creada (Demo)" };
     } else if (action === 'subcategoria') {
         const id = state.subcategorias.length + 1;
-        state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true });
+        state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true, excluida_dashboard: false });
         return { success: true, id, message: "Subcategoria creada (Demo)" };
     }
     return { success: false, error: 'Accion demo no contemplada' };
@@ -452,6 +454,7 @@ function handleLocalWriteAction(action, data) {
             if (data.nombre !== undefined) state.categorias[idx].nombre = data.nombre;
             if (data.icono !== undefined) state.categorias[idx].icono = data.icono;
             if (data.activa !== undefined) state.categorias[idx].activa = (data.activa === true || data.activa === 'true');
+            if (data.excluida_dashboard !== undefined) state.categorias[idx].excluida_dashboard = (data.excluida_dashboard === true || data.excluida_dashboard === 'true');
             saveLocalCache();
             return { success: true, message: "Categoria editada localmente" };
         }
@@ -463,18 +466,19 @@ function handleLocalWriteAction(action, data) {
             if (data.nombre !== undefined) state.subcategorias[idx].nombre = data.nombre;
             if (data.icono !== undefined) state.subcategorias[idx].icono = data.icono;
             if (data.activa !== undefined) state.subcategorias[idx].activa = (data.activa === true || data.activa === 'true');
+            if (data.excluida_dashboard !== undefined) state.subcategorias[idx].excluida_dashboard = (data.excluida_dashboard === true || data.excluida_dashboard === 'true');
             saveLocalCache();
             return { success: true, message: "Subcategoria editada localmente" };
         }
         return { success: false, error: 'Subcategoria no encontrada' };
     } else if (action === 'categoria') {
         const id = state.categorias.length > 0 ? Math.max(...state.categorias.map(c => c.id)) + 1 : 1;
-        state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true });
+        state.categorias.push({ id, nombre: data.nombre, icono: data.icono, activa: true, excluida_dashboard: false });
         saveLocalCache();
         return { success: true, id, message: "Categoria creada localmente" };
     } else if (action === 'subcategoria') {
         const id = state.subcategorias.length > 0 ? Math.max(...state.subcategorias.map(s => s.id)) + 1 : 1;
-        state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true });
+        state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true, excluida_dashboard: false });
         saveLocalCache();
         return { success: true, id, message: "Subcategoria creada localmente" };
     }

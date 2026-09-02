@@ -160,6 +160,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 if (data.nombre !== undefined) bodyObj.nombre = data.nombre;
                 if (data.icono !== undefined) bodyObj.icono = data.icono;
                 if (data.activa !== undefined) bodyObj.activa = (data.activa === true || data.activa === 'true');
+                if (data.excluida_dashboard !== undefined) bodyObj.excluida_dashboard = (data.excluida_dashboard === true || data.excluida_dashboard === 'true');
                 options.body = JSON.stringify(bodyObj);
             } else if (actionName === 'editar_subcategoria') {
                 options.method = 'PATCH';
@@ -169,6 +170,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                 if (data.nombre !== undefined) bodyObj.nombre = data.nombre;
                 if (data.icono !== undefined) bodyObj.icono = data.icono;
                 if (data.activa !== undefined) bodyObj.activa = (data.activa === true || data.activa === 'true');
+                if (data.excluida_dashboard !== undefined) bodyObj.excluida_dashboard = (data.excluida_dashboard === true || data.excluida_dashboard === 'true');
                 options.body = JSON.stringify(bodyObj);
             } else if (actionName === 'categoria') {
                 options.method = 'POST';

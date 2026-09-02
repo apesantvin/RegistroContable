@@ -135,6 +135,7 @@ function buildChartIngresosGastos(rangeMonths, theme) {
         });
         
         state.movimientos.forEach(m => {
+            if ((m.tipo === 'INGRESO' || m.tipo === 'GASTO') && isMovimientoExcluidoDashboard(m)) return;
             const mDate = m.fecha_referencia || m.fecha;
             if (mDate >= startStr && mDate <= endStr) {
                 const parts = mDate.split('-');
@@ -441,7 +442,7 @@ function buildChartPresupuestoVsReal(year, theme) {
     const selectMonth = DOM.chartPresupuestoMonthSelect;
     const month = selectMonth ? parseInt(selectMonth.value) : (new Date().getMonth() + 1);
 
-    const activeCats = state.categorias.filter(c => c.activa && !CATEGORIAS_ESPECIALES_IDS.includes(c.id));
+    const activeCats = state.categorias.filter(c => c.activa && !CATEGORIAS_ESPECIALES_IDS.includes(c.id) && !c.excluida_dashboard);
     const labels = [];
     const presupuestos = [];
     const reales = [];
@@ -544,7 +545,7 @@ function buildChartTopCategorias(theme) {
         const endStr = state.chartFilters.topCategoriasCustom?.end || `${state.selectedYear}-12-31`;
         
         state.movimientos.forEach(m => {
-            if (m.tipo === 'GASTO' && m.categoriaId && !CATEGORIAS_ESPECIALES_IDS.includes(parseInt(m.categoriaId))) {
+            if (m.tipo === 'GASTO' && m.categoriaId && !CATEGORIAS_ESPECIALES_IDS.includes(parseInt(m.categoriaId)) && !isMovimientoExcluidoDashboard(m)) {
                 const mDate = m.fecha_referencia || m.fecha;
                 if (mDate >= startStr && mDate <= endStr) {
                     const catId = parseInt(m.categoriaId);

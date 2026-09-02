@@ -243,7 +243,7 @@ function renderMovementsTable(movs) {
             amountClass = 'val-importe ingreso';
             amountText = `+ ${parseFloat(m.importe).toFixed(2)} €`;
             categoryText = cat ? `${cat.icono} ${cat.nombre}` : '';
-            subcatText = '';
+            subcatText = sub ? `${sub.icono} ${sub.nombre}` : '';
         } else if (m.tipo === 'TRANSFERENCIA') {
             typeBadge = '<span class="val-badge transfer">Transf.</span>';
             amountClass = 'val-importe transfer';
@@ -338,7 +338,7 @@ function populateMovimientoForm(m) {
     DOM.inFechaReferencia.value = refDate ? refDate.substring(0, 7) : '';
 
     // Show/hide fields based on type and populate category/subcategory
-    if (m.tipo === 'GASTO') {
+    if (m.tipo === 'GASTO' || m.tipo === 'INGRESO') {
         DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
         DOM.condGasto.forEach(el => el.classList.remove('hidden'));
         DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
@@ -346,12 +346,6 @@ function populateMovimientoForm(m) {
         DOM.inCategoria.value = m.categoriaId;
         updateSubcategoryOptions();
         DOM.inSubcategoria.value = m.subcategoriaId || '';
-    } else if (m.tipo === 'INGRESO') {
-        DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
-        DOM.condGasto.forEach(el => el.classList.add('hidden'));
-        DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
-
-        DOM.inCategoria.value = m.categoriaId;
     } else if (m.tipo === 'TRANSFERENCIA') {
         DOM.condGastoIngreso.forEach(el => el.classList.add('hidden'));
         DOM.condGasto.forEach(el => el.classList.add('hidden'));

@@ -12,6 +12,24 @@ const CATEGORIAS_ORDER = [6, 7, 3, 8, 5, 4, 1, 2, 10, 9];
 // Categorías consideradas "facturas" (Luz, Gas, Agua, Basuras, Internet), en el orden en que se muestran en la pestaña Facturas
 const FACTURAS_CATEGORIA_IDS = [5, 4, 1, 2, 3];
 
+// Un movimiento queda "transparente" al dashboard si su categoría o su subcategoría
+// (cascada en ambos sentidos) está marcada como excluida. No afecta al saldo global
+// (state.index.allTime.totalNeto) ni a Cuentas/Movimientos, solo a los conteos y
+// gráficos que agregan por categoría/subcategoría.
+function isMovimientoExcluidoDashboard(m) {
+    const catId = parseInt(m.categoriaId);
+    if (!isNaN(catId)) {
+        const cat = state.categorias.find(c => c.id === catId);
+        if (cat && cat.excluida_dashboard) return true;
+    }
+    const subId = m.subcategoriaId ? parseInt(m.subcategoriaId) : null;
+    if (subId && !isNaN(subId)) {
+        const sub = state.subcategorias.find(s => s.id === subId);
+        if (sub && sub.excluida_dashboard) return true;
+    }
+    return false;
+}
+
 function sortCategorias(arr) {
     return arr.slice().sort((a, b) => {
         const ia = CATEGORIAS_ORDER.indexOf(a.id);
@@ -347,28 +365,32 @@ function rebuildIndex(allTimeMovs = null) {
             const monthData = yearData.byMonth[mMov];
 
             if (m.tipo === 'INGRESO') {
-                yearData.totalIngresos += val;
-                monthData.ingresos += val;
+                if (!isMovimientoExcluidoDashboard(m)) {
+                    yearData.totalIngresos += val;
+                    monthData.ingresos += val;
 
-                const catId = parseInt(m.categoriaId);
-                if (!isNaN(catId)) {
-                    yearData.byCategoryIncome[catId] = (yearData.byCategoryIncome[catId] || 0) + val;
-                    monthData.byCategoryIncome[catId] = (monthData.byCategoryIncome[catId] || 0) + val;
+                    const catId = parseInt(m.categoriaId);
+                    if (!isNaN(catId)) {
+                        yearData.byCategoryIncome[catId] = (yearData.byCategoryIncome[catId] || 0) + val;
+                        monthData.byCategoryIncome[catId] = (monthData.byCategoryIncome[catId] || 0) + val;
+                    }
                 }
             } else if (m.tipo === 'GASTO') {
-                yearData.totalGastos += val;
-                monthData.gastos += val;
+                if (!isMovimientoExcluidoDashboard(m)) {
+                    yearData.totalGastos += val;
+                    monthData.gastos += val;
 
-                const catId = parseInt(m.categoriaId);
-                const subId = m.subcategoriaId ? parseInt(m.subcategoriaId) : null;
+                    const catId = parseInt(m.categoriaId);
+                    const subId = m.subcategoriaId ? parseInt(m.subcategoriaId) : null;
 
-                if (!isNaN(catId)) {
-                    yearData.byCategoryExpenses[catId] = (yearData.byCategoryExpenses[catId] || 0) + val;
-                    monthData.byCategoryExpenses[catId] = (monthData.byCategoryExpenses[catId] || 0) + val;
-                }
-                if (subId && !isNaN(subId)) {
-                    yearData.bySubcategoryExpenses[subId] = (yearData.bySubcategoryExpenses[subId] || 0) + val;
-                    monthData.bySubcategoryExpenses[subId] = (monthData.bySubcategoryExpenses[subId] || 0) + val;
+                    if (!isNaN(catId)) {
+                        yearData.byCategoryExpenses[catId] = (yearData.byCategoryExpenses[catId] || 0) + val;
+                        monthData.byCategoryExpenses[catId] = (monthData.byCategoryExpenses[catId] || 0) + val;
+                    }
+                    if (subId && !isNaN(subId)) {
+                        yearData.bySubcategoryExpenses[subId] = (yearData.bySubcategoryExpenses[subId] || 0) + val;
+                        monthData.bySubcategoryExpenses[subId] = (monthData.bySubcategoryExpenses[subId] || 0) + val;
+                    }
                 }
             } else if (m.tipo === 'TRANSFERENCIA') {
                 const origId = parseInt(m.categoriaOrigenId);

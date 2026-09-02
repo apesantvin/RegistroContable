@@ -51,7 +51,7 @@ Cuatro entidades, todas planas (sin relaciones anidadas en el cliente; los `...I
 
 ### `categorias`
 ```
-{ id, nombre, icono, activa }
+{ id, nombre, icono, activa, excluida_dashboard }
 ```
 Dos categorías tienen significado especial y **no deben eliminarse** (`js/state.js`):
 - `id = 9` → **Ahorro** (`CATEGORIA_AHORRO_ID`)
@@ -61,10 +61,13 @@ Dos categorías tienen significado especial y **no deben eliminarse** (`js/state
 
 `CATEGORIAS_ORDER` fija el orden visual fijo de las tarjetas; `FACTURAS_CATEGORIA_IDS = [5,4,1,2,3]` (Luz, Gas, Agua, Basuras, Internet) son las categorías tratadas como "facturas" en la pestaña Facturas.
 
+`excluida_dashboard` (booleano, por defecto `false`): marca la categoría como transparente al Dashboard general (gráficos y conteos de ingresos/gastos), sin afectar al saldo total de cuentas ni al listado de Movimientos. Se alterna desde Configuración → Categorías y Subcategorías (badge "📊/🚫 Dashboard"). Ver `isMovimientoExcluidoDashboard()` en `js/state.js`.
+
 ### `subcategorias`
 ```
-{ id, categoriaId, nombre, icono, activa }
+{ id, categoriaId, nombre, icono, activa, excluida_dashboard }
 ```
+`excluida_dashboard` funciona igual que en `categorias`, con cascada en ambos sentidos: si la categoría padre está excluida, sus subcategorías lo están automáticamente; si solo una subcategoría concreta está excluida, únicamente sus movimientos desaparecen del dashboard (los del resto de subcategorías de la misma categoría se siguen contando).
 
 ### `presupuestos`
 ```
@@ -81,7 +84,7 @@ Sistema de **versionado por periodo**: varias filas pueden compartir el mismo `c
 ```
 - `tipo` ∈ `GASTO | INGRESO | TRANSFERENCIA`.
 - `fecha`: fecha real del apunte. `fecha_referencia`: primer día del mes al que "pertenece" contablemente el movimiento (puede diferir de `fecha`, p. ej. una factura pagada en marzo que cubre febrero).
-- Un `GASTO`/`INGRESO` usa `categoriaId` (+ `subcategoriaId` opcional, solo en `GASTO`); una `TRANSFERENCIA` usa `categoriaOrigenId`/`categoriaDestinoId` y no lleva categoría ni subcategoría propias.
+- Un `GASTO`/`INGRESO` usa `categoriaId` (+ `subcategoriaId` opcional, en ambos casos); una `TRANSFERENCIA` usa `categoriaOrigenId`/`categoriaDestinoId` y no lleva categoría ni subcategoría propias.
 - `facturaId`: UUID compartido entre los movimientos GASTO generados al dividir una factura en varios meses (ver §7); `null` en movimientos sueltos.
 
 En Supabase estas cuatro tablas existen literalmente con estos nombres y columnas (ver también `Supabase-SobresPresupuestarios.md` para el histórico de cambios de esquema aplicados manualmente).

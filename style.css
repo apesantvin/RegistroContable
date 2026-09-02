@@ -2096,6 +2096,18 @@ body:not(.dark-mode) .mgmt-info .mgmt-emoji {
     border-color: rgba(239, 68, 68, 0.2);
 }
 
+.mgmt-badge.dashboard-visible {
+    background-color: rgba(148, 163, 184, 0.12);
+    color: var(--text-secondary);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+.mgmt-badge.dashboard-hidden {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
 .mgmt-badge:hover {
     transform: scale(1.05);
 }

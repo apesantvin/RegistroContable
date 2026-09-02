@@ -420,13 +420,9 @@ function initFormHandlers() {
             const type = btn.getAttribute('data-type');
             DOM.inTipo.value = type;
             
-            if (type === 'GASTO') {
+            if (type === 'GASTO' || type === 'INGRESO') {
                 DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
                 DOM.condGasto.forEach(el => el.classList.remove('hidden'));
-                DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
-            } else if (type === 'INGRESO') {
-                DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
-                DOM.condGasto.forEach(el => el.classList.add('hidden'));
                 DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
             } else if (type === 'TRANSFERENCIA') {
                 DOM.condGastoIngreso.forEach(el => el.classList.add('hidden'));
@@ -492,11 +488,9 @@ function initFormHandlers() {
             action = 'editar_movimiento';
         }
 
-        if (tipo === 'GASTO') {
+        if (tipo === 'GASTO' || tipo === 'INGRESO') {
             payload.categoriaId = parseInt(DOM.inCategoria.value);
             payload.subcategoriaId = DOM.inSubcategoria.value ? parseInt(DOM.inSubcategoria.value) : '';
-        } else if (tipo === 'INGRESO') {
-            payload.categoriaId = parseInt(DOM.inCategoria.value);
         } else if (tipo === 'TRANSFERENCIA') {
             if (state.editingMovimientoId) {
                 action = 'editar_transferencia';
