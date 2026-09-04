@@ -3166,7 +3166,7 @@ body:not(.dark-mode) .automation-item:hover {
 
 .factura-group-header {
     display: grid;
-    grid-template-columns: 1fr 90px 90px;
+    grid-template-columns: 90px 1fr 90px 90px;
     align-items: center;
     gap: 8px;
     font-size: 11px;
@@ -3179,14 +3179,14 @@ body:not(.dark-mode) .automation-item:hover {
     margin-bottom: 2px;
 }
 
-.factura-group-header span:nth-child(2),
-.factura-group-header span:nth-child(3) {
+.factura-group-header span:nth-child(3),
+.factura-group-header span:nth-child(4) {
     text-align: right;
 }
 
 .factura-group-row {
     display: grid;
-    grid-template-columns: 1fr 90px 90px;
+    grid-template-columns: 90px 1fr 90px 90px;
     align-items: center;
     gap: 8px;
     font-size: 13px;
@@ -3197,6 +3197,13 @@ body:not(.dark-mode) .automation-item:hover {
 
 .factura-group-row:hover {
     background: var(--bg-app);
+}
+
+.factura-group-nombre {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
 }
 
 .factura-group-importe,
@@ -3260,5 +3267,3 @@ body:not(.dark-mode) .automation-item:hover {
         font-size: 16px;
     }
 }
-
-

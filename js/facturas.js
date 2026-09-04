@@ -188,6 +188,7 @@ function renderFacturaGroupList(catId) {
     const header = `
         <div class="factura-group-header">
             <span>Fecha</span>
+            <span>Nombre</span>
             <span>Importe</span>
             <span>Meses</span>
         </div>`;
@@ -204,6 +205,7 @@ function renderFacturaGroupList(catId) {
             <div class="factura-group-item">
                 <div class="factura-group-row" data-factura-id="${g.facturaId}">
                     <span>${formatDate(g.fecha)}</span>
+                    <span class="factura-group-nombre">${getFacturaNombre(g)}</span>
                     <span class="factura-group-importe">${formatCurrency(g.total)}</span>
                     <span class="factura-group-count">${g.movimientos.length} meses</span>
                 </div>
@@ -214,6 +216,13 @@ function renderFacturaGroupList(catId) {
     }).join('');
 
     return `${header}${body}`;
+}
+
+// El nombre de la factura es el concepto de sus movimientos sin el sufijo "(i/N)"
+// que añade el reparto en varios meses (ver handleFacturaSplitSubmit).
+function getFacturaNombre(g) {
+    const concepto = g.movimientos[0]?.concepto || '';
+    return concepto.replace(/\s*\(\d+\/\d+\)\s*$/, '');
 }
 
 function buildFacturaChart(catId, cat, year, theme) {
