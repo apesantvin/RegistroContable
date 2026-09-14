@@ -191,6 +191,41 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
                     icono: data.icono,
                     activa: true
                 });
+            } else if (actionName === 'factura') {
+                options.method = 'POST';
+                url += '/rest/v1/facturas';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify({
+                    categoriaId: Number(data.categoriaId),
+                    subcategoriaId: data.subcategoriaId ? Number(data.subcategoriaId) : null,
+                    concepto: data.concepto,
+                    importe_total: Number(data.importe_total),
+                    fecha_creacion: data.fecha_creacion,
+                    fecha_cobro: data.fecha_cobro || null,
+                    fecha_consumo_inicio: data.fecha_consumo_inicio,
+                    fecha_consumo_fin: data.fecha_consumo_fin,
+                    reparto: data.reparto || []
+                });
+            } else if (actionName === 'editar_factura') {
+                options.method = 'PATCH';
+                url += `/rest/v1/facturas?id=eq.${data.id}`;
+                const bodyObj = {};
+                if (data.categoriaId !== undefined) bodyObj.categoriaId = Number(data.categoriaId);
+                if (data.subcategoriaId !== undefined) bodyObj.subcategoriaId = data.subcategoriaId ? Number(data.subcategoriaId) : null;
+                if (data.concepto !== undefined) bodyObj.concepto = data.concepto;
+                if (data.importe_total !== undefined) bodyObj.importe_total = Number(data.importe_total);
+                if (data.fecha_creacion !== undefined) bodyObj.fecha_creacion = data.fecha_creacion;
+                if (data.fecha_cobro !== undefined) bodyObj.fecha_cobro = data.fecha_cobro || null;
+                if (data.fecha_consumo_inicio !== undefined) bodyObj.fecha_consumo_inicio = data.fecha_consumo_inicio;
+                if (data.fecha_consumo_fin !== undefined) bodyObj.fecha_consumo_fin = data.fecha_consumo_fin;
+                if (data.reparto !== undefined) bodyObj.reparto = data.reparto;
+                options.body = JSON.stringify(bodyObj);
+            } else if (actionName === 'eliminar_factura') {
+                options.method = 'DELETE';
+                url += `/rest/v1/facturas?id=eq.${data.id}`;
+            } else if (actionName === 'eliminar_movimientos_por_factura') {
+                options.method = 'DELETE';
+                url += `/rest/v1/movimientos?facturaId=eq.${data.facturaId}`;
             } else {
                 throw new Error(`Acción POST no implementada para Supabase: ${actionName}`);
             }
@@ -217,7 +252,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
             }
         }
 
-        if (method === 'POST' && (action === 'movimiento' || action === 'transferencia' || action === 'categoria' || action === 'subcategoria')) {
+        if (method === 'POST' && (action === 'movimiento' || action === 'transferencia' || action === 'categoria' || action === 'subcategoria' || action === 'factura')) {
             if (Array.isArray(json) && json.length > 0) {
                 return { success: true, id: json[0].id };
             }
@@ -322,6 +357,10 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
                     populateSelectors();
                     state.loadedScreens.dashboard = true;
                 }
+            }
+            const facturas = await apiRequest('facturas', 'GET', null, isBackground);
+            if (facturas) {
+                state.facturas = facturas;
             }
             renderFacturas();
             state.loadedScreens.facturas = true;

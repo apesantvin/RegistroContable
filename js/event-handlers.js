@@ -419,11 +419,18 @@ function initFormHandlers() {
             
             const type = btn.getAttribute('data-type');
             DOM.inTipo.value = type;
-            
+
             if (type === 'GASTO' || type === 'INGRESO') {
                 DOM.condGastoIngreso.forEach(el => el.classList.remove('hidden'));
                 DOM.condGasto.forEach(el => el.classList.remove('hidden'));
                 DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
+
+                if (type === 'GASTO') {
+                    updateGastoCategoriaOptions();
+                } else {
+                    DOM.inCategoria.innerHTML = state.categorias.filter(c => c.activa).map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
+                }
+                updateSubcategoryOptions();
             } else if (type === 'TRANSFERENCIA') {
                 DOM.condGastoIngreso.forEach(el => el.classList.add('hidden'));
                 DOM.condGasto.forEach(el => el.classList.add('hidden'));
@@ -916,9 +923,9 @@ function populateSelectors() {
     const prevInPresupuestoCat = DOM.inPresupuestoCat.value;
 
     const activeCats = state.categorias.filter(c => c.activa);
-    
+
     const catOptions = activeCats.map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
-    DOM.inCategoria.innerHTML = catOptions;
+    DOM.inCategoria.innerHTML = DOM.inTipo.value === 'GASTO' ? getGastoCategoriaOptionsHtml() : catOptions;
     DOM.inCatOrigen.innerHTML = catOptions;
     DOM.inCatDestino.innerHTML = catOptions;
     
@@ -957,6 +964,24 @@ function populateSelectors() {
         DOM.filterSubcategory.value = prevFilterSubcategory;
     }
     populateChartFiltersDropdowns();
+}
+
+// Categorías disponibles para un GASTO nuevo en el formulario normal de movimiento:
+// se excluyen las categorías de factura (Luz/Gas/Agua/Basuras/Internet), salvo que sea
+// justo la categoría del movimiento que se está editando/duplicando ahora mismo
+// (movimientoFormCategoriaContext, en js/transactions.js) — así se puede seguir
+// editando un movimiento suelto antiguo de esas categorías. El alta de gastos nuevos en
+// esas categorías se hace desde "Nueva factura" (js/facturas-split.js).
+function getGastoCategoriaOptionsHtml() {
+    const allowedExtra = parseInt(movimientoFormCategoriaContext);
+    return state.categorias.filter(c => c.activa)
+        .filter(c => !FACTURAS_CATEGORIA_IDS.includes(c.id) || c.id === allowedExtra)
+        .map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`)
+        .join('');
+}
+
+function updateGastoCategoriaOptions() {
+    DOM.inCategoria.innerHTML = getGastoCategoriaOptionsHtml();
 }
 
 function updateSubcategoryOptions() {

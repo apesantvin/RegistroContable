@@ -58,6 +58,7 @@ const state = {
     subcategorias: [],
     presupuestos: [],
     movimientos: [],
+    facturas: [],
     charts: {
         ingresosGastos: null,
         categorias: null,

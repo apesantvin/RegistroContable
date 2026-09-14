@@ -2,6 +2,12 @@
    Registro Contable - Movements Listing, Filtering & Pagination
    ========================================================================== */
 
+// categoriaId del movimiento cargado actualmente en el formulario (edición o duplicado);
+// null cuando es un alta nueva. Permite que updateGastoCategoriaOptions() (event-handlers.js)
+// siga mostrando la categoría de un movimiento suelto antiguo de factura al editarlo/duplicarlo,
+// aunque esas categorías ya no se puedan elegir para un GASTO nuevo (ver js/facturas-split.js).
+let movimientoFormCategoriaContext = null;
+
 async function applyMovementsFilters(resetPage = true) {
     if (window.location.hash !== '#movimientos') return;
 
@@ -261,6 +267,14 @@ function renderMovementsTable(movs) {
         const saldoClass = hasSaldo ? (saldoAfter >= 0 ? 'cnt-success' : 'cnt-danger') : 'text-muted';
         const saldoText = hasSaldo ? formatCurrency(saldoAfter) : '—';
 
+        // Los movimientos generados por una factura no se editan/duplican/eliminan aquí:
+        // se gestionan desde la pestaña Facturas (ver js/facturas-split.js).
+        const actionsHtml = m.facturaId
+            ? `<button class="btn-action-view-factura" data-id="${m.id}" title="Pertenece a una factura: gestiónala desde Facturas">🧾</button>`
+            : `<button class="btn-action-edit" data-id="${m.id}" title="Editar">✏️</button>
+               <button class="btn-action-duplicate" data-id="${m.id}" title="Duplicar">📋</button>
+               <button class="btn-action-delete" data-id="${m.id}" title="Eliminar">🗑️</button>`;
+
         return `
             <tr class="mov-row" data-id="${m.id}">
                 <td data-label="Fecha">${formatDate(m.fecha)}</td>
@@ -276,9 +290,7 @@ function renderMovementsTable(movs) {
                 <td data-label="Saldo" class="val-saldo ${saldoClass} text-right">${saldoText}</td>
                 <td data-label="Acciones" class="text-center">
                     <div class="actions-cell">
-                        <button class="btn-action-edit" data-id="${m.id}" title="Editar">✏️</button>
-                        <button class="btn-action-duplicate" data-id="${m.id}" title="Duplicar">📋</button>
-                        <button class="btn-action-delete" data-id="${m.id}" title="Eliminar">🗑️</button>
+                        ${actionsHtml}
                     </div>
                 </td>
             </tr>
@@ -307,6 +319,13 @@ function renderMovementsTable(movs) {
             e.stopPropagation();
             const id = btn.getAttribute('data-id');
             deleteMovimiento(id);
+        });
+    });
+
+    DOM.listMovimientosBody.querySelectorAll('.btn-action-view-factura').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.location.hash = '#facturas';
         });
     });
 
@@ -343,6 +362,12 @@ function populateMovimientoForm(m) {
         DOM.condGasto.forEach(el => el.classList.remove('hidden'));
         DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
 
+        movimientoFormCategoriaContext = m.categoriaId;
+        if (m.tipo === 'GASTO') {
+            updateGastoCategoriaOptions();
+        } else {
+            DOM.inCategoria.innerHTML = state.categorias.filter(c => c.activa).map(c => `<option value="${c.id}">${c.icono} ${c.nombre}</option>`).join('');
+        }
         DOM.inCategoria.value = m.categoriaId;
         updateSubcategoryOptions();
         DOM.inSubcategoria.value = m.subcategoriaId || '';
@@ -359,6 +384,12 @@ function populateMovimientoForm(m) {
 function startEditMovimiento(id) {
     const m = state.filteredMovimientos.find(mov => mov.id == id) || state.movimientos.find(mov => mov.id == id);
     if (!m) return;
+
+    if (m.facturaId) {
+        showToast('Esta transacción pertenece a una factura. Edítala desde la pestaña Facturas.', 'error');
+        window.location.hash = '#facturas';
+        return;
+    }
 
     state.editingMovimientoId = id;
 
@@ -381,6 +412,12 @@ function startEditMovimiento(id) {
 function startDuplicateMovimiento(id) {
     const m = state.filteredMovimientos.find(mov => mov.id == id) || state.movimientos.find(mov => mov.id == id);
     if (!m) return;
+
+    if (m.facturaId) {
+        showToast('Esta transacción pertenece a una factura. Gestiónala desde la pestaña Facturas.', 'error');
+        window.location.hash = '#facturas';
+        return;
+    }
 
     const useToday = confirm(`¿Usar la fecha de hoy en la transacción duplicada?\n\nAceptar = fecha de hoy\nCancelar = mantener la fecha original (${formatDate(m.fecha)})`);
 
@@ -432,6 +469,9 @@ function cancelEditMovimiento(shouldRedirect = true) {
     DOM.condGasto.forEach(el => el.classList.remove('hidden'));
     DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
 
+    movimientoFormCategoriaContext = null;
+    updateGastoCategoriaOptions();
+
     if (DOM.modalTransaction) DOM.modalTransaction.classList.add('hidden');
 
     if (shouldRedirect) {
@@ -440,6 +480,13 @@ function cancelEditMovimiento(shouldRedirect = true) {
 }
 
 async function deleteMovimiento(id) {
+    const m = state.filteredMovimientos.find(mov => mov.id == id) || state.movimientos.find(mov => mov.id == id);
+    if (m && m.facturaId) {
+        showToast('Esta transacción pertenece a una factura. Elimínala desde la pestaña Facturas.', 'error');
+        window.location.hash = '#facturas';
+        return false;
+    }
+
     if (!confirm(`¿Estás seguro de que deseas eliminar la transacción #${id}?`)) return false;
 
     const res = await apiRequest('eliminar_movimiento', 'POST', { id });
@@ -487,6 +534,8 @@ function openNewTransactionModal() {
     DOM.condTransferencia.forEach(el => el.classList.add('hidden'));
 
     // Reset category to the default (first option) and reload its subcategories
+    movimientoFormCategoriaContext = null;
+    updateGastoCategoriaOptions();
     DOM.inCategoria.selectedIndex = 0;
     updateSubcategoryOptions();
     DOM.inSubcategoria.value = '';

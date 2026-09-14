@@ -18,8 +18,8 @@ js/storage.js            Modo Local/Demo: carga, guardado y "escritura" simulada
 js/api.js                Cliente REST/Realtime de Supabase, orquestación de sincronización
 js/transactions.js       Pantalla Movimientos: filtros, paginación, alta/edición/duplicado
 js/accounts.js           Pantalla Cuentas (saldo real por categoría)
-js/facturas.js           Pantalla Facturas (estado mensual de gasto por categoría)
-js/facturas-split.js     Alta de factura dividida en varios meses (modal)
+js/facturas.js           Pantalla Facturas (estado mensual + listado "por factura")
+js/facturas-split.js     Alta y edición de facturas (modal), reparto por meses/rango
 js/config.js             Pantalla Configuración: gestión de categorías/presupuestos/automatizaciones
 js/event-handlers.js     Listeners de formularios/UI, populateSelectors, inicialización
 js/charts.js             Construcción de todos los gráficos (Chart.js) y métricas del Dashboard
@@ -47,7 +47,7 @@ Esto permite que el resto del código (formularios, pantallas) llame siempre a `
 
 ## 3. Modelo de datos
 
-Cuatro entidades, todas planas (sin relaciones anidadas en el cliente; los `...Id` son claves foráneas por convención de nombre):
+Cinco entidades, todas planas (sin relaciones anidadas en el cliente; los `...Id` son claves foráneas por convención de nombre):
 
 ### `categorias`
 ```
@@ -80,14 +80,24 @@ Sistema de **versionado por periodo**: varias filas pueden compartir el mismo `c
 { id, fecha, fecha_referencia, tipo, importe, concepto,
   categoriaId, subcategoriaId,        // GASTO / INGRESO
   categoriaOrigenId, categoriaDestinoId, // TRANSFERENCIA
-  facturaId }                          // opcional, ver §7
+  facturaId }                          // opcional, ver §6
 ```
 - `tipo` ∈ `GASTO | INGRESO | TRANSFERENCIA`.
 - `fecha`: fecha real del apunte. `fecha_referencia`: primer día del mes al que "pertenece" contablemente el movimiento (puede diferir de `fecha`, p. ej. una factura pagada en marzo que cubre febrero).
 - Un `GASTO`/`INGRESO` usa `categoriaId` (+ `subcategoriaId` opcional, en ambos casos); una `TRANSFERENCIA` usa `categoriaOrigenId`/`categoriaDestinoId` y no lleva categoría ni subcategoría propias.
-- `facturaId`: UUID compartido entre los movimientos GASTO generados al dividir una factura en varios meses (ver §7); `null` en movimientos sueltos.
+- `facturaId`: `id` (como texto) de la fila de `facturas` que generó este movimiento (ver §6); `null` en movimientos sueltos. Los movimientos con `facturaId` no se editan/duplican/eliminan desde Movimientos (se gestionan desde la factura).
 
-En Supabase estas cuatro tablas existen literalmente con estos nombres y columnas (ver también `Supabase-SobresPresupuestarios.md` para el histórico de cambios de esquema aplicados manualmente).
+### `facturas`
+```
+{ id, categoriaId, subcategoriaId,
+  concepto, importe_total,
+  fecha_creacion, fecha_cobro,        // fecha_cobro nulo = pendiente de pago
+  fecha_consumo_inicio, fecha_consumo_fin,
+  reparto }                            // [{ mes: 'YYYY-MM', importe }, ...]
+```
+Solo se dan de alta para las 5 categorías de `FACTURAS_CATEGORIA_IDS` (Luz, Gas, Agua, Basuras, Internet); ver §6.
+
+En Supabase estas cinco tablas existen literalmente con estos nombres y columnas (ver también `Supabase-SobresPresupuestarios.md` y `Supabase-Facturas.md` para el histórico de cambios de esquema aplicados manualmente).
 
 ## 4. Estado global y caché de DOM (`js/state.js`)
 
@@ -145,27 +155,40 @@ Dos automatizaciones que solo generan movimientos `TRANSFERENCIA` normales (no h
 - **Transferencia de sobrantes**: para cada categoría no especial, suma `getCategoryNetCashFlow` desde enero hasta el mes actual del año seleccionado; si es positivo, ofrece transferirlo a Ahorro (individualmente o en bloque, importe editable por el usuario antes de confirmar).
 - **Recálculo anual** (`renderRecalculoPresupuestos`): compara presupuesto mensual actual vs. gasto real anual / 12 (+ margen de seguridad configurable) por categoría, marca con "⚠️ Revisar" las que difieren más de un 20%, y permite aplicar la propuesta como nuevo periodo de presupuesto del año siguiente (una fila por categoría, aplicable selectivamente vía checkbox).
 
-## 6. Facturas divididas en varios meses
+## 6. Facturas como entidad (`js/facturas.js` + `js/facturas-split.js`)
 
-### Estado de completitud (`js/facturas.js`)
+Toda alta de gasto en las 5 categorías de factura (`FACTURAS_CATEGORIA_IDS`) se hace como
+una fila de `facturas`, no como un movimiento suelto — el formulario normal de "+ Añadir
+movimiento" excluye esas categorías para un `GASTO` nuevo (`updateGastoCategoriaOptions()`
+en `js/event-handlers.js`), salvo para seguir editando movimientos sueltos que ya
+existieran de antes de este cambio.
 
-`getFacturaYearData(categoriaId, year)` calcula, por cada uno de los 12 meses, el total gastado, nº de movimientos, y un `status`:
-- `sin-registrar`: 0 movimientos ese mes.
-- `incompleto`: 1 movimiento y el mes siguiente aún no tiene ningún registro.
-- `completo`: 2+ movimientos ese mes, **o** ya existe al menos un movimiento en el mes siguiente (se interpreta como que ese recibo ya "cerró" el periodo anterior).
+### Alta y edición (`js/facturas-split.js`)
 
-`getFacturasCompletenessByYear()` agrega este estado a través de las 5 categorías de factura, mes a mes (usado para marcar visualmente el Dashboard).
-
-La pestaña Facturas ofrece tres vistas por categoría (tabla / gráfico de línea solo-meses-completos / listado agrupado por `facturaId`).
-
-### Alta dividida (`js/facturas-split.js`)
-
-Dos algoritmos de reparto, ambos con **redondeo a 2 decimales y el último mes absorbiendo el resto** para que la suma cuadre exactamente con el importe total:
+Dos algoritmos de reparto, ambos con **redondeo a 2 decimales y el último mes absorbiendo
+el resto** para que la suma cuadre exactamente con el importe total:
 
 - `calcularRepartoPorMeses(importeTotal, numMeses, mesInicio)`: reparto a partes iguales entre `numMeses` empezando en `mesInicio`.
 - `calcularRepartoPorRango(importeTotal, fechaInicio, fechaFin)`: reparto proporcional a los días naturales que el rango `[fechaInicio, fechaFin]` ocupa en cada mes calendario que toca.
 
-Al enviar el formulario (`handleFacturaSplitSubmit`), si el resultado tiene más de 1 mes se genera un `facturaId` (`crypto.randomUUID()`) compartido por todos los movimientos `GASTO` creados (uno por mes, acción `movimientos_lote` → `POST` en lote a Supabase, o su equivalente en Demo/Local); si es un solo mes, se crea sin `facturaId`.
+`openFacturaModal(factura?)` abre el modal en alta (sin argumento) o edición (precarga
+todos los campos e infiere el modo de reparto — `inferSplitModeFromFactura()` — a partir
+del `reparto` guardado). Al enviar el formulario (`handleFacturaFormSubmit`):
+
+1. Calcula el `reparto` (`getFacturaSplitRows()`) y las `fecha_consumo_inicio`/`fin` (min/max de los meses).
+2. Si es una edición y la factura ya tenía movimientos generados, los borra (`eliminar_movimientos_por_factura`) — se regeneran a continuación con los datos nuevos.
+3. Crea (`factura`) o actualiza (`editar_factura`) la fila en `facturas`.
+4. Si se indicó **fecha de cobro**, crea sus movimientos `GASTO` (`movimientos_lote`, uno por mes, `facturaId` = id de la factura como texto, `fecha` = fecha de cobro). Si no hay fecha de cobro, la factura queda **pendiente de pago**: no genera ningún movimiento hasta que se edite y se le asigne una.
+
+`deleteFactura(id)` borra primero sus movimientos (si los tiene) y después la fila de `facturas`.
+
+### Vistas (`js/facturas.js`)
+
+La pestaña Facturas ofrece tres vistas por categoría:
+- **Tabla** y **gráfico**: sin cambios respecto al modelo anterior, siguen basándose en `state.movimientos` (no en `facturas`) — una factura pendiente de pago no aparece aquí hasta que se cobra.
+  - `getFacturaYearData(categoriaId, year)` calcula, por cada uno de los 12 meses, el total gastado, nº de movimientos, y un `status`: `sin-registrar` (0 movimientos), `incompleto` (1 movimiento y el mes siguiente aún sin registro), `completo` (2+ movimientos, o ya hay registro en el mes siguiente).
+  - `getFacturasCompletenessByYear()` agrega este estado a través de las 5 categorías de factura, mes a mes (usado para marcar visualmente el Dashboard).
+- **Por factura** (🧾, `getFacturasList()` + `renderFacturaGroupList()`): lee directamente `state.facturas` de la categoría, mostrando fecha de creación, importe total, estado ("Pendiente de pago" / "Pagada · fecha") y, desplegable, el desglose `reparto` (mes + importe). Incluye botones para editar (`openFacturaModal(factura)`) y eliminar (`deleteFactura(id)`).
 
 ## 7. Capa de acceso a datos (`js/api.js`)
 
@@ -176,7 +199,8 @@ movimiento, movimientos_lote, transferencia,
 editar_movimiento, editar_transferencia, eliminar_movimiento,
 presupuesto, editar_presupuesto_periodo, eliminar_presupuesto,
 categoria, subcategoria, editar_categoria, editar_subcategoria,
-categorias | subcategorias | presupuestos | movimientos (GET),
+factura, editar_factura, eliminar_factura, eliminar_movimientos_por_factura,
+categorias | subcategorias | presupuestos | movimientos | facturas (GET),
 custom:/rest/v1/... (GET arbitrario, usado para queries filtradas/paginadas), todo (RPC obtener_todo)
 ```
 

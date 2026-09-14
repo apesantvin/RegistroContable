@@ -1257,6 +1257,14 @@ body:not(.dark-mode) .btn-action-delete:hover {
     color: var(--danger);
 }
 
+.form-hint {
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text-muted);
+}
+
 .form-input, .form-select {
     width: 100%;
     padding: 12px 16px;
@@ -3166,7 +3174,7 @@ body:not(.dark-mode) .automation-item:hover {
 
 .factura-group-header {
     display: grid;
-    grid-template-columns: 90px 1fr 90px 90px;
+    grid-template-columns: 90px 1fr 90px 84px 64px;
     align-items: center;
     gap: 8px;
     font-size: 11px;
@@ -3179,14 +3187,13 @@ body:not(.dark-mode) .automation-item:hover {
     margin-bottom: 2px;
 }
 
-.factura-group-header span:nth-child(3),
-.factura-group-header span:nth-child(4) {
+.factura-group-header span:nth-child(3) {
     text-align: right;
 }
 
 .factura-group-row {
     display: grid;
-    grid-template-columns: 90px 1fr 90px 90px;
+    grid-template-columns: 90px 1fr 90px 84px 64px;
     align-items: center;
     gap: 8px;
     font-size: 13px;
@@ -3206,16 +3213,49 @@ body:not(.dark-mode) .automation-item:hover {
     color: var(--text-secondary);
 }
 
-.factura-group-importe,
-.factura-group-count {
+.factura-group-importe {
     text-align: right;
     font-weight: 600;
     color: var(--text-primary);
 }
 
-.factura-group-count {
-    font-weight: 500;
-    color: var(--text-muted);
+.factura-group-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.factura-group-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.factura-group-actions button:hover {
+    background: var(--bg-app);
+}
+
+.factura-pago-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.factura-pago-badge--pagada {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+}
+
+.factura-pago-badge--pendiente {
+    background: rgba(234, 179, 8, 0.18);
+    color: #b45309;
 }
 
 .factura-group-detail {
@@ -3231,18 +3271,11 @@ body:not(.dark-mode) .automation-item:hover {
 
 .factura-group-detail-row {
     display: grid;
-    grid-template-columns: 90px 90px 1fr;
+    grid-template-columns: 110px 90px;
     gap: 8px;
     font-size: 12px;
     color: var(--text-secondary);
     padding: 3px 0;
-}
-
-.factura-group-detail-concepto {
-    color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* Responsive */

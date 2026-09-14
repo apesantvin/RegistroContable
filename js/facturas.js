@@ -73,29 +73,12 @@ function facturaStatusLabel(status) {
     return 'Sin registrar';
 }
 
-// Agrupa los movimientos GASTO de una categoría por facturaId (facturas dadas de alta
-// como reparto en varios meses). Devuelve un array ordenado por fecha desc: cada entrada
-// es { facturaId, fecha, total, movimientos } con movimientos ordenados por fecha_referencia.
-function getFacturaGroups(categoriaId) {
-    const gastosCat = state.movimientos.filter(mv =>
-        mv.tipo === 'GASTO' && parseInt(mv.categoriaId) === categoriaId && mv.facturaId
-    );
-
-    const groups = {};
-    gastosCat.forEach(mv => {
-        if (!groups[mv.facturaId]) {
-            groups[mv.facturaId] = { facturaId: mv.facturaId, fecha: mv.fecha, movimientos: [] };
-        }
-        groups[mv.facturaId].movimientos.push(mv);
-    });
-
-    return Object.values(groups)
-        .map(g => ({
-            ...g,
-            movimientos: g.movimientos.slice().sort((a, b) => (a.fecha_referencia || '').localeCompare(b.fecha_referencia || '')),
-            total: g.movimientos.reduce((sum, mv) => sum + (parseFloat(mv.importe) || 0), 0)
-        }))
-        .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+// Facturas (tabla `facturas`) de una categoría, ordenadas por fecha de creación desc.
+function getFacturasList(categoriaId) {
+    return state.facturas
+        .filter(f => parseInt(f.categoriaId) === categoriaId)
+        .slice()
+        .sort((a, b) => (b.fecha_creacion || '').localeCompare(a.fecha_creacion || '') || b.id - a.id);
 }
 
 function renderFacturas() {
@@ -175,54 +158,56 @@ function renderFacturas() {
     });
 }
 
-// Lista "por factura": una fila por facturaId con fecha de alta e importe total,
-// desplegable para ver el desglose de los movimientos (mes + importe) que la componen.
+// Lista "por factura": una fila por factura con fecha de creación, importe total y
+// estado de pago, desplegable para ver el desglose (mes + importe) de su reparto.
 // No se filtra por año: una factura dividida puede cruzar el límite de año.
 function renderFacturaGroupList(catId) {
-    const groups = getFacturaGroups(catId);
+    const facturas = getFacturasList(catId);
 
-    if (groups.length === 0) {
-        return '<div class="factura-split-preview-empty">No hay facturas divididas en varios meses registradas para esta categoría.</div>';
+    if (facturas.length === 0) {
+        return '<div class="factura-split-preview-empty">No hay facturas registradas para esta categoría.</div>';
     }
 
     const header = `
         <div class="factura-group-header">
-            <span>Fecha</span>
+            <span>Fecha creación</span>
             <span>Nombre</span>
             <span>Importe</span>
-            <span>Meses</span>
+            <span>Estado</span>
+            <span></span>
         </div>`;
 
-    const body = groups.map(g => {
-        const detailRows = g.movimientos.map(mv => `
+    const body = facturas.map(f => {
+        const reparto = f.reparto || [];
+        const detailRows = reparto.map(r => `
             <div class="factura-group-detail-row">
-                <span>${formatMonthYear(mv.fecha_referencia)}</span>
-                <span>${formatCurrency(parseFloat(mv.importe) || 0)}</span>
-                <span class="factura-group-detail-concepto">${mv.concepto || ''}</span>
+                <span>${formatMonthYear(`${r.mes}-01`)}</span>
+                <span>${formatCurrency(parseFloat(r.importe) || 0)}</span>
             </div>`).join('');
+
+        const estadoHtml = f.fecha_cobro
+            ? `<span class="factura-pago-badge factura-pago-badge--pagada" title="Cobrada el ${formatDate(f.fecha_cobro)}">Pagado</span>`
+            : `<span class="factura-pago-badge factura-pago-badge--pendiente">Pendiente</span>`;
 
         return `
             <div class="factura-group-item">
-                <div class="factura-group-row" data-factura-id="${g.facturaId}">
-                    <span>${formatDate(g.fecha)}</span>
-                    <span class="factura-group-nombre">${getFacturaNombre(g)}</span>
-                    <span class="factura-group-importe">${formatCurrency(g.total)}</span>
-                    <span class="factura-group-count">${g.movimientos.length} meses</span>
+                <div class="factura-group-row" data-factura-id="${f.id}">
+                    <span>${formatDate(f.fecha_creacion)}</span>
+                    <span class="factura-group-nombre">${f.concepto}</span>
+                    <span class="factura-group-importe">${formatCurrency(parseFloat(f.importe_total) || 0)}</span>
+                    <span>${estadoHtml}</span>
+                    <span class="factura-group-actions">
+                        <button type="button" class="btn-factura-edit" data-factura-id="${f.id}" title="Editar factura">✏️</button>
+                        <button type="button" class="btn-factura-delete" data-factura-id="${f.id}" title="Eliminar factura">🗑️</button>
+                    </span>
                 </div>
-                <div class="factura-group-detail hidden" data-factura-id="${g.facturaId}">
+                <div class="factura-group-detail hidden" data-factura-id="${f.id}">
                     ${detailRows}
                 </div>
             </div>`;
     }).join('');
 
     return `${header}${body}`;
-}
-
-// El nombre de la factura es el concepto de sus movimientos sin el sufijo "(i/N)"
-// que añade el reparto en varios meses (ver handleFacturaSplitSubmit).
-function getFacturaNombre(g) {
-    const concepto = g.movimientos[0]?.concepto || '';
-    return concepto.replace(/\s*\(\d+\/\d+\)\s*$/, '');
 }
 
 function buildFacturaChart(catId, cat, year, theme) {
@@ -317,13 +302,33 @@ document.getElementById('screen-facturas')
         window.location.hash = '#movimientos';
     });
 
-// Expandir/colapsar el desglose de movimientos de una factura, en la vista "por factura"
+// Expandir/colapsar el desglose de una factura, en la vista "por factura"
 document.getElementById('screen-facturas')
     ?.addEventListener('click', e => {
+        if (e.target.closest('.btn-factura-edit') || e.target.closest('.btn-factura-delete')) return;
+
         const groupRow = e.target.closest('.factura-group-row');
         if (!groupRow) return;
 
         const facturaId = groupRow.getAttribute('data-factura-id');
         const detail = groupRow.parentElement.querySelector(`.factura-group-detail[data-factura-id="${facturaId}"]`);
         if (detail) detail.classList.toggle('hidden');
+    });
+
+// Editar / eliminar una factura desde la vista "por factura"
+document.getElementById('screen-facturas')
+    ?.addEventListener('click', e => {
+        const editBtn = e.target.closest('.btn-factura-edit');
+        if (editBtn) {
+            const facturaId = editBtn.getAttribute('data-factura-id');
+            const factura = state.facturas.find(f => f.id == facturaId);
+            if (factura) openFacturaModal(factura);
+            return;
+        }
+
+        const deleteBtn = e.target.closest('.btn-factura-delete');
+        if (deleteBtn) {
+            const facturaId = deleteBtn.getAttribute('data-factura-id');
+            deleteFactura(parseInt(facturaId) || facturaId);
+        }
     });

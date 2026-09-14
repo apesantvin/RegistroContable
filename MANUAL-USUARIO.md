@@ -25,21 +25,24 @@ El botón "Volver a Inicio" del menú lateral te devuelve a esta pantalla de sel
 
 1. Ve a **Movimientos** y pulsa **+** (o el botón "Añadir Transacción").
 2. Elige el tipo: Gasto, Ingreso o Transferencia.
-3. Rellena importe, concepto, fecha y categoría (y subcategoría, si aplica).
+3. Rellena importe, concepto, fecha y categoría (y subcategoría, si aplica). Las categorías Luz, Gas, Agua, Basuras e Internet no aparecen aquí para un Gasto nuevo: se dan de alta desde la pestaña **Facturas** (ver §4).
 4. El "mes de referencia" se rellena solo a partir de la fecha, pero puedes cambiarlo.
-5. Guarda. Desde la lista de Movimientos puedes editar, duplicar o borrar cualquier apunte con los iconos de la fila.
+5. Guarda. Desde la lista de Movimientos puedes editar, duplicar o borrar cualquier apunte con los iconos de la fila (excepto los que pertenecen a una factura, marcados con 🧾: esos se editan desde Facturas).
 
-## 4. Facturas divididas en varios meses
+## 4. Facturas
 
-Si una factura (Luz, Gas, Agua, Basuras, Internet) cubre un periodo que cruza varios meses, en la pestaña **Facturas** pulsa **"+ Nueva factura"**:
+Todo gasto de Luz, Gas, Agua, Basuras o Internet se da de alta como **factura**, aunque
+cubra un solo mes: en la pestaña **Facturas** pulsa **"+ Nueva factura"**.
 
 - **Por número de meses**: indicas el importe total, cuántos meses y el mes de inicio; se reparte a partes iguales.
 - **Por rango de fechas**: indicas fecha de inicio y fin; el importe se reparte según los días que caen en cada mes.
+- **Fecha de cobro**: si la dejas vacía, la factura se guarda como **pendiente de pago** y no genera ningún movimiento todavía. En cuanto sabes cuándo se ha cobrado, edita la factura (✏️ en la vista "Por factura") e indica su fecha de cobro: en ese momento se crean automáticamente los movimientos de Gasto (uno por mes).
+- Editar una factura ya cobrada (importe, meses, fecha de cobro...) borra y regenera sus movimientos con los datos nuevos. Eliminar una factura elimina también sus movimientos.
 
-Esto crea automáticamente un movimiento de Gasto por cada mes, enlazados entre sí. En la pestaña Facturas puedes ver, por categoría:
-- **Tabla**: gasto de cada mes y si está "Completo" (ya se ha registrado el recibo del mes siguiente, o hay 2+ gastos ese mes), "Incompleto" o "Sin registrar".
+En la pestaña Facturas puedes ver, por categoría:
+- **Tabla**: gasto de cada mes ya cobrado y si está "Completo" (ya se ha registrado el recibo del mes siguiente, o hay 2+ gastos ese mes), "Incompleto" o "Sin registrar".
 - **Gráfico**: evolución mensual del gasto (solo meses completos).
-- **Por factura**: cada factura dada de alta, con su desglose de meses.
+- **Por factura** (🧾): cada factura dada de alta, con su fecha de creación, importe, estado ("Pendiente de pago" / "Pagada") y desglose de meses; desde aquí se edita (✏️) o elimina (🗑️).
 
 ## 5. Sobres / Cuentas (saldo por categoría)
 

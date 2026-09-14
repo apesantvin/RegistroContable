@@ -8,6 +8,7 @@ function validateLocalJSON(data) {
     if (!Array.isArray(data.subcategorias)) data.subcategorias = [];
     if (!Array.isArray(data.presupuestos)) data.presupuestos = [];
     if (!Array.isArray(data.movimientos)) data.movimientos = [];
+    if (!Array.isArray(data.facturas)) data.facturas = [];
     return true;
 }
 
@@ -32,6 +33,7 @@ function handleLocalFileSelected(file) {
                 state.subcategorias = data.subcategorias || [];
                 state.presupuestos = data.presupuestos || [];
                 state.movimientos = data.movimientos || [];
+                state.facturas = data.facturas || [];
                 saveLocalCache();
                 DOM.modalApiSetup.classList.add('hidden');
                 showAppInterface();
@@ -99,6 +101,7 @@ function loadDefaultLocalStructure() {
     ];
     state.presupuestos = [];
     state.movimientos = [];
+    state.facturas = [];
 }
 
 function saveLocalCache() {
@@ -106,7 +109,8 @@ function saveLocalCache() {
         categorias: state.categorias,
         subcategorias: state.subcategorias,
         presupuestos: state.presupuestos,
-        movimientos: state.movimientos
+        movimientos: state.movimientos,
+        facturas: state.facturas
     }));
 }
 
@@ -137,7 +141,8 @@ function downloadLocalDB() {
         categorias: state.categorias,
         subcategorias: state.subcategorias,
         presupuestos: state.presupuestos,
-        movimientos: state.movimientos
+        movimientos: state.movimientos,
+        facturas: state.facturas
     };
     const blob = new Blob([JSON.stringify(dbData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -172,7 +177,8 @@ function checkLocalCache() {
                     state.subcategorias = data.subcategorias || [];
                     state.presupuestos = data.presupuestos || [];
                     state.movimientos = data.movimientos || [];
-                    
+                    state.facturas = data.facturas || [];
+
                     showAppInterface();
                     updateLocalModeUI();
                     populateSelectors();
@@ -241,6 +247,7 @@ function loadDemoData() {
     ];
 
     state.movimientos = [];
+    state.facturas = [];
     let mId = 1;
     const prevYear = currentYear - 1;
 
@@ -372,6 +379,31 @@ function handleDemoWriteAction(action, data) {
         const id = state.subcategorias.length + 1;
         state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true, excluida_dashboard: false });
         return { success: true, id, message: "Subcategoria creada (Demo)" };
+    } else if (action === 'factura') {
+        const id = state.facturas.length > 0 ? Math.max(...state.facturas.map(f => f.id)) + 1 : 1;
+        state.facturas.push({ id, categoriaId: Number(data.categoriaId), subcategoriaId: data.subcategoriaId || null, concepto: data.concepto, importe_total: Number(data.importe_total), fecha_creacion: data.fecha_creacion, fecha_cobro: data.fecha_cobro || null, fecha_consumo_inicio: data.fecha_consumo_inicio, fecha_consumo_fin: data.fecha_consumo_fin, reparto: data.reparto || [] });
+        return { success: true, id, message: "Factura creada (Demo)" };
+    } else if (action === 'editar_factura') {
+        const idx = state.facturas.findIndex(f => f.id == data.id);
+        if (idx !== -1) {
+            if (data.categoriaId !== undefined) state.facturas[idx].categoriaId = Number(data.categoriaId);
+            if (data.subcategoriaId !== undefined) state.facturas[idx].subcategoriaId = data.subcategoriaId || null;
+            if (data.concepto !== undefined) state.facturas[idx].concepto = data.concepto;
+            if (data.importe_total !== undefined) state.facturas[idx].importe_total = Number(data.importe_total);
+            if (data.fecha_creacion !== undefined) state.facturas[idx].fecha_creacion = data.fecha_creacion;
+            if (data.fecha_cobro !== undefined) state.facturas[idx].fecha_cobro = data.fecha_cobro || null;
+            if (data.fecha_consumo_inicio !== undefined) state.facturas[idx].fecha_consumo_inicio = data.fecha_consumo_inicio;
+            if (data.fecha_consumo_fin !== undefined) state.facturas[idx].fecha_consumo_fin = data.fecha_consumo_fin;
+            if (data.reparto !== undefined) state.facturas[idx].reparto = data.reparto;
+            return { success: true, message: "Factura editada (Demo)" };
+        }
+        return { success: false, error: 'Factura no encontrada' };
+    } else if (action === 'eliminar_factura') {
+        state.facturas = state.facturas.filter(f => f.id != data.id);
+        return { success: true, message: "Factura eliminada (Demo)" };
+    } else if (action === 'eliminar_movimientos_por_factura') {
+        state.movimientos = state.movimientos.filter(m => m.facturaId != data.facturaId);
+        return { success: true, message: "Movimientos de la factura eliminados (Demo)" };
     }
     return { success: false, error: 'Accion demo no contemplada' };
 }
@@ -481,6 +513,35 @@ function handleLocalWriteAction(action, data) {
         state.subcategorias.push({ id, categoriaId: data.categoriaId, nombre: data.nombre, icono: data.icono, activa: true, excluida_dashboard: false });
         saveLocalCache();
         return { success: true, id, message: "Subcategoria creada localmente" };
+    } else if (action === 'factura') {
+        const id = state.facturas.length > 0 ? Math.max(...state.facturas.map(f => f.id)) + 1 : 1;
+        state.facturas.push({ id, categoriaId: Number(data.categoriaId), subcategoriaId: data.subcategoriaId || null, concepto: data.concepto, importe_total: Number(data.importe_total), fecha_creacion: data.fecha_creacion, fecha_cobro: data.fecha_cobro || null, fecha_consumo_inicio: data.fecha_consumo_inicio, fecha_consumo_fin: data.fecha_consumo_fin, reparto: data.reparto || [] });
+        saveLocalCache();
+        return { success: true, id, message: "Factura guardada localmente" };
+    } else if (action === 'editar_factura') {
+        const idx = state.facturas.findIndex(f => f.id == data.id);
+        if (idx !== -1) {
+            if (data.categoriaId !== undefined) state.facturas[idx].categoriaId = Number(data.categoriaId);
+            if (data.subcategoriaId !== undefined) state.facturas[idx].subcategoriaId = data.subcategoriaId || null;
+            if (data.concepto !== undefined) state.facturas[idx].concepto = data.concepto;
+            if (data.importe_total !== undefined) state.facturas[idx].importe_total = Number(data.importe_total);
+            if (data.fecha_creacion !== undefined) state.facturas[idx].fecha_creacion = data.fecha_creacion;
+            if (data.fecha_cobro !== undefined) state.facturas[idx].fecha_cobro = data.fecha_cobro || null;
+            if (data.fecha_consumo_inicio !== undefined) state.facturas[idx].fecha_consumo_inicio = data.fecha_consumo_inicio;
+            if (data.fecha_consumo_fin !== undefined) state.facturas[idx].fecha_consumo_fin = data.fecha_consumo_fin;
+            if (data.reparto !== undefined) state.facturas[idx].reparto = data.reparto;
+            saveLocalCache();
+            return { success: true, message: "Factura editada localmente" };
+        }
+        return { success: false, error: 'Factura no encontrada' };
+    } else if (action === 'eliminar_factura') {
+        state.facturas = state.facturas.filter(f => f.id != data.id);
+        saveLocalCache();
+        return { success: true, message: "Factura eliminada localmente" };
+    } else if (action === 'eliminar_movimientos_por_factura') {
+        state.movimientos = state.movimientos.filter(m => m.facturaId != data.facturaId);
+        saveLocalCache();
+        return { success: true, message: "Movimientos de la factura eliminados localmente" };
     }
     return { success: false, error: 'Accion local no contemplada' };
 }
