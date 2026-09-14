@@ -1,4 +1,4 @@
-const CACHE_NAME = 'registro-contable-v2';
+const CACHE_NAME = 'registro-contable-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -15,6 +15,8 @@ const ASSETS_TO_CACHE = [
   './js/transactions.js',
   './js/event-handlers.js',
   './js/accounts.js',
+  './js/facturas.js',
+  './js/facturas-split.js',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap'
