@@ -15,6 +15,10 @@ function getFacturaYearData(categoriaId, year) {
         mv.tipo === 'GASTO' && parseInt(mv.categoriaId) === categoriaId
     );
 
+    const subcategoriasActivas = state.subcategorias.filter(sc =>
+        parseInt(sc.categoriaId) === categoriaId && sc.activa !== false
+    );
+
     const monthKey = (mv) => {
         const refDate = mv.fecha_referencia || mv.fecha;
         if (!refDate) return null;
@@ -37,19 +41,31 @@ function getFacturaYearData(categoriaId, year) {
 
         const nextMonth = m === 12 ? 1 : m + 1;
         const nextYear = m === 12 ? year + 1 : year;
-        const nextHasRecord = gastosCat.some(mv => {
+        const inNextMonth = (mv) => {
             const k = monthKey(mv);
             return k && k.y === nextYear && k.m === nextMonth;
-        });
+        };
+        // Sin subcategorías basta un cobro en el mes siguiente; con subcategorías activas
+        // hace falta al menos un cobro en el mes siguiente en cada una de ellas.
+        const subIds = subcategoriasActivas.map(sc => sc.id);
+        const nextHasRecord = subIds.length === 0
+            ? gastosCat.some(inNextMonth)
+            : subIds.every(subId => gastosCat.some(mv => parseInt(mv.subcategoriaId) === subId && inNextMonth(mv)));
 
-        const completo = count >= 2 || nextHasRecord;
+        // Marca manual (por categoría completa): fuerza el mes a "completo" aunque no haya
+        // cobro en el mes siguiente, incluso si el mes no tiene ningún gasto registrado.
+        const manual = state.mesesCompletos.some(r =>
+            parseInt(r.categoriaId) === categoriaId && parseInt(r.anio) === year && parseInt(r.mes) === m
+        );
+
+        const completo = nextHasRecord || manual;
         let status = 'sin-registrar';
-        if (count > 0) status = completo ? 'completo' : 'incompleto';
+        if (count > 0 || manual) status = completo ? 'completo' : 'incompleto';
 
         const budgetObj = getEffectiveBudget(categoriaId, m, year);
         const budget = budgetObj ? parseFloat(budgetObj.presupuesto) : 0;
 
-        months.push({ m, total, count, completo, status, budget });
+        months.push({ m, total, count, completo, status, budget, manual, autoCompleto: nextHasRecord });
     }
 
     return months;
@@ -67,8 +83,8 @@ function getFacturasCompletenessByYear(year) {
     return flags;
 }
 
-function facturaStatusLabel(status) {
-    if (status === 'completo') return 'Completo';
+function facturaStatusLabel(status, manual = false) {
+    if (status === 'completo') return manual ? 'Completo <span class="factura-manual-icon" title="Marcado a mano">📌</span>' : 'Completo';
     if (status === 'incompleto') return 'Incompleto';
     return 'Sin registrar';
 }
@@ -101,14 +117,23 @@ function renderFacturas() {
         const months = getFacturaYearData(catId, year);
         const view = state.chartFilters.facturasViewMode[catId] || 'table';
 
-        const rows = months.map(({ m, total, status, budget }) => `
+        const rows = months.map(({ m, total, status, budget, manual, autoCompleto }) => {
+            // Se puede marcar/desmarcar a mano salvo que el mes ya sea completo por sí solo
+            // (cobro en el mes siguiente) y no tenga marca: ahí marcarlo no cambiaría nada.
+            const toggleable = manual || !autoCompleto;
+            const toggleTitle = manual ? 'Clic para quitar la marca manual' : 'Clic para marcar como completo';
+            const badgeAttrs = toggleable
+                ? ` factura-status-toggle" role="button" title="${toggleTitle}`
+                : '';
+            return `
             <div class="factura-month-row factura-status--${status}" data-cat-id="${catId}" data-year-month="${year}-${String(m).padStart(2, '0')}">
                 <span class="factura-month-name">${FACTURAS_MONTH_NAMES[m - 1]}</span>
                 <span class="factura-month-budget">${budget > 0 ? formatCurrency(budget) : '—'}</span>
                 <span class="factura-month-amount">${total > 0 ? formatCurrency(total) : '—'}</span>
-                <span class="factura-status-badge factura-status-badge--${status}">${facturaStatusLabel(status)}</span>
+                <span class="factura-status-badge factura-status-badge--${status}${badgeAttrs}">${facturaStatusLabel(status, manual)}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         return `
             <div class="card cuenta-card factura-card" data-cat-id="${catId}">
@@ -285,6 +310,7 @@ document.getElementById('screen-facturas')
 // Navigate to movimientos filtered by category + reference month on row click
 document.getElementById('screen-facturas')
     ?.addEventListener('click', e => {
+        if (e.target.closest('.factura-status-toggle')) return;
         const row = e.target.closest('.factura-month-row');
         if (!row) return;
 
@@ -300,6 +326,36 @@ document.getElementById('screen-facturas')
         DOM.filterFechaHasta.value = '';
 
         window.location.hash = '#movimientos';
+    });
+
+// Marcar / desmarcar a mano un mes como completo (por categoría completa)
+async function toggleMesCompleto(categoriaId, year, month) {
+    const existing = state.mesesCompletos.find(r =>
+        parseInt(r.categoriaId) === categoriaId && parseInt(r.anio) === year && parseInt(r.mes) === month
+    );
+
+    const res = existing
+        ? await apiRequest('quitar_mes_completo', 'POST', { id: existing.id })
+        : await apiRequest('mes_completo', 'POST', { categoriaId, anio: year, mes: month });
+    if (!res || res.success === false) return;
+
+    // En Demo/Local el handler ya ha actualizado state.mesesCompletos; con Supabase se recarga
+    if (!state.isDemoMode && !state.isLocalMode) {
+        const rows = await apiRequest('facturas_meses_completos', 'GET', null, true);
+        if (rows) state.mesesCompletos = rows;
+    }
+    renderFacturas();
+}
+
+document.getElementById('screen-facturas')
+    ?.addEventListener('click', e => {
+        const badge = e.target.closest('.factura-status-toggle');
+        if (!badge) return;
+
+        const row = badge.closest('.factura-month-row');
+        const catId = parseInt(row.getAttribute('data-cat-id'));
+        const [year, month] = row.getAttribute('data-year-month').split('-').map(Number);
+        toggleMesCompleto(catId, year, month);
     });
 
 // Expandir/colapsar el desglose de una factura, en la vista "por factura"

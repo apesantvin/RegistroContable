@@ -40,7 +40,8 @@ cubra un solo mes: en la pestaña **Facturas** pulsa **"+ Nueva factura"**.
 - Editar una factura ya cobrada (importe, meses, fecha de cobro...) borra y regenera sus movimientos con los datos nuevos. Eliminar una factura elimina también sus movimientos.
 
 En la pestaña Facturas puedes ver, por categoría:
-- **Tabla**: gasto de cada mes ya cobrado y si está "Completo" (ya se ha registrado el recibo del mes siguiente, o hay 2+ gastos ese mes), "Incompleto" o "Sin registrar".
+- **Tabla**: gasto de cada mes ya cobrado y si está "Completo" (ya se ha registrado el recibo del mes siguiente; si la categoría tiene subcategorías, en todas ellas), "Incompleto" o "Sin registrar".
+- **Marcar a mano**: haz clic en la etiqueta de estado de un mes para marcarlo como completo (aparece "Completo 📌"); vuelve a hacer clic para quitar la marca. Vale para toda la categoría.
 - **Gráfico**: evolución mensual del gasto (solo meses completos).
 - **Por factura** (🧾): cada factura dada de alta, con su fecha de creación, importe, estado ("Pendiente de pago" / "Pagada") y desglose de meses; desde aquí se edita (✏️) o elimina (🗑️).
 

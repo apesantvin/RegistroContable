@@ -59,6 +59,7 @@ const state = {
     presupuestos: [],
     movimientos: [],
     facturas: [],
+    mesesCompletos: [],
     charts: {
         ingresosGastos: null,
         categorias: null,

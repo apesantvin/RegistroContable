@@ -9,6 +9,7 @@ function validateLocalJSON(data) {
     if (!Array.isArray(data.presupuestos)) data.presupuestos = [];
     if (!Array.isArray(data.movimientos)) data.movimientos = [];
     if (!Array.isArray(data.facturas)) data.facturas = [];
+    if (!Array.isArray(data.mesesCompletos)) data.mesesCompletos = [];
     return true;
 }
 
@@ -34,6 +35,7 @@ function handleLocalFileSelected(file) {
                 state.presupuestos = data.presupuestos || [];
                 state.movimientos = data.movimientos || [];
                 state.facturas = data.facturas || [];
+                state.mesesCompletos = data.mesesCompletos || [];
                 saveLocalCache();
                 DOM.modalApiSetup.classList.add('hidden');
                 showAppInterface();
@@ -102,6 +104,7 @@ function loadDefaultLocalStructure() {
     state.presupuestos = [];
     state.movimientos = [];
     state.facturas = [];
+    state.mesesCompletos = [];
 }
 
 function saveLocalCache() {
@@ -110,7 +113,8 @@ function saveLocalCache() {
         subcategorias: state.subcategorias,
         presupuestos: state.presupuestos,
         movimientos: state.movimientos,
-        facturas: state.facturas
+        facturas: state.facturas,
+        mesesCompletos: state.mesesCompletos
     }));
 }
 
@@ -142,7 +146,8 @@ function downloadLocalDB() {
         subcategorias: state.subcategorias,
         presupuestos: state.presupuestos,
         movimientos: state.movimientos,
-        facturas: state.facturas
+        facturas: state.facturas,
+        mesesCompletos: state.mesesCompletos
     };
     const blob = new Blob([JSON.stringify(dbData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -178,6 +183,7 @@ function checkLocalCache() {
                     state.presupuestos = data.presupuestos || [];
                     state.movimientos = data.movimientos || [];
                     state.facturas = data.facturas || [];
+                    state.mesesCompletos = data.mesesCompletos || [];
 
                     showAppInterface();
                     updateLocalModeUI();
@@ -248,6 +254,7 @@ function loadDemoData() {
 
     state.movimientos = [];
     state.facturas = [];
+    state.mesesCompletos = [];
     let mId = 1;
     const prevYear = currentYear - 1;
 
@@ -404,6 +411,13 @@ function handleDemoWriteAction(action, data) {
     } else if (action === 'eliminar_movimientos_por_factura') {
         state.movimientos = state.movimientos.filter(m => m.facturaId != data.facturaId);
         return { success: true, message: "Movimientos de la factura eliminados (Demo)" };
+    } else if (action === 'mes_completo') {
+        const id = state.mesesCompletos.length > 0 ? Math.max(...state.mesesCompletos.map(r => r.id)) + 1 : 1;
+        state.mesesCompletos.push({ id, categoriaId: Number(data.categoriaId), anio: Number(data.anio), mes: Number(data.mes) });
+        return { success: true, id, message: "Mes marcado como completo (Demo)" };
+    } else if (action === 'quitar_mes_completo') {
+        state.mesesCompletos = state.mesesCompletos.filter(r => r.id != data.id);
+        return { success: true, message: "Marca de mes completo eliminada (Demo)" };
     }
     return { success: false, error: 'Accion demo no contemplada' };
 }
@@ -542,6 +556,15 @@ function handleLocalWriteAction(action, data) {
         state.movimientos = state.movimientos.filter(m => m.facturaId != data.facturaId);
         saveLocalCache();
         return { success: true, message: "Movimientos de la factura eliminados localmente" };
+    } else if (action === 'mes_completo') {
+        const id = state.mesesCompletos.length > 0 ? Math.max(...state.mesesCompletos.map(r => r.id)) + 1 : 1;
+        state.mesesCompletos.push({ id, categoriaId: Number(data.categoriaId), anio: Number(data.anio), mes: Number(data.mes) });
+        saveLocalCache();
+        return { success: true, id, message: "Mes marcado como completo localmente" };
+    } else if (action === 'quitar_mes_completo') {
+        state.mesesCompletos = state.mesesCompletos.filter(r => r.id != data.id);
+        saveLocalCache();
+        return { success: true, message: "Marca de mes completo eliminada localmente" };
     }
     return { success: false, error: 'Accion local no contemplada' };
 }

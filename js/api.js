@@ -223,6 +223,18 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
             } else if (actionName === 'eliminar_factura') {
                 options.method = 'DELETE';
                 url += `/rest/v1/facturas?id=eq.${data.id}`;
+            } else if (actionName === 'mes_completo') {
+                options.method = 'POST';
+                url += '/rest/v1/facturas_meses_completos';
+                options.headers['Prefer'] = 'return=representation';
+                options.body = JSON.stringify({
+                    categoriaId: Number(data.categoriaId),
+                    anio: Number(data.anio),
+                    mes: Number(data.mes)
+                });
+            } else if (actionName === 'quitar_mes_completo') {
+                options.method = 'DELETE';
+                url += `/rest/v1/facturas_meses_completos?id=eq.${data.id}`;
             } else if (actionName === 'eliminar_movimientos_por_factura') {
                 options.method = 'DELETE';
                 url += `/rest/v1/movimientos?facturaId=eq.${data.facturaId}`;
@@ -252,7 +264,7 @@ async function apiRequest(action, method = 'GET', data = null, isBackground = fa
             }
         }
 
-        if (method === 'POST' && (action === 'movimiento' || action === 'transferencia' || action === 'categoria' || action === 'subcategoria' || action === 'factura')) {
+        if (method === 'POST' && (action === 'movimiento' || action === 'transferencia' || action === 'categoria' || action === 'subcategoria' || action === 'factura' || action === 'mes_completo')) {
             if (Array.isArray(json) && json.length > 0) {
                 return { success: true, id: json[0].id };
             }
@@ -327,7 +339,11 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
                 state.movimientos = allTimeLightMovs;
                 state.allTimeMovsCache = allTimeLightMovs;
                 rebuildIndex();
-                
+
+                // Marcas manuales de "mes completo" (en segundo plano: si la tabla aún no existe, se ignora)
+                const mesesCompletos = await apiRequest('facturas_meses_completos', 'GET', null, true);
+                if (mesesCompletos) state.mesesCompletos = mesesCompletos;
+
                 populateSelectors();
                 updateDashboardMetrics();
                 recreateCharts();
@@ -362,6 +378,8 @@ async function syncScreenData(screenId, isBackground = false, forceRefresh = fal
             if (facturas) {
                 state.facturas = facturas;
             }
+            const mesesCompletos = await apiRequest('facturas_meses_completos', 'GET', null, true);
+            if (mesesCompletos) state.mesesCompletos = mesesCompletos;
             renderFacturas();
             state.loadedScreens.facturas = true;
         } else if (cleanId === 'configuracion') {

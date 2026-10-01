@@ -3044,6 +3044,19 @@ body:not(.dark-mode) .automation-item:hover {
     color: var(--text-muted);
 }
 
+.factura-status-toggle {
+    cursor: pointer;
+}
+
+.factura-status-toggle:hover {
+    filter: brightness(0.92);
+}
+
+.factura-manual-icon {
+    font-size: 9px;
+    opacity: 0.8;
+}
+
 .factura-split-preview {
     margin-top: 16px;
     border: 1px solid var(--border-color);
