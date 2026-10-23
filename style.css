@@ -1488,6 +1488,36 @@ body:not(.dark-mode) .loading-overlay {
     font-weight: 500;
 }
 
+.pagination-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 24px;
+}
+
+.pagination-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 16px;
+}
+
+.summary-item {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.summary-label::after { content: ':'; }
+
+.summary-value { font-weight: 700; white-space: nowrap; }
+.summary-value.positive { color: var(--success); }
+.summary-value.negative { color: var(--danger); }
+
+@media (max-width: 480px) {
+    .pagination-info { padding: 12px 12px 0; }
+}
+
 .pagination-controls {
     display: flex;
     align-items: center;

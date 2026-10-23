@@ -54,6 +54,7 @@ async function applyMovementsFilters(resetPage = true) {
 
         filtered.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id - a.id);
         state.filteredMovimientos = filtered;
+        state.filteredMovimientosTotal = sumMovimientos(filtered);
         renderMovementsPage();
         return;
     }
@@ -62,12 +63,7 @@ async function applyMovementsFilters(resetPage = true) {
     if (!state.apiUrl) return;
 
     try {
-        let actionPath = 'custom:/rest/v1/movimientos?select=*';
-        actionPath += '&order=fecha.desc,id.desc';
-
-        const limit = state.itemsPerPage;
-        const offset = (state.currentPage - 1) * state.itemsPerPage;
-        actionPath += `&limit=${limit}&offset=${offset}`;
+        let actionPath = '';
 
         const fechaDesde = DOM.filterFechaDesde.value;
         const fechaHasta = DOM.filterFechaHasta.value;
@@ -100,12 +96,18 @@ async function applyMovementsFilters(resetPage = true) {
             actionPath += `&concepto=ilike.*${encodeURIComponent(query)}*`;
         }
 
+        const limit = state.itemsPerPage;
+        const offset = (state.currentPage - 1) * state.itemsPerPage;
+        const pagePath = `custom:/rest/v1/movimientos?select=*&order=fecha.desc,id.desc&limit=${limit}&offset=${offset}${actionPath}`;
+        const totalPath = `custom:/rest/v1/movimientos?select=tipo,importe&limit=100000${actionPath}`;
+
         const needsAllTimeCache = !state.allTimeMovsCache;
-        const [pageMovs, allTimeLightMovs] = await Promise.all([
-            apiRequest(actionPath, 'GET'),
+        const [pageMovs, allTimeLightMovs, totalMovs] = await Promise.all([
+            apiRequest(pagePath, 'GET'),
             needsAllTimeCache
                 ? apiRequest('custom:/rest/v1/movimientos?select=id,fecha,fecha_referencia,tipo,importe,categoriaId,subcategoriaId,categoriaOrigenId,categoriaDestinoId', 'GET', null, true)
-                : Promise.resolve(null)
+                : Promise.resolve(null),
+            apiRequest(totalPath, 'GET', null, true)
         ]);
 
         if (needsAllTimeCache && allTimeLightMovs) {
@@ -113,12 +115,25 @@ async function applyMovementsFilters(resetPage = true) {
         }
 
         if (pageMovs) {
+            state.filteredMovimientosTotal = totalMovs ? sumMovimientos(totalMovs) : null;
             state.filteredMovimientos = pageMovs;
             renderMovementsPage();
         }
     } catch (err) {
         console.error('Error fetching movements page:', err);
     }
+}
+
+// Totales de los movimientos: INGRESO suma, GASTO resta, TRANSFERENCIA no cuenta.
+function sumMovimientos(movs) {
+    const res = { ingresos: 0, gastos: 0, total: 0 };
+    movs.forEach(m => {
+        const val = parseFloat(m.importe) || 0;
+        if (m.tipo === 'INGRESO') res.ingresos += val;
+        else if (m.tipo === 'GASTO') res.gastos += val;
+    });
+    res.total = res.ingresos - res.gastos;
+    return res;
 }
 
 function renderMovementsPage() {
@@ -144,6 +159,12 @@ function renderMovementsPage() {
 
     if (total > 0) {
         DOM.paginationCountText.textContent = `Mostrando ${start + 1}–${end} de ${total} movimientos`;
+        const sum = state.filteredMovimientosTotal;
+        DOM.paginationSummary.innerHTML = sum ? `
+            <div class="summary-item"><span class="summary-label">Ingresos</span><span class="summary-value positive">${formatCurrency(sum.ingresos)}</span></div>
+            <div class="summary-item"><span class="summary-label">Gastos</span><span class="summary-value negative">${formatCurrency(sum.gastos)}</span></div>
+            <div class="summary-item"><span class="summary-label">Total</span><span class="summary-value ${sum.total < 0 ? 'negative' : 'positive'}">${formatCurrency(sum.total)}</span></div>
+        ` : '';
         DOM.paginationInfo.classList.remove('hidden');
     } else {
         DOM.paginationInfo.classList.add('hidden');

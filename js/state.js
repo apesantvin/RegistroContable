@@ -163,6 +163,7 @@ const DOM = {
     btnPageNext: document.getElementById('btn-page-next'),
     paginationInfo: document.getElementById('pagination-info'),
     paginationCountText: document.getElementById('pagination-count-text'),
+    paginationSummary: document.getElementById('pagination-summary'),
     
     // Transaction screen
     formMovimiento: document.getElementById('form-movimiento'),
